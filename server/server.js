@@ -58,7 +58,7 @@ async function start() {
     await connectDB()
     app.listen(PORT, () => {
       console.log(`PetSociety API listening on http://localhost:${PORT}`)
-      console.log('Connected to DB:', mongoose.connection.name, 'on', mongoose.connection.host) // checking which collection
+      console.log('Connected to DB ✅:', mongoose.connection.name, 'on', mongoose.connection.host) // checking which collection
     })
   } catch (err) {
     console.error('Failed to start server:', err.message)
