@@ -7,6 +7,7 @@ import session from 'express-session'
 import petRoutes from './src/routes/petRoutes.js'
 import authRoutes from './src/routes/authRoute.js'
 import errorHandler from './src/middleware/errorHandler.js'
+import bookingRoutes from './src/routes/bookingRoute.js'
 import mongoose from 'mongoose'
 
 if (!process.env.SESSION_SECRET){
@@ -43,6 +44,7 @@ app.get('/api/health', (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use('/api/pets', petRoutes)
+app.use('/api/bookings', bookingRoutes)
 
 // Fallback 404 for unmatched API routes
 app.use('/api', (req, res) => {

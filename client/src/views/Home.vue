@@ -11,12 +11,11 @@ import { currentUser } from "../services/auth.js";
       <h1 v-else class="display-5 fw-bold">Welcome to Pet Society🐾</h1>
 
       <p class="col-md-8 fs-5">
-        A community platform for pet lovers &mdash; find, list, and connect
+        A community platform for pet lovers - find, list, and connect
         over pets that need a home. 
       </p>
-      <router-link class="btn btn-primary btn-lg" to="/pets">
-        Browse Pets
-      </router-link>
+    <router-link v-if="isOwner" class="btn btn-primary btn-lg" to="/pets">My Pets</router-link>
+    <router-link v-else-if="!currentUser" class="btn btn-primary btn-lg" to="/register">Get Started</router-link>
     </div>
   </div>
 </template>

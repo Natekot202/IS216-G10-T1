@@ -1,4 +1,4 @@
-import Pet from '../models/Pet.js'
+import Pet from '../models/petModel.js'
 
 export async function getPets(req, res) {
   const pets = await Pet.find().sort({ createdAt: -1 })
