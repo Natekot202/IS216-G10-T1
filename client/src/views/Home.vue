@@ -14,8 +14,14 @@ import { currentUser } from "../services/auth.js";
         A community platform for pet lovers &mdash; find, list, and connect
         over pets that need a home. 
       </p>
-      <router-link class="btn btn-primary btn-lg" to="/pets">
+      <router-link v-if='!currentUser' class="btn btn-primary btn-lg" to="/login">
+        Get Started
+      </router-link>
+      <router-link v-else-if="currentUser.role === 'owner'" class="btn btn-primary btn-lg" to="/pets">
         Browse Pets
+      </router-link>
+      <router-link v-else-if="currentUser.role === 'sitter'" class="btn btn-primary btn-lg" to="/">
+        See Schedule
       </router-link>
     </div>
   </div>

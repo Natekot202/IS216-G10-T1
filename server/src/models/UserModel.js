@@ -32,11 +32,11 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-userSchema.statics.createUser = function(newUser) {
-  return this.create(newUser);
-};
+// userSchema.statics.createUser = function(newUser) {
+//   return this.create(newUser);
+// };
 
-userSchema.statics.getUserByEmail = function (email) {
+userSchema.statics.getUserByEmail = function(email) {
   return this.findOne({ email });
 };
 

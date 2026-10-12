@@ -33,9 +33,12 @@ async function handleLogout() {
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto">
           <li v-if="!hideElem" class="nav-item">
-            <router-link class="nav-link" to="/">Home</router-link>
+            <router-link class="nav-link" to="/profile">Profile</router-link>
           </li>
           <li v-if="!hideElem" class="nav-item">
+            <router-link class="nav-link" to="/">Home</router-link>
+          </li>
+          <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
             <router-link class="nav-link" to="/pets">Pets</router-link>
           </li>
           <li v-if="!currentUser && !hideElem" class="nav-item">

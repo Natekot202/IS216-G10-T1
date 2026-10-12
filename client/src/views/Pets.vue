@@ -22,8 +22,7 @@ async function loadPets() {
   try {
     pets.value = await petsApi.getAll()
   } catch (err) {
-    error.value =
-      'Could not reach the API. Is the Express server running on the expected port?'
+    error.value = err.response?.data?.message || 'Could not load pet.'
     console.error(err)
   } finally {
     loading.value = false
@@ -31,7 +30,10 @@ async function loadPets() {
 }
 
 async function addPet() {
-  if (!form.name || !form.species) return
+  if (!form.name || !form.species) {
+    return
+  }
+  error.value = ''
   submitting.value = true
   try {
     const payload = { ...form, age: form.age ? Number(form.age) : undefined }
@@ -39,7 +41,7 @@ async function addPet() {
     pets.value.unshift(created)
     Object.assign(form, { name: '', species: '', breed: '', age: '', description: '' })
   } catch (err) {
-    error.value = 'Could not add pet.'
+    error.value = err.response?.data?.message || 'Could not add pet.'
     console.error(err)
   } finally {
     submitting.value = false
@@ -48,6 +50,7 @@ async function addPet() {
 
 async function deletePet(id) {
   try {
+    error.value = ''
     await petsApi.remove(id)
     pets.value = pets.value.filter((p) => p._id !== id)
   } catch (err) {
