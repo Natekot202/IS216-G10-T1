@@ -88,11 +88,16 @@ export const postLogin = async (req, res) => {
   }
 };
 
-export const me = (req, res) => {
+export const me = async (req, res) => {
   if (!req.session.userId) {
     return res.status(401).json({ message: "Not logged in" });
     }
-  res.json({ id: req.session.userId, username: req.session.username, role: req.session.role });
+  const user = await User.findById(req.session.userId).select('-password');
+  res.json({ id: user._id, username: user.username, role: user.role, bio: user.bio });
+  // if (!user){
+  //   return res.status(401).json({ message: "Not logged in" });
+  // }
+  // res.json(user); // to return all
 };
 
 export const logout = (req, res) => {
