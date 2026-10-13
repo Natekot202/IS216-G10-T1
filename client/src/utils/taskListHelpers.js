@@ -121,3 +121,24 @@ export function findTasklist(bookingId, { sitterView = false } = {}) {
     }),
   }
 }
+
+// task.petIds holds ids like 'p1', the booking's petIds holds { _id, name }
+export function petNamesFor(task, booking) {
+  return (task.petIds || [])
+    .map((id) => booking.petIds?.find((p) => p._id === id)?.name)
+    .filter(Boolean)
+    .join(', ')
+}
+
+export function scheduleText(task) {
+  if (task.times?.length) return task.times.join(', ')
+  if (task.dailyFrequency) return `${task.dailyFrequency}× a day, sitter chooses when`
+  return 'Sitter chooses when'
+}
+
+export function daysText(task) {
+  if (!task.days?.length) return 'Every day'
+  return task.days
+    .map((d) => new Date(d).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' }))
+    .join(', ')
+}

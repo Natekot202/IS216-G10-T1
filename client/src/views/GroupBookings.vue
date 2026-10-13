@@ -6,7 +6,6 @@ import BookingCard from '../components/BookingCard.vue'
 import { petNames, formatDateRange, sitterName, chosenBooking } from '../utils/bookingHelpers'
 
 import {sampleBookings} from '../sampleData/bookings.js'
-import {findTasklist, summariseTasks} from '../utils/taskListHelpers.js'
 
 const route = useRoute()
 const bookings = ref([])
@@ -20,23 +19,6 @@ loading.value = false;
 
 const first = computed(() => bookings.value[0])
 const chosen = computed(() => chosenBooking(bookings.value))
-
-// caches bookings with their summaries
-const bookingsWithSummaries = computed(() => {
-  return bookings.value.map(booking => {
-    const tasklist = findTasklist(booking._id)
-
-    const taskSummary = summariseTasks(
-      tasklist?.items ?? [],
-      booking
-    )
-
-    return {
-      ...booking,
-      taskSummary
-    }
-  })
-})
 
 /* 
 onMounted(async () => {
@@ -80,8 +62,8 @@ onMounted(async () => {
       </div>
 
       <div class="row row-cols-1 row-cols-md-2 g-3">
-        <div v-for="(b, index) in bookingsWithSummaries" :key="index" class="col">
-          <BookingCard :booking="b" :task-summary="b.taskSummary"/>
+        <div v-for="(b, index) in bookings" :key="index" class="col">
+          <BookingCard :booking="b"/>
         </div>
       </div>
     </template>
