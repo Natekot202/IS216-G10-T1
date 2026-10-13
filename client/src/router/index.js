@@ -7,6 +7,7 @@ import RegisterView from "../views/Register.vue";
 import ProfileView from "../views/Profile.vue";
 import OwnerHome from '../components/OwnerHome.vue'
 import RolePicker from '../components/RolePicker.vue'
+import BookingRequests from '../views/BookingRequests.vue'
 
 const routes = [
 { path: "/login", component: LoginView, meta : { hideElem: true } },
@@ -15,7 +16,8 @@ const routes = [
 { path: '/home', name: 'home', component: Home }, // logged in users
 { path: '/browse', component: OwnerHome }, // logged out users
 { path: '/pets', name: 'pets', component: Pets, meta: { role: 'owner' } },
-{ path: '/profile', name: 'profile', component: ProfileView}
+{ path: '/profile', name: 'profile', component: ProfileView},
+{ path: '/requests', name: 'sitter-requests', component: BookingRequests, meta: { role: 'sitter' } }
 ]
 
 const router = createRouter({
