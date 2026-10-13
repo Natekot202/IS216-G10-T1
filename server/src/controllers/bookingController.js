@@ -24,3 +24,36 @@ export const getMyBookings = async (req, res) => {
 
   res.json(bookings)
 }
+
+// PATCH /api/bookings/:id/status   body: { "status": "accepted" } or { "status": "declined" }
+export const updateBookingStatus = async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: 'Not logged in' })
+  }
+  if (req.session.role !== 'sitter') {
+    return res.status(403).json({ message: 'Only sitters can accept or decline bookings' })
+  }
+
+  const { status } = req.body
+  if (!['accepted', 'declined'].includes(status)) {
+    return res.status(400).json({ message: "Status must be 'accepted' or 'declined'" })
+  }
+
+  const booking = await Booking.findById(req.params.id)
+  if (!booking) {
+    return res.status(404).json({ message: 'Booking not found' })
+  }
+
+  if (String(booking.sitterId) !== String(req.session.userId)) {
+    return res.status(403).json({ message: 'This booking is not yours' })
+  }
+
+  if (booking.status !== 'pending') {
+    return res.status(400).json({ message: `Only pending bookings can be accepted or declined. This one is ${booking.status}.` })
+  }
+
+  booking.status = status
+  await booking.save()
+
+  res.json(booking)
+}

@@ -7,8 +7,8 @@ const petSchema = new mongoose.Schema(
     breed: { type: String, trim: true },
     age: { type: Number, min: 0 },
     description: { type: String, trim: true }
-  },
-  { timestamps: true }
+  }
+  // { timestamps: true }
 )
 
 export default mongoose.model('Pet', petSchema)
