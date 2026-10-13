@@ -6,8 +6,11 @@ import { currentUser, logout } from "../services/auth.js";
 
 const route = useRoute()
 const router = useRouter()
-const hideElem = computed(() => route.meta.hideElem === true)
 
+const hideElem = computed(() => route.meta.hideElem === true)
+const hideLinks = computed(() => route.meta.hideLinks === true)
+
+const searchLink = computed(() => (currentUser.value ? '/home' : '/browse'))
 const open = ref(false);
 
 watch(() => route.fullPath, () => { open.value = false; });
@@ -39,11 +42,23 @@ async function handleLogout() {
         :class="{ show: open }"
       >        
         <ul class="navbar-nav flex-md-column mb-md-auto">
-            <li v-if="!hideElem" class="nav-item">
-              <router-link class="nav-link" to="/">Home</router-link>
+            <li v-if="!hideElem && !hideLinks" class="nav-item">
+              <router-link class="nav-link" :to="searchLink">{{ currentUser?.role === 'sitter' ? 'Home' : 'Search Sitters' }}</router-link>
             </li>
-            <li v-if="!hideElem" class="nav-item">
-              <router-link class="nav-link" to="/profile">Profile</router-link>
+            <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
+              <router-link class="nav-link" to="#" active-class="" exact-active-class="">My Bookings</router-link>
+            </li>
+            <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
+              <router-link class="nav-link" to="#" active-class="" exact-active-class="">My Calendar</router-link>
+            </li>
+            <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
+              <router-link class="nav-link" to="#" active-class="" exact-active-class="">Booking Requests</router-link>
+            </li>
+            <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
+              <router-link class="nav-link" to="#" active-class="" exact-active-class="">My Reviews</router-link>
+            </li>
+            <li v-if="currentUser && !hideElem" class="nav-item">
+              <router-link class="nav-link" to="/profile"> My Profile</router-link>
             </li>
             <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
               <router-link class="nav-link" to="/pets">Pets</router-link>
