@@ -9,8 +9,10 @@ onMounted(fetchUser);
 </script>
 
 <template>
-  <NavBar />
-  <main class="container py-4">
-    <router-view />
-  </main>
+  <div class="app-layout">
+    <NavBar />
+    <main class="container py-4">
+      <router-view />
+    </main>
+  </div>
 </template>

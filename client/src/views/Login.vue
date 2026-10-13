@@ -34,7 +34,7 @@ async function submit() {
 <template>
   <div class="container" style="max-width: 420px">
     <h1 class="h3 mt-4">Log In</h1>
-    <p>Welcome back</p>
+    <p>We're excited to have you back.</p>
 
     <div v-if="message" class="alert alert-danger">
       <div> {{ message }} </div>
@@ -44,11 +44,12 @@ async function submit() {
       <!-- <input v-model="form.username" class="form-control mb-3" placeholder="Username" required /> -->
       <input v-model="form.email" type="email" class="form-control mb-3" placeholder="Email" required />
       <input v-model="form.password" type="password" class="form-control mb-3" placeholder="Password" required />
-      <button class="btn btn-primary w-100 mb-3">Log In</button>
+      <button class="btn w-100 mb-3 text-white" style="background-color:#c47756;">Log In</button>
     </form>
 
     <span> Don't have an account? </span>
-    <a href="../register" class="link-primary link-underline-opacity-100-hover">Create One</a>
+    <router-link class="link-primary link-underline-opacity-100-hover" to="/register">Create One</router-link>
+
 
   </div>
 </template>

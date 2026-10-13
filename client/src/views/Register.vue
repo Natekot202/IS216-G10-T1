@@ -52,11 +52,11 @@ async function submit() {
       <input v-model="form.email" type="email" class="form-control mb-3" placeholder="Email" required />
       <input v-model="form.password" type="password" class="form-control mb-3" placeholder="Password" required />
       <input v-model="form.confirmPassword" type="password" class="form-control mb-3" placeholder="Confirm password" required />
-      <button class="btn btn-primary w-100 mb-3">Sign up</button>
+      <button class="btn w-100 mb-3 text-white" style="background-color:#c47756;">Sign up</button>
     </form>
 
     <span> Already have an account? </span>
-    <a href="../login" class="link-primary link-underline-opacity-100-hover">Log In</a>
+    <router-link class="link-primary link-underline-opacity-100-hover" to="/login">Log In</router-link>
 
   </div>
 </template>

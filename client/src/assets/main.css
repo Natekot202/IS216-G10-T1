@@ -1,9 +1,47 @@
 /* Project-wide overrides on top of Bootstrap */
 
 body {
-  background-color: #f8f9fa;
+  background-color: #fff9f4;
 }
 
 .navbar-brand {
   font-weight: 600;
+}
+
+.brand-emoji {
+  color: transparent;
+  text-shadow: 0 0 0 #c44f1c;
+}
+
+.app-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100vh;
+}
+
+@media (max-width: 767px) {
+  .app-layout {
+    display: block;
+  }
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+  background-color: #2b2420;
+}
+.sidebar .nav-link.router-link-exact-active {
+  background: #c44f1c;
+  border-radius: 6px;
+}
+
+@media (min-width: 768px) {
+  .sidebar {
+    height: 100vh;
+  }
+  .sidebar > .container-fluid {
+    height: 100%;
+    padding: 16px;
+  }
 }

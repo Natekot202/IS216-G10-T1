@@ -4,7 +4,7 @@ import { petsApi } from '../services/api'
 import PetCard from '../components/PetCard.vue'
 
 const pets = ref([])
-const loading = ref(true)
+// const loading = ref(true)
 const error = ref('')
 const submitting = ref(false)
 
@@ -17,21 +17,24 @@ const form = reactive({
 })
 
 async function loadPets() {
-  loading.value = true
+  // loading.value = true
   error.value = ''
   try {
     pets.value = await petsApi.getAll()
   } catch (err) {
-    error.value =
-      'Could not reach the API. Is the Express server running on the expected port?'
+    error.value = err.response?.data?.message || 'Could not load pet.'
     console.error(err)
-  } finally {
-    loading.value = false
-  }
+  } 
+  // finally {
+  //   loading.value = false
+  // }
 }
 
 async function addPet() {
-  if (!form.name || !form.species) return
+  if (!form.name || !form.species) {
+    return
+  }
+  error.value = ''
   submitting.value = true
   try {
     const payload = { ...form, age: form.age ? Number(form.age) : undefined }
@@ -39,7 +42,7 @@ async function addPet() {
     pets.value.unshift(created)
     Object.assign(form, { name: '', species: '', breed: '', age: '', description: '' })
   } catch (err) {
-    error.value = 'Could not add pet.'
+    error.value = err.response?.data?.message || 'Could not add pet.'
     console.error(err)
   } finally {
     submitting.value = false
@@ -48,6 +51,7 @@ async function addPet() {
 
 async function deletePet(id) {
   try {
+    error.value = ''
     await petsApi.remove(id)
     pets.value = pets.value.filter((p) => p._id !== id)
   } catch (err) {
@@ -86,14 +90,14 @@ onMounted(loadPets)
       <input v-model="form.description" type="text" class="form-control" />
     </div>
     <div class="col-sm-1">
-      <button type="submit" class="btn btn-primary w-100" :disabled="submitting">
+      <button type="submit" class="btn text-white w-100" style="background-color:#c47756;" :disabled="submitting">
         Add
       </button>
     </div>
   </form>
 
-  <div v-if="loading" class="text-muted">Loading pets…</div>
-  <div v-else-if="!pets.length" class="text-muted">
+  <!-- <div v-if="loading" class="text-muted">Loading pets…</div> -->
+  <div v-if="!pets.length" class="text-muted">
     No pets yet &mdash; add the first one above.
   </div>
   <div v-else class="row g-3">
