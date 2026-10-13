@@ -1,19 +1,18 @@
 import { Router } from 'express'
+import { requireOwner } from '../middleware/authMiddleware.js'
 import {
   getPets,
-  getPetById,
+  // getPetById,
   createPet,
-  updatePet,
+  // updatePet,
   deletePet
 } from '../controllers/petController.js'
 import asyncHandler from '../middleware/asyncHandler.js'
 
 const router = Router()
 
-router.get('/', asyncHandler(getPets))
-router.get('/:id', asyncHandler(getPetById))
-router.post('/', asyncHandler(createPet))
-router.put('/:id', asyncHandler(updatePet))
-router.delete('/:id', asyncHandler(deletePet))
+router.get('/', requireOwner, asyncHandler(getPets))
+router.post('/', requireOwner, asyncHandler(createPet))
+router.delete('/:id', requireOwner, asyncHandler(deletePet))
 
 export default router
