@@ -6,16 +6,37 @@ import BookingCard from '../components/BookingCard.vue'
 import { petNames, formatDateRange, sitterName, chosenBooking } from '../utils/bookingHelpers'
 
 import {sampleBookings} from '../sampleData/bookings.js'
-import {sampleTasklists} from '../sampleData/taskLists.js'
-
+import {findTasklist, summariseTasks} from '../utils/taskListHelpers.js'
 
 const route = useRoute()
 const bookings = ref([])
 const loading = ref(true)
 const error = ref('')
 
+// Get rid of this part later
+bookings.value = sampleBookings;
+bookings.value = bookings.value.filter((b) => String(b.groupId) === route.params.groupId)
+loading.value = false;
+
 const first = computed(() => bookings.value[0])
 const chosen = computed(() => chosenBooking(bookings.value))
+
+// caches bookings with their summaries
+const bookingsWithSummaries = computed(() => {
+  return bookings.value.map(booking => {
+    const tasklist = findTasklist(booking._id)
+
+    const taskSummary = summariseTasks(
+      tasklist?.items ?? [],
+      booking
+    )
+
+    return {
+      ...booking,
+      taskSummary
+    }
+  })
+})
 
 /* 
 onMounted(async () => {
@@ -31,14 +52,7 @@ onMounted(async () => {
 })
 */
 // temporary bookings
-onMounted(()=>{
-bookings.value = sampleBookings;
-
-bookings.value = bookings.value.filter((b) => String(b.groupId) === route.params.groupId)
-loading.value = false;
-})
 </script>
-
 <template>
   <div class="container py-4">
     <router-link to="/owner/bookings" class="text-secondary text-decoration-none">&larr; Back to My Bookings</router-link>
@@ -66,8 +80,8 @@ loading.value = false;
       </div>
 
       <div class="row row-cols-1 row-cols-md-2 g-3">
-        <div v-for="b in bookings" :key="b._id" class="col">
-          <BookingCard :booking="b" />
+        <div v-for="(b, index) in bookingsWithSummaries" :key="index" class="col">
+          <BookingCard :booking="b" :task-summary="b.taskSummary"/>
         </div>
       </div>
     </template>

@@ -36,29 +36,102 @@ const photoSchema = new Schema(
 
 const taskSchema = new Schema(
   {
-    // --- short version: filled in when the request is sent, visible to sitters ---
-    category: { type: String, required: true, enum: CATEGORIES },
-    title: { type: String, required: true, trim: true },
-    petIds: [{ type: Schema.Types.ObjectId, ref: 'Pet' }],
-
-    // "HH:mm" local times. times.length is the number of visits per day.
-    times: {
-      type: [{ type: String, match: /^([01]\d|2[0-3]):[0-5]\d$/ }],
-      validate: [(v) => v.length > 0, 'A task needs at least one time']
+    // --- task type ---
+    category: {
+      type: String,
+      required: true,
+      enum: CATEGORIES
     },
 
-    // Empty = every day of the booking. Fill in only for one-off tasks (e.g. nail trim on one day).
-    days: [Date],
+    title: {
+      type: String,
+      required: true,
+      trim: true
+    },
 
-    requiresPhoto: { type: Boolean, default: false },
+    petIds: {
+      type: [{
+        type: Schema.Types.ObjectId,
+        ref: 'Pet',
+        required: true
+      }],
+      validate: {
+        validator: function (ids) {
+          return Array.isArray(ids) && ids.length >= 1
+        },
+        message: 'A task must be assigned to at least one pet'
+      }
+    },
 
-    // --- full details: owner can add any time before check-in, hidden from sitters until paid ---
-    instructions: { type: String, maxlength: 1000 },
-    ownerNote: { type: String, maxlength: 200 },
+    // --- frequency ---
+    // Number of times this task must be done per applicable day.
+    dailyFrequency: {
+      type: Number,
+      required: true,
+      min: 1,
+      validate: {
+        validator: Number.isInteger,
+        message: 'Daily frequency must be a whole number'
+      }
+    },
+
+    // --- scheduling ---
+    // Optional local times, e.g. ["08:00", "18:00"].
+    // If omitted, the sitter chooses when to perform the task.
+    times: {
+      type: [{
+        type: String,
+        match: /^([01]\d|2[0-3]):[0-5]\d$/
+      }],
+      default: undefined,
+      validate: {
+        validator: function (times) {
+          return (
+            !times ||
+            times.length === 0 ||
+            times.length === this.dailyFrequency
+          )
+        },
+        message:
+          'Number of scheduled times must match daily frequency'
+      }
+    },
+
+    // Empty = every day of the booking.
+    // Otherwise, the task applies only on the specified dates.
+    days: {
+      type: [Date],
+      default: []
+    },
+
+    requiresPhoto: {
+      type: Boolean,
+      default: false
+    },
+
+    // --- full details ---
+    instructions: {
+      type: String,
+      maxlength: 1000
+    },
+
     referencePhotos: [photoSchema]
   },
   { discriminatorKey: 'category' }
 )
+
+//---------- validation -----------
+taskSchema.pre('validate', function () {
+  if (
+    this.times?.length > 0 &&
+    this.times.length !== this.dailyFrequency
+  ) {
+    this.invalidate(
+      'times',
+      'Number of scheduled times must match daily frequency'
+    )
+  }
+})
 
 // ---------- tasklist (one per booking) ----------
 
