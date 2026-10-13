@@ -20,8 +20,13 @@ onMounted(loadPets)
 </script>
 
 <template>
-  <div class="container mt-4 mb-5" v-if="currentUser">
-    <h2> Your Profile </h2>
+  <div class="container mt-4 mb-5">
+    <div class="d-flex align-items-center gap-3">
+      <h2 class="mb-0">Your Profile</h2>
+      <router-link class="btn btn-sm text-white" style="background-color:#c47756;" to="/">
+        Edit
+      </router-link>
+    </div>
     <div class="row">
         <div class="col">
     <p
@@ -48,8 +53,4 @@ onMounted(loadPets)
     </div>
 
   </div>
-  <p v-else class="container my-4">
-    Want your own profile? 
-    <router-link to="/login">Log in here!</router-link>
-  </p>
 </template>
