@@ -2,11 +2,11 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { currentUser, fetchUser } from '../services/auth.js'
 import LoginView from "../views/Login.vue";
 import RegisterView from "../views/Register.vue";
+import Home from "../views/Home.vue"
 import ProfileView from "../views/Profile.vue";
 import Pets from '../views/Pets.vue';
 import MyBookings from '../views/MyBookings.vue'
 import GroupBookings from '../views/GroupBookings.vue';
-
 import OwnerHome from '../components/OwnerHome.vue'
 import RolePicker from '../components/RolePicker.vue'
 

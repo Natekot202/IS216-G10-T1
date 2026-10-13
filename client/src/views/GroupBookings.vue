@@ -6,7 +6,7 @@ import BookingCard from '../components/BookingCard.vue'
 import { petNames, formatDateRange, sitterName, chosenBooking } from '../utils/bookingHelpers'
 
 import {sampleBookings} from '../sampleData/bookings.js'
-import {sampleTasks} from '../sampleData/tasks.js'
+import {sampleTasklists} from '../sampleData/taskLists.js'
 
 
 const route = useRoute()
