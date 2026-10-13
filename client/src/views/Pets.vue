@@ -64,7 +64,7 @@ onMounted(loadPets)
 </script>
 
 <template>
-  <h2 class="mb-4">Pets</h2>
+  <h2 class="mb-4">My Pets</h2>
 
   <div v-if="error" class="alert alert-warning">{{ error }}</div>
 
