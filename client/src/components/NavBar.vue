@@ -46,7 +46,7 @@ async function handleLogout() {
               <router-link class="nav-link" :to="searchLink">{{ currentUser?.role === 'sitter' ? 'Home' : 'Search Sitters' }}</router-link>
             </li>
             <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
-              <router-link class="nav-link" to="#" active-class="" exact-active-class="">My Bookings</router-link>
+              <router-link class="nav-link" to="/bookings">My Bookings</router-link>
             </li>
             <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
               <router-link class="nav-link" to="#" active-class="" exact-active-class="">My Calendar</router-link>
