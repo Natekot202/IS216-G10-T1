@@ -42,7 +42,7 @@ async function clearOldSeed() {
   const oldIds = oldUsers.map((u) => u._id)
 
   await Booking.deleteMany({ $or: [{ ownerId: { $in: oldIds } }, { sitterId: { $in: oldIds } }] })
-  await Pet.deleteMany({ description: { $regex: '^\\[seed\\]' } })
+  await Pet.deleteMany({ owner: { $in: oldIds } })
   await User.deleteMany({ _id: { $in: oldIds } })
 }
 
@@ -65,8 +65,8 @@ async function seed() {
     role: 'sitter'
   })
 
-  const mochi = await Pet.create({ name: 'Mochi', species: 'Dog', breed: 'Shiba Inu', age: 3, description: `${SEED_TAG} owned by Seed Owner` })
-  const luna = await Pet.create({ name: 'Luna', species: 'Cat', breed: 'British Shorthair', age: 2, description: `${SEED_TAG} owned by Seed Owner` })
+const mochi = await Pet.create({ owner: owner._id, name: 'Mochi', species: 'Dog', breed: 'Shiba Inu', age: 3, description: 'Friendly, loves walks' })
+const luna = await Pet.create({ owner: owner._id, name: 'Luna', species: 'Cat', breed: 'British Shorthair', age: 2, description: 'Shy at first' })
 
   await Booking.insertMany([
     makeBooking(owner, sitter, [mochi._id], 10, 3, 'pending', 'New request: 3 days for Mochi'),
