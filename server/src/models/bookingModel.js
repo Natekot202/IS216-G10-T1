@@ -13,7 +13,9 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       enum: ['pending', 'accepted', 'declined', 'paid', 'in-progress', 'completed'],
       default: 'pending'
-    }
+    },
+    groupId: { type: String, default: null, index: true },
+    groupName: { type: String, trim: true, maxlength: 60, default: '' }
   },
   { timestamps: true }
 )

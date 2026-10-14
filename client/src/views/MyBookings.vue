@@ -1,9 +1,12 @@
 <script setup>
+// /owner/bookings: every booking request the owner has sent, 1 row = 1 booking,
+// sorted into Pending / Upcoming / Past tabs. Requests sent together for one trip
+// show the trip name, which links to /owner/bookings/group/:groupId.
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { bookingsApi } from '../services/bookingApi.js'
 import { currentUser, fetchUser } from '../services/auth.js'
-import BookingCard from '../components/BookingCard.vue'
+import BookingTable from '../components/BookingTable.vue'
 
 const TABS = [
   { key: 'pending', label: 'Pending', statuses: ['pending'] },
@@ -63,31 +66,43 @@ onMounted(loadBookings)
   <div v-else-if="loading" class="text-muted">Loading your bookings…</div>
 
   <template v-else>
-    <ul class="nav nav-pills mb-4 flex-nowrap overflow-auto">
+    <ul class="nav nav-underline mb-4 flex-nowrap overflow-auto">
       <li v-for="tab in TABS" :key="tab.key" class="nav-item">
-        <button class="nav-link text-nowrap" :class="{ active: activeTab === tab.key }" @click="selectTab(tab.key)">
+        <button
+          type="button"
+          class="nav-link text-nowrap"
+          :class="{ active: activeTab === tab.key }"
+          @click="selectTab(tab.key)"
+        >
           {{ tab.label }}
-          <span class="badge bg-light text-dark ms-1">{{ bookingsFor(tab.key).length }}</span>
+          <span class="badge rounded-pill tab-count ms-1">{{ bookingsFor(tab.key).length }}</span>
         </button>
       </li>
     </ul>
 
-    <p v-if="!visibleBookings.length" class="text-muted">No bookings here yet 🐾</p>
-
-    <div class="row g-3">
-      <div v-for="b in visibleBookings" :key="b._id" class="col-12 col-md-6 col-lg-4">
-        <BookingCard :booking="b" viewer="owner" />
-      </div>
+    <div v-if="!visibleBookings.length" class="text-center text-muted py-5">
+      <p class="mb-3">No bookings here yet 🐾</p>
+      <router-link to="/home" class="btn text-white main-btn">Find a sitter</router-link>
     </div>
+
+    <BookingTable v-else :bookings="visibleBookings" viewer="owner" />
   </template>
 </template>
 
 <style scoped>
-.nav-pills .nav-link {
+.nav-underline .nav-link {
+  color: #6c757d;
+}
+.nav-underline .nav-link.active {
+  color: #2b2420;
+  font-weight: 700;
+  border-bottom-color: #c44f1c;
+}
+.tab-count {
+  background: #f1ece6;
   color: #2b2420;
 }
-.nav-pills .nav-link.active {
+.main-btn {
   background-color: #c44f1c;
-  color: #fff;
 }
 </style>

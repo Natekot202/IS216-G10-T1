@@ -1,71 +1,66 @@
 <script setup>
-// /owner/bookings/group/:groupId: every request sent for one trip, with its status.
+// /owner/bookings/group/:groupId: every request the owner sent for one trip
+// (same pets and dates, different sitters), 1 row = 1 sitter's request.
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import BookingCard from '../components/BookingCard.vue'
+import { bookingsApi } from '../services/bookingApi.js'
+import BookingTable from '../components/BookingTable.vue'
 import { petNames, formatDateRange, sitterName, chosenBooking } from '../utils/bookingHelpers'
-
-import {sampleBookings} from '../sampleData/bookings.js'
 
 const route = useRoute()
 const bookings = ref([])
 const loading = ref(true)
 const error = ref('')
 
-// Get rid of this part later
-bookings.value = sampleBookings;
-bookings.value = bookings.value.filter((b) => String(b.groupId) === route.params.groupId)
-loading.value = false;
-
+// every booking in a trip has the same pets and dates, so the first one is enough for the header
 const first = computed(() => bookings.value[0])
 const chosen = computed(() => chosenBooking(bookings.value))
 
-/* 
 onMounted(async () => {
   try {
-    // reuse GET /api/bookings and keep only this group, so no new route is needed
-    const res = await axios.get('/bookings')
-    bookings.value = res.data.filter((b) => String(b.groupId) === route.params.groupId)
+    // reuse GET /api/bookings and keep only this trip, so no new route is needed
+    const all = await bookingsApi.getMine()
+    bookings.value = all.filter((b) => b.groupId === route.params.groupId)
   } catch (err) {
-    error.value = 'Could not load these requests. Check your connection and refresh the page.'
+    error.value = err.response?.data?.message || 'Could not load these requests. Please refresh the page.'
   } finally {
     loading.value = false
   }
 })
-*/
-// temporary bookings
 </script>
+
 <template>
-  <div class="container py-4">
-    <router-link to="/owner/bookings" class="text-secondary text-decoration-none">&larr; Back to My Bookings</router-link>
+  <router-link to="/owner/bookings" class="text-secondary text-decoration-none">&larr; Back to My Bookings</router-link>
 
-    <div v-if="loading" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status"></div>
-    </div>
+  <div v-if="loading" class="text-muted mt-4">Loading this trip…</div>
 
-    <div v-else-if="error" class="alert alert-danger mt-3">{{ error }}</div>
+  <div v-else-if="error" class="alert alert-warning mt-3">{{ error }}</div>
 
-    <div v-else-if="bookings.length === 0" class="text-center py-5">
-      <p class="text-muted">We couldn't find any requests for this trip.</p>
-      <router-link to="/owner/bookings" class="btn btn-primary">Back to My Bookings</router-link>
-    </div>
-
-    <template v-else>
-      <h1 class="mt-3 mb-1">{{ bookings[0].groupName }}</h1>
-      <h4 class="mb-2 petNames">{{ petNames(first) }}</h4>
-      <p class="text-muted mb-4">
-        {{ formatDateRange(first.startDate, first.endDate) }} · {{ bookings.length }} requests sent
-      </p>
-
-      <div v-if="chosen" class="alert alert-success">
-        You chose <strong>{{ sitterName(chosen) }}</strong>. The other requests were declined.
-      </div>
-
-      <div class="row row-cols-1 row-cols-md-2 g-3">
-        <div v-for="(b, index) in bookings" :key="index" class="col">
-          <BookingCard :booking="b"/>
-        </div>
-      </div>
-    </template>
+  <div v-else-if="!bookings.length" class="text-center py-5">
+    <p class="text-muted">We couldn't find any requests for this trip.</p>
+    <router-link to="/owner/bookings" class="btn text-white main-btn">Back to My Bookings</router-link>
   </div>
+
+  <template v-else>
+    <h1 class="mt-3 mb-1">{{ first.groupName || 'Trip' }}</h1>
+    <h4 class="mb-2 pet-names">{{ petNames(first) }}</h4>
+    <p class="text-muted mb-4">
+      {{ formatDateRange(first.startDate, first.endDate) }} · {{ bookings.length }} requests sent
+    </p>
+
+    <div v-if="chosen" class="alert alert-success">
+      You chose <strong>{{ sitterName(chosen) }}</strong> for this trip.
+    </div>
+
+    <BookingTable :bookings="bookings" viewer="owner" :show-trip="false" />
+  </template>
 </template>
+
+<style scoped>
+.pet-names {
+  color: #2f6f62;
+}
+.main-btn {
+  background-color: #c44f1c;
+}
+</style>

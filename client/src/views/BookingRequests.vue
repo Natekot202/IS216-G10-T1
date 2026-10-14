@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { bookingsApi } from '../services/bookingApi.js'
-import BookingCard from '../components/BookingCard.vue'
+import BookingTable from '../components/BookingTable.vue'
 
 const bookings = ref([])
 const loading = ref(true)
@@ -51,27 +51,21 @@ onMounted(loadRequests)
 
   <div v-if="loading" class="text-muted">Loading requests…</div>
 
-  <template v-else-if="!error">
+   <template v-else-if="!error">
     <h5 class="mb-3">New requests ({{ newRequests.length }})</h5>
-    <p v-if="!newRequests.length" class="text-muted">No new requests right now 🐾</p>
-    <div class="row g-3 mb-5">
-      <div v-for="b in newRequests" :key="b._id" class="col-12 col-md-6 col-lg-4">
-        <BookingCard
-          :booking="b"
-          viewer="sitter"
-          :busy="busyId === b._id"
-          @accept="respond($event, 'accepted')"
-          @decline="respond($event, 'declined')"
-        />
-      </div>
-    </div>
+    <p v-if="!newRequests.length" class="text-muted mb-5">No new requests right now 🐾</p>
+    <BookingTable
+      v-else
+      class="mb-5"
+      :bookings="newRequests"
+      viewer="sitter"
+      :busy-id="busyId"
+      @accept="respond($event, 'accepted')"
+      @decline="respond($event, 'declined')"
+    />
 
     <h5 class="mb-3">Responded ({{ responded.length }})</h5>
     <p v-if="!responded.length" class="text-muted">Nothing here yet.</p>
-    <div class="row g-3">
-      <div v-for="b in responded" :key="b._id" class="col-12 col-md-6 col-lg-4">
-        <BookingCard :booking="b" viewer="sitter" />
-      </div>
-    </div>
+    <BookingTable v-else :bookings="responded" viewer="sitter" />
   </template>
 </template>

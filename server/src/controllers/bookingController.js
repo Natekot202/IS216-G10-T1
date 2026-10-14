@@ -1,4 +1,4 @@
-import Booking from '../models/BookingModel.js'
+import Booking from '../models/bookingModel.js'
 
 // GET /api/bookings                         -> all my bookings
 // GET /api/bookings?status=pending,accepted -> only those statuses
