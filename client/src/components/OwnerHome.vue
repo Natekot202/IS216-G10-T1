@@ -41,7 +41,7 @@ onMounted(()=>{
         </div>
         <img src="../assets/img/tempProfile.jpg" 
           class="rounded-circle ms-auto" 
-          style="width: 50px; height: 50px; object-fit: cover; border:2px solid #c44f1c" 
+          style="width: 50px; height: 50px; object-fit: cover; border:1px solid #c44f1c" 
           alt="Circular Profile">
       </div>
       
@@ -111,7 +111,7 @@ onMounted(()=>{
           <div class="row">
             <div class="col-6 mb-2" v-for="sitter in sitterProfiles">
               <SitterProfileCard :sitter="sitter" @viewProfile="visitSitter" class="d-inline">
-            
+                <router-link class="btn border border-warning rounded col-12 fw-semibold bg-light">View Profile</router-link>
               </SitterProfileCard>
             </div>
           </div>
