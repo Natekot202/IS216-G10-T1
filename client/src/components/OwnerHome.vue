@@ -3,11 +3,15 @@ import { currentUser } from "../services/auth.js";
 import { computed, onMounted, ref } from 'vue';
 import axios from 'axios';
 import SitterProfileCard from './SitterProfileCard.vue'
+import StarRating from './StarRating.vue'
 
 const URL = 'http://localhost:5000'
 const sitterProfiles = ref([])
 const errorMsg = ref("")
+const userRating = ref(3) //initial rating value
+const searchResults = computed(()=>{
 
+})
 
 async function loadSitterProfiles(){
   try {
@@ -20,9 +24,10 @@ async function loadSitterProfiles(){
   }
 }
 
-function visitSitter (){
-  pass
+function applyFilters(){
+
 }
+
 onMounted(()=>{
   loadSitterProfiles()
 })
@@ -54,17 +59,19 @@ onMounted(()=>{
             <!-- location filter  -->
             <label for="locations" class="form-label fw-medium">Locations</label>
             <input type="text" placeholder="Select location" class="form-control mb-3" id = "locations">
+            <label for="date" class="form-label fw-medium">Available date </label>
+            <input type="date" placeholder="Pick date" class="form-control mb-3" id = "date">
             <!-- price filter  -->
             <label for="price" class="form-label fw-medium">Price</label>
             <input type="range" min="0" max="100" step="5" class="form-range" id="price">
             <div class="row">
-              <div class="col-4">
+              <div class="col-5">
                 <div class="d-flex gap-2">
                   <p>Min:</p>
                   <input type="number" min="0" name="" id="" class="form-control">
                 </div>
               </div>
-              <div class="col-4 mb-3">
+              <div class="col-5 mb-3">
                 <div class="d-flex gap-2">
                   <p>Max:</p>
                   <input type="number" min="0" name="" id=""class="form-control">
@@ -80,23 +87,30 @@ onMounted(()=>{
               aria-expanded="false" 
               aria-controls="collapseExample"
             >
-             Additional filters
+            Additional filters
             </button>
 
             <div class="collapse" id="collapseExample">
-              <div class="form-check">
-                <input type="checkbox" name="" id="pets" class="form-check-input">
-                <p class="fw-medium">Dogs</p>
-                <input type="checkbox" name="" id="pets" class="form-check-input">
-                <p class="fw-medium">Cats</p>
-                <input type="checkbox" name="" id="pets" class="form-check-input">
-                <p class="fw-medium">Rabbits</p>
-              </div>
-              <div class="d-flex gap-2">
-                <label for="others" class="font-label fw-medium">Others:</label>
-                <div class="col-5"><input type="text" name="" id="others"class="form-control"></div>
-              </div>
+              <label class="form-label fw-semibold">Pet services:</label>
+              <ul>
+                <div class="form-check">
+                  <input type="checkbox" name="" class="form-check-input">
+                  <p class="">Dogs</p>
+                  <input type="checkbox" name="" class="form-check-input">
+                  <p class="">Cats</p>
+                  <input type="checkbox" name="" class="form-check-input">
+                  <p class="">Rabbits</p>
+                </div>
+              
+                <div class="d-flex gap-2">
+                  <label for="others" class="font-label">Others:</label>
+                  <div class="col-5"><input type="text" name="" id="others"class="form-control"></div>
+                </div>
+              </ul>
+              <label class="fw-semibold">Rating:</label>
+              <StarRating v-model="userRating" :maxStars="5"></StarRating>
             </div>
+            <button class="btn border border-warning rounded col-12 fw-semibold bg-light mt-3" @click="applyFilters">Apply filters</button>
           </div>
         </div>
 
@@ -104,13 +118,13 @@ onMounted(()=>{
         <div class="col-md-8">
           <!-- search bar  -->
           <div class="col-12 mb-3">
-            <input type="text" name="" id="" placeholder="Search by sitter name" class="form-control">
+            <input type="text" name="" placeholder="Search by sitter name" class="form-control">
           </div>
 
           
           <div class="row">
             <div class="col-6 mb-2" v-for="sitter in sitterProfiles">
-              <SitterProfileCard :sitter="sitter" @viewProfile="visitSitter" class="d-inline">
+              <SitterProfileCard :sitter="sitter" class="d-inline">
                 <router-link class="btn border border-warning rounded col-12 fw-semibold bg-light">View Profile</router-link>
               </SitterProfileCard>
             </div>
