@@ -44,9 +44,9 @@ app.get('/api/health', (req, res) => {
 })
 
 app.use("/api/auth", authRoutes);
-app.use('/api/pets', petRoutes)
-app.use('/api/bookings', bookingRoutes)
-app.use('/api/sitters', sitterRoute)
+app.use('/api/pets', petRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/sitters', sitterRoute);
 
 // Fallback 404 for unmatched API routes
 app.use('/api', (req, res) => {

@@ -53,7 +53,7 @@ onMounted(loadDashboard)
     <!-- Stat tiles -->
     <div class="row g-3 mb-4">
       <div class="col-6 col-md-4">
-        <router-link to="/requests" class="card h-100 shadow-sm text-decoration-none">
+        <router-link to="/sitter/requests" class="card h-100 shadow-sm text-decoration-none">
           <div class="card-body">
             <div class="text-muted small">New requests</div>
             <div class="fs-2 fw-bold stat-number">{{ newRequests.length }}</div>
@@ -100,7 +100,7 @@ onMounted(loadDashboard)
               </div>
             </li>
           </ul>
-          <router-link to="/requests" class="btn text-white main-btn">Review requests</router-link>
+          <router-link to="/sitter/requests" class="btn text-white main-btn">Review requests</router-link>
         </template>
         <p v-else class="text-muted">No new requests right now 🐾</p>
       </div>
