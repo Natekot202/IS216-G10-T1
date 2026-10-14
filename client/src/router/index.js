@@ -5,10 +5,11 @@ import RegisterView from "../views/Register.vue";
 import Home from "../views/Home.vue"
 import ProfileView from "../views/Profile.vue";
 import Pets from '../views/Pets.vue';
-import MyBookings from '../views/MyBookings.vue'
 import GroupBookings from '../views/GroupBookings.vue';
 import OwnerHome from '../components/OwnerHome.vue'
 import RolePicker from '../components/RolePicker.vue'
+import BookingRequests from '../views/BookingRequests.vue'
+import MyBookings from '../views/MyBookings.vue'
 
 const routes = [
 { path: "/login", component: LoginView, meta : { hideElem: true } },
@@ -18,8 +19,9 @@ const routes = [
 { path: '/browse', component: OwnerHome }, // logged out users
 { path: '/pets', name: 'pets', component: Pets, meta: { role: 'owner' } },
 { path: '/profile', name: 'profile', component: ProfileView},
-{ path: '/owner/bookings', component: MyBookings },
-{ path: '/owner/bookings/group/:groupId', component: GroupBookings },
+{ path: '/sitter/requests', name: 'sitter-requests', component: BookingRequests, meta: { role: 'sitter' } },
+{ path: '/owner/bookings', name: 'owner-bookings', component: MyBookings, meta: { role: 'owner' } },
+{ path: '/owner/bookings/group/:groupId', name: 'owner-booking-group', component: GroupBookings, meta: { role: 'owner' } }
 ]
 
 const router = createRouter({

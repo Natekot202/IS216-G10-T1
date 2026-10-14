@@ -8,6 +8,7 @@ import petRoutes from './src/routes/petRoutes.js'
 import authRoutes from './src/routes/authRoute.js'
 import sitterRoute from './src/routes/sitterRoute.js'
 import errorHandler from './src/middleware/errorHandler.js'
+import bookingRoutes from './src/routes/bookingRoute.js'
 import mongoose from 'mongoose'
 
 if (!process.env.SESSION_SECRET){
@@ -43,8 +44,9 @@ app.get('/api/health', (req, res) => {
 })
 
 app.use("/api/auth", authRoutes);
-app.use('/api/pets', petRoutes)
-app.use('/api/sitters', sitterRoute)
+app.use('/api/pets', petRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/sitters', sitterRoute);
 
 // Fallback 404 for unmatched API routes
 app.use('/api', (req, res) => {
@@ -58,7 +60,7 @@ async function start() {
     await connectDB()
     app.listen(PORT, () => {
       console.log(`PetSociety API listening on http://localhost:${PORT}`)
-      console.log('Connected to DB:', mongoose.connection.name, 'on', mongoose.connection.host) // checking which collection
+      console.log('Connected to DB ✅:', mongoose.connection.name, 'on', mongoose.connection.host) // checking which collection
     })
   } catch (err) {
     console.error('Failed to start server:', err.message)
