@@ -1,12 +1,15 @@
 <script setup>
 import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { API } from "../services/api.js";
 import { currentUser } from "../services/auth.js";
 
+const route = useRoute();
 const router = useRouter();
-const form = ref({ username: "", email: "", password: "", confirmPassword: "", role: "owner" });
+
 const errors = ref([]);
+const startRole = ["owner", "sitter"].includes(route.query.role) ? route.query.role : "owner";
+const form = ref({ username: "", email: "", password: "", confirmPassword: "", role: startRole });
 
 async function submit() {
   errors.value = [];

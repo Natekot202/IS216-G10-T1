@@ -13,7 +13,7 @@ import { currentUser } from "../services/auth.js";
       <p class="col-md-8 fs-5">
         A community platform for you to find a trusted sitter! 
       </p>
-      <router-link v-if='!currentUser' class="btn btn-lg text-white" style="background-color:#c47756;" to="/login">
+      <router-link v-if='!currentUser' class="btn btn-lg text-white" style="background-color:#c47756;" to="/register">
         Get Started
       </router-link>
       <router-link v-else-if="currentUser.role === 'owner'" class="btn btn-lg text-white" style="background-color:#c47756;" to="/pets">

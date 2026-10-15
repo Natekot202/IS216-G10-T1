@@ -22,7 +22,7 @@ onMounted(loadPets)
 <template>
   <div class="container mt-4 mb-5">
     <div class="d-flex align-items-center gap-3">
-      <h2 class="mb-0">Your Profile</h2>
+      <h2 class="mb-2">Your Profile</h2>
       <router-link class="btn btn-sm text-white" style="background-color:#c47756;" to="/">
         Edit
       </router-link>

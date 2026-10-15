@@ -11,7 +11,7 @@ import RolePicker from '../components/RolePicker.vue'
 const routes = [
 { path: "/login", component: LoginView, meta : { hideElem: true } },
 { path: "/register", component: RegisterView, meta : { hideElem: true } },
-{ path: '/', name: 'welcome', component: RolePicker, meta: { hideLinks: true } }, // landing page 
+{ path: '/', name: 'welcome', component: RolePicker, meta: { hideElem: true } }, // landing page 
 { path: '/home', name: 'home', component: Home }, // logged in users
 { path: '/browse', component: OwnerHome }, // logged out users
 { path: '/pets', name: 'pets', component: Pets, meta: { role: 'owner' } },

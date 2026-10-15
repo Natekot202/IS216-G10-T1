@@ -4,7 +4,8 @@ const userSchema = new mongoose.Schema({
   username: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    unique: true
   },
   email: {
     type: String,
@@ -32,12 +33,12 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// userSchema.statics.createUser = function(newUser) {
-//   return this.create(newUser);
-// };
-
 userSchema.statics.getUserByEmail = function(email) {
   return this.findOne({ email });
+};
+
+userSchema.statics.getUserByUsername = function(username) {
+  return this.findOne({ username });
 };
 
 const User = mongoose.model("User", userSchema, "users");

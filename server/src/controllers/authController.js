@@ -34,6 +34,11 @@ export const postSignup = async (req, res) => {
         errors.push("Email is already registered."); 
     }
 
+    const existingUser2 = await User.getUserByUsername(username);
+    if (existingUser2) {
+        errors.push("Username is already registered."); 
+    }
+
     if (errors.length > 0) {
         return res.status(400).json({ errors });
     }
@@ -60,20 +65,20 @@ export const postSignup = async (req, res) => {
 
 export const postLogin = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { emailOrUser, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: "Please enter both email and password." });
+    if (!emailOrUser || !password) {
+      return res.status(400).json({ message: "Please fill in both boxes." });
     }
 
-    const user = await User.getUserByEmail(email.trim().toLowerCase());
-    if (!user) {
-      return res.status(401).json({ message: "Invalid email or password." });
-    }
+    const input = emailOrUser.trim();
+    const user = input.includes("@")
+      ? await User.getUserByEmail(input.toLowerCase())
+      : await User.getUserByUsername(input);
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = user && (await bcrypt.compare(password, user.password));
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid email or password." });
+      return res.status(401).json({ message: "Invalid login details." });
     }
 
     req.session.userId = user._id;
