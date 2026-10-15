@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt'
-import User from '../models/UserModel.js'
+import User from '../models/userModel.js'
 
 export const postSignup = async (req, res) => {
   try {

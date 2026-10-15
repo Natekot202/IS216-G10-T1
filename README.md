@@ -2,8 +2,8 @@
 
 A community platform for pet lovers. This repo is a monorepo with two apps:
 
-- `client/` &mdash; Vue 3 + Vite + Bootstrap 5
-- `server/` &mdash; Node.js + Express + MongoDB (Mongoose)
+- `client/` - Vue 3 + Vite + Bootstrap 5
+- `server/` - Node.js + Express + MongoDB (Mongoose)
 
 Both sides include a small working example (a `Pet` list with add/remove) so
 you can confirm the stack is wired up end-to-end before building real
@@ -12,7 +12,7 @@ features on top of it.
 ## Prerequisites
 
 - Node.js 18+ and npm
-- A MongoDB database &mdash; either running locally, or a free
+- A MongoDB database - either running locally, or a free
   [MongoDB Atlas](https://www.mongodb.com/atlas) cluster
 
 ## Getting started

@@ -10,9 +10,13 @@ onMounted(fetchUser);
 
 <template>
   <div class="app-layout">
+    <!--  navbar component  -->
     <NavBar />
+
+    <!-- main view  -->
     <main class="container py-4">
       <router-view />
     </main>
   </div>
+  
 </template>
