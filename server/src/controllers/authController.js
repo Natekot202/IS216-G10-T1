@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt'
-import User from '../models/userModel.js'
+import User from '../models/UserModel.js'
 
 export const postSignup = async (req, res) => {
   try {
@@ -97,12 +97,12 @@ export const me = async (req, res) => {
   if (!req.session.userId) {
     return res.status(401).json({ message: "Not logged in" });
     }
-  const user = await User.findById(req.session.userId).select('-password');
-  res.json({ id: user._id, username: user.username, role: user.role, bio: user.bio });
+  const user = await User.findById(req.session.userId).select('-password +ownerProfile.address')  
+  // res.json({ id: user._id, username: user.username, role: user.role, bio: user.bio });
   // if (!user){
   //   return res.status(401).json({ message: "Not logged in" });
   // }
-  // res.json(user); // to return all
+  res.json(user); // to return all
 };
 
 export const logout = (req, res) => {

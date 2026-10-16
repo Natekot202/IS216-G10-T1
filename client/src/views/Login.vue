@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { API } from "../services/api.js";
 import { currentUser } from "../services/auth.js";
+import { fetchUser } from "../services/auth.js";
 
 const router = useRouter();
 const form = ref({emailOrUser: "", password: ""});
@@ -23,6 +24,7 @@ async function submit() {
       return;
     }
     currentUser.value = data;
+    await fetchUser();  
     router.push("/");
   } catch (err) {
     console.error(err); 

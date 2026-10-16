@@ -18,13 +18,13 @@ export async function getPetById(req, res) {
 
 export async function createPet(req, res) {
   try {
-    const { name, species, breed, age, description } = req.body
+    const { name, species, breed, ageMonths, description } = req.body
 
     if (!name || !species) {
       return res.status(400).json({ message: 'name and species are required' });
     }
 
-    const pet = await Pet.create({ owner: req.session.userId, name, species, breed, age, description })
+    const pet = await Pet.create({ owner: req.session.userId, name, species, breed, ageMonths, description })
     res.status(201).json(pet);
   } catch(err) {
     console.error(err);
@@ -33,10 +33,10 @@ export async function createPet(req, res) {
 }
 
 export async function updatePet(req, res) {
-  const { name, species, breed, age, description } = req.body   // whitelist, same as create
+  const { name, species, breed, ageMonths, description } = req.body   // whitelist, same as create
   const pet = await Pet.findOneAndUpdate(
     { _id: req.params.id, owner: req.session.userId },
-    { name, species, breed, age, description },
+    { name, species, breed, ageMonths, description },
     { new: true, runValidators: true }
   )
   if (!pet) return res.status(404).json({ message: 'Pet not found' })

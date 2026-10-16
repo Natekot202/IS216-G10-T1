@@ -1,56 +1,53 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+
 import { currentUser } from "../services/auth.js";
-import PetCard from '../components/PetCard.vue';
-import { petsApi } from '../services/api'
+import ProfileHeader from '../components/ProfileHeader.vue';
+import OwnerDetails from '../components/OwnerDetails.vue'
+import SitterDetails from '../components/SitterDetails.vue'
+import { usersApi } from '../services/api.js'
 
-const pets = ref([])
+
+const route = useRoute()
+const profile = ref(null)
 const error = ref('')
+const isMine = computed(() => !route.params.id || route.params.id === currentUser.value?._id)
 
-async function loadPets() {
+async function load() {
   error.value = ''
-  try {
-    pets.value = await petsApi.getAll()
+  profile.value = null
+  if (isMine.value) { 
+    profile.value = currentUser.value; r
+    eturn 
+  } try {
+    profile.value = await usersApi.getById(route.params.id)
   } catch (err) {
-    error.value = err.response?.data?.message || 'Could not load pet.'
-    console.error(err)
-  } 
+    error.value = err.response?.status === 401 ? 'Log in to view this profile.' : 'Profile not found.'
+  }
 }
-onMounted(loadPets)
+watch([() => route.params.id, currentUser], load, { immediate: true })
 </script>
 
 <template>
-  <div class="container mt-4 mb-5">
-    <div class="d-flex align-items-center gap-3">
-      <h2 class="mb-2">Your Profile</h2>
-      <router-link class="btn btn-sm text-white" style="background-color:#c47756;" to="/">
-        Edit
-      </router-link>
-    </div>
-    <div class="row">
-        <div class="col">
-    <p
-      class="text-break rounded p-2 w-50"
-      :class="currentUser?.bio ? 'border border-secondary' : 'border border-secondary border-dashed text-muted fst-italic'">
-        {{ currentUser?.bio || 'Tell us more about yourself!' }}
-    </p>
+  <div class="container mt-1 mb-4">
+    <div v-if="error" class="alert alert-warning">{{ error }}</div>
+
+    <template v-else-if="profile">
+      <div class="border-bottom pb-2 mb-3">
+        <h3 class="mb-0">{{ isMine ? 'My Profile' : `${profile.username}'s Profile` }}</h3>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-12 col-md-4">
+          <ProfileHeader :profile="profile" :editable="isMine" />
         </div>
-    </div>
 
-    <div class="container mt-2 mb-5" v-if="currentUser.role === 'owner'">
-      <h3>Your Pets</h3>
-      <div v-if="!pets.length" class="text-muted">
-        No pets yet &mdash;
-        <router-link class="link" style="color:#c44f1c;" to="/pets">Add here!</router-link>
+        <div class="col-12 col-md-8">
+          <OwnerDetails v-if="profile.role === 'owner'" :owner-id="profile._id" :editable="isMine" />
+          <SitterDetails v-else :profile="profile" :editable="isMine" />
+        </div>
       </div>
-      <div v-else class="row g-3">
-        <PetCard v-for="pet in pets" :key="pet._id" :pet="pet"/>
-      </div>
-    </div>
-
-    <div class="container my-2">
-      <h3>Reviews and Ratings</h3>
-    </div>
-
+    </template>
   </div>
 </template>

@@ -6,7 +6,7 @@ import 'dotenv/config'
 import mongoose from 'mongoose'
 import bcrypt from 'bcrypt'
 import connectDB from '../config/db.js'
-import User from '../models/userModel.js'
+import User from '../models/UserModel.js'
 import Pet from '../models/petModel.js'
 import Booking from '../models/bookingModel.js'
 
