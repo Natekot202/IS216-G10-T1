@@ -102,8 +102,8 @@ function formatDate(d) {
       <span
         v-for="t in sp.petTypes"
         :key="t"
-        class="badge rounded-pill text-white me-1 mb-1"
-        style="background-color:#c47756;"
+        class="badge rounded-pill text-black me-1 mb-1"
+        style="border: 1px solid; border-color:grey;"
       >{{ t }}</span>
       <span v-if="!sp.petTypes?.length" class="text-muted">None listed yet</span>
     </div>
@@ -113,14 +113,14 @@ function formatDate(d) {
       <span
         v-for="s in sp.services"
         :key="s"
-        class="badge rounded-pill text-white me-1 mb-1"
-        style="background-color:#2b2420;"
+        class="badge rounded-pill text-black me-1 mb-1"
+        style="border: 1px solid; border-color:grey;"
       >{{ s }}</span>
       <span v-if="!sp.services?.length" class="text-muted">None listed yet</span>
     </div>
 
     <!-- reviews -->
-    <h5 class="border-bottom pb-2">Reviews</h5>
+    <h5 class="border-bottom pb-2">Reviews ({{ reviews.length }})</h5>
     <div v-if="reviewError" class="alert alert-warning">{{ reviewError }}</div>
     <div v-else-if="loadingReviews" class="text-muted">Loading reviews…</div>
     <div v-else-if="!reviews.length" class="text-muted">No reviews yet.</div>
