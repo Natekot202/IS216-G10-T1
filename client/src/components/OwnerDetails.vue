@@ -65,6 +65,20 @@ onMounted(loadPets)
 <template>
   <h3 class="mb-4">My Pets</h3>
 
+  <div v-if="!pets.length" class="text-muted">
+    No pets yet &mdash; add the first one above.
+  </div>
+  <div v-else class="row g-3">
+    <PetCard
+      v-for="pet in pets"
+      :key="pet._id"
+      :pet="pet"
+      @delete="deletePet"
+    />
+  </div>
+
+  <h4 class="mt-4 mb-4">Add a pet</h4>
+
   <div v-if="error" class="alert alert-warning">{{ error }}</div>
 
     <form class="row g-2 mb-4" @submit.prevent="addPet">
@@ -104,15 +118,4 @@ onMounted(loadPets)
     </div>
     </form>
 
-  <div v-if="!pets.length" class="text-muted">
-    No pets yet &mdash; add the first one above.
-  </div>
-  <div v-else class="row g-3">
-    <PetCard
-      v-for="pet in pets"
-      :key="pet._id"
-      :pet="pet"
-      @delete="deletePet"
-    />
-  </div>
 </template>
