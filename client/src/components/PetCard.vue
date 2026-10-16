@@ -1,10 +1,13 @@
 <script setup>
+import { formatAge } from '../utils/formatAge.js'
+
 defineProps({
   pet: {
     type: Object,
     required: true
   }
 })
+
 
 defineEmits(['delete'])
 </script>
@@ -17,8 +20,8 @@ defineEmits(['delete'])
         <h6 class="card-subtitle mb-2 text-muted">
           {{ pet.species }}<span v-if="pet.breed"> · {{ pet.breed }}</span>
         </h6>
-        <p class="card-text mb-1" v-if="pet.age !== undefined && pet.age !== null">
-          Age: {{ pet.age }}
+        <p v-if="pet.ageMonths != null" class="text-muted mb-1">
+          {{ formatAge(pet.ageMonths) }}
         </p>
         <p class="card-text">{{ pet.description }}</p>
       </div>

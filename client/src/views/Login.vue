@@ -3,9 +3,10 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { API } from "../services/api.js";
 import { currentUser } from "../services/auth.js";
+import { fetchUser } from "../services/auth.js";
 
 const router = useRouter();
-const form = ref({email: "", password: ""});
+const form = ref({emailOrUser: "", password: ""});
 const message = ref('');
 
 async function submit() {
@@ -23,6 +24,7 @@ async function submit() {
       return;
     }
     currentUser.value = data;
+    await fetchUser();  
     router.push("/");
   } catch (err) {
     console.error(err); 
@@ -41,8 +43,7 @@ async function submit() {
     </div>
 
     <form @submit.prevent="submit">
-      <!-- <input v-model="form.username" class="form-control mb-3" placeholder="Username" required /> -->
-      <input v-model="form.email" type="email" class="form-control mb-3" placeholder="Email" required />
+      <input v-model="form.emailOrUser" type="emailOrUser" class="form-control mb-3" placeholder="Email/Username" required />
       <input v-model="form.password" type="password" class="form-control mb-3" placeholder="Password" required />
       <button class="btn w-100 mb-3 text-white" style="background-color:#c47756;">Log In</button>
     </form>

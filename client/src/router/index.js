@@ -4,7 +4,7 @@ import LoginView from "../views/Login.vue";
 import RegisterView from "../views/Register.vue";
 import Home from "../views/Home.vue"
 import ProfileView from "../views/Profile.vue";
-import Pets from '../views/Pets.vue';
+import EditProfile from '../views/EditProfile.vue'
 import GroupBookings from '../views/GroupBookings.vue';
 import OwnerHome from '../components/OwnerHome.vue'
 import RolePicker from '../components/RolePicker.vue'
@@ -14,11 +14,12 @@ import MyBookings from '../views/MyBookings.vue'
 const routes = [
 { path: "/login", component: LoginView, meta : { hideElem: true } },
 { path: "/register", component: RegisterView, meta : { hideElem: true } },
-{ path: '/', name: 'welcome', component: RolePicker, meta: { hideLinks: true } }, // landing page 
+{ path: '/', name: 'welcome', component: RolePicker, meta: { hideElem: true } }, // landing page 
 { path: '/home', name: 'home', component: Home }, // logged in users
 { path: '/browse', component: OwnerHome }, // logged out users
-{ path: '/pets', name: 'pets', component: Pets, meta: { role: 'owner' } },
-{ path: '/profile', name: 'profile', component: ProfileView},
+{ path: '/profile', name: 'profile', component: ProfileView, meta: { auth: true } },
+{ path: '/editProfile', name: 'editProfile', component: EditProfile, meta: { auth: true } },
+{ path: '/users/:id', name: 'user', component: ProfileView },
 { path: '/sitter/requests', name: 'sitter-requests', component: BookingRequests, meta: { role: 'sitter' } },
 { path: '/owner/bookings', name: 'owner-bookings', component: MyBookings, meta: { role: 'owner' } },
 { path: '/owner/bookings/group/:groupId', name: 'owner-booking-group', component: GroupBookings, meta: { role: 'owner' } }
