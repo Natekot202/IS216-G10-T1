@@ -3,6 +3,7 @@ import mongoose from 'mongoose'
 export const pet_types = ["Dog", "Cat", "Bird", "Rabbit", "Hamster"];
 export const services = ["Feeding", "Dog walking", "Cat walking", "Feeding Medication"]
 
+// location schema
 const pointSchema = new mongoose.Schema(
   {
     type: { type: String, enum: ["Point"] },
@@ -11,6 +12,7 @@ const pointSchema = new mongoose.Schema(
   { _id: false }
 );
 
+//address schema containing location schema
 const addressSchema = new mongoose.Schema(
   {
     line1: { type: String, trim: true },
@@ -47,6 +49,7 @@ const userSchema = new mongoose.Schema({
     default: "",
     maxLength: 500
   },
+  
   profilePicture: {
     url: { 
       type: String, 
@@ -91,24 +94,28 @@ const userSchema = new mongoose.Schema({
       label: { 
         type: String, 
         trim: true 
-      }        , 
-    //   radiusKm: { type: Number, min: 0, max: 50 },
-    //   location: pointSchema
-    // },
-    },
-      ratingAvg: { 
+      },
+      radiusKm: { 
         type: Number, 
-        default: 0, 
         min: 0, 
-        max: 5 },
-      ratingCount: { 
-        type: Number, 
-        default: 0, 
-        min: 0 
-      }
+        max: 50,
+      },
+      location: pointSchema
+    },
+    ratingAvg: { 
+      type: Number, 
+      default: 0, 
+      min: 0, 
+      max: 5 
+    },
+    ratingCount: { 
+      type: Number, 
+      default: 0, 
+      min: 0 
     }
-  },
-  { timestamps: true }
+  }
+},
+{ timestamps: true }
 );
 
 userSchema.statics.getUserByEmail = function(email) {
