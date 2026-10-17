@@ -125,7 +125,7 @@ onMounted(()=>{
           <div class="row">
             <div class="col-6 mb-2" v-for="sitter in sitterProfiles">
               <SitterProfileCard :sitter="sitter" class="d-inline">
-                <router-link class="btn border border-warning rounded col-12 fw-semibold bg-light">View Profile</router-link>
+                <router-link :to="`/users/${sitter._id}`" class="btn border border-warning rounded col-12 fw-semibold bg-light">View Profile</router-link>
               </SitterProfileCard>
             </div>
           </div>
