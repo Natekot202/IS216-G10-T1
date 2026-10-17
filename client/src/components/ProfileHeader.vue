@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { currentUser } from '../services/auth.js'
 import defaultAvatar from '../assets/img/tempProfile.jpg'
 
-defineProps({
+const props = defineProps({
   profile: { type: Object, required: true },
   editable: { type: Boolean, default: false }
 })
@@ -42,7 +42,7 @@ const needsLogin = computed(() =>
       v-else-if="canRequestBooking"
       class="btn btn-sm text-white"
       style="background-color:#c47756;"
-      to= "/">
+      :to="{ path: '/bookings/new', query: { sitterId: profile._id } }">
       Request Booking
     </router-link>
 

@@ -10,6 +10,8 @@ import sitterRoute from './src/routes/sitterRoute.js'
 import errorHandler from './src/middleware/errorHandler.js'
 import bookingRoutes from './src/routes/bookingRoute.js'
 import userRoutes from './src/routes/userRoutes.js'
+import availabilityRoutes from './src/routes/availability.js'
+import bookingCreateRoutes from './src/routes/bookingCreate.js'
 import mongoose from 'mongoose'
 
 if (!process.env.SESSION_SECRET){
@@ -49,6 +51,8 @@ app.use('/api/pets', petRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/sitters', sitterRoute);
 app.use('/api/users', userRoutes)  
+app.use('/api/availability', availabilityRoutes)
+app.use('/api/bookings', bookingCreateRoutes)
 
 // Fallback 404 for unmatched API routes
 app.use('/api', (req, res) => {

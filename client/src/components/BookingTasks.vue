@@ -1,14 +1,26 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { findTasklist, summariseTasks, petNamesFor, scheduleText, daysText } from '../utils/taskListHelpers.js'
+import { ref, computed, watch } from 'vue'
+import { bookingsApi } from '../services/bookingApi.js'
+import { summariseTasks, petNamesFor, scheduleText, daysText } from '../utils/taskListHelpers.js'
 
 const props = defineProps({
   booking: { type: Object, required: true }
 })
 
 const showAll = ref(false)
-const tasklist = computed(() => (props.booking?._id ? findTasklist(props.booking._id) : null))
-const taskItems = computed(() => tasklist.value?.items || [])
+const taskItems = ref([]) // the care tasks saved with this booking
+// Load them from the server for this booking (and again if the booking changes)
+watch(
+  () => props.booking?._id,
+  async (id) => {
+    try {
+      taskItems.value = id ? (await bookingsApi.getCareTasks(id)).items : []
+    } catch {
+      taskItems.value = []
+    }
+  },
+  { immediate: true }
+)
 const taskSummary = computed(() => summariseTasks(taskItems.value, props.booking))
 </script>
 
@@ -59,12 +71,12 @@ const taskSummary = computed(() => summariseTasks(taskItems.value, props.booking
           <dt class="col-4 col-sm-3">Days</dt>
           <dd class="col-8 col-sm-9">{{ daysText(task) }}</dd>
 
-          <template v-if="task.category === 'feed'">
+          <template v-if="task.category === 'feed' && task.food">
             <dt class="col-4 col-sm-3">Food</dt>
             <dd class="col-8 col-sm-9">{{ task.amount }} {{ task.unit }} {{ task.food }}</dd>
           </template>
 
-          <template v-if="task.category === 'walk'">
+          <template v-if="task.category === 'walk' && (task.distanceKm || task.durationMinutes)">
             <dt class="col-4 col-sm-3">Walk</dt>
             <dd class="col-8 col-sm-9">
               <span v-if="task.distanceKm">{{ task.distanceKm }} km</span>
