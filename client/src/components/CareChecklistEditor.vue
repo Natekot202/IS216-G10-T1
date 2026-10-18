@@ -1,0 +1,76 @@
+<script setup>
+import { ref, watch } from 'vue'
+
+// The care checklist part of the booking form: the owner adds tasks (feed, walk, medication...).
+// The page gives it the pets that were picked (prop), and it tells the page the list of tasks
+// whenever it changes (the 'change' event).
+defineProps({
+  pets: { type: Array, required: true } // the selected pets, as full objects: [{ _id, name, ... }]
+})
+const emit = defineEmits(['change'])
+
+const categories = ['feed', 'walk', 'groom', 'medication', 'other'] // same list the server accepts
+const tasks = ref([]) // each task: { category, title, dailyFrequency, petIds }
+
+function addTask() {
+  // petIds: [] means "all the selected pets"
+  tasks.value.push({ category: 'feed', title: '', dailyFrequency: 1, petIds: [] })
+}
+
+function removeTask(index) {
+  tasks.value.splice(index, 1) // remove 1 task at this position
+}
+
+// Same idea as togglePet (on the booking page), but for the pets chosen on one task
+function toggleTaskPet(task, id) {
+  if (task.petIds.includes(id)) task.petIds = task.petIds.filter((p) => p !== id)
+  else task.petIds.push(id)
+}
+
+// Tell the page whenever the tasks change (deep: also when a task's title or pets change)
+watch(tasks, () => emit('change', tasks.value), { deep: true })
+</script>
+
+<template>
+  <h3 class="h6 text-uppercase text-muted fw-bold mt-4">Care Checklist</h3>
+  <p class="small text-muted">What should the sitter do each day? Optional.</p>
+
+  <div v-for="(task, i) in tasks" :key="i" class="border rounded p-2 mb-2">
+    <div class="row g-2 align-items-end">
+      <div class="col-sm-3">
+        <label class="form-label small mb-1">Type</label>
+        <select v-model="task.category" class="form-select form-select-sm">
+          <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
+        </select>
+      </div>
+      <div class="col-sm-5">
+        <label class="form-label small mb-1">What to do</label>
+        <input v-model="task.title" type="text" maxlength="120" class="form-control form-control-sm" placeholder="e.g. Feed 1 cup kibble at 8am" />
+      </div>
+      <div class="col-6 col-sm-2">
+        <label class="form-label small mb-1">Times a day</label>
+        <input v-model.number="task.dailyFrequency" type="number" min="1" max="10" class="form-control form-control-sm" />
+      </div>
+      <div class="col-6 col-sm-2 text-end">
+        <button type="button" class="btn btn-sm btn-outline-danger" @click="removeTask(i)">Remove</button>
+      </div>
+    </div>
+    <!-- Only worth choosing pets when more than one is selected -->
+    <div v-if="pets.length > 1" class="d-flex flex-wrap align-items-center gap-2 mt-2">
+      <span class="small text-muted">For:</span>
+      <button
+        v-for="pet in pets"
+        :key="pet._id"
+        type="button"
+        class="btn btn-sm rounded-pill px-2 py-0"
+        :class="task.petIds.includes(pet._id) ? 'btn-dark' : 'btn-outline-secondary'"
+        @click="toggleTaskPet(task, pet._id)"
+      >
+        {{ pet.name }}
+      </button>
+      <span v-if="task.petIds.length === 0" class="small text-muted">(all selected pets)</span>
+    </div>
+  </div>
+
+  <button type="button" class="btn btn-outline-secondary btn-sm" @click="addTask">+ Add Task</button>
+</template>
