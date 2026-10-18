@@ -1,0 +1,80 @@
+<script setup>
+import { ref, shallowRef, onMounted, onBeforeUnmount, watch } from 'vue'
+import currentLocationImg from '../assets/img/currentLocationIcon.png'
+import L from 'leaflet'
+
+const props = defineProps({profiles:Array, origin: { type: Object, default: null }, userLocation: { type: Object, default: null }})
+
+let originMarker = null
+let userMarker = null
+const sitterLayer = L.layerGroup()
+const mapContainer = ref()
+const map = shallowRef(null)
+
+const currentLocationIcon = L.icon({
+  iconUrl: currentLocationImg,
+  iconSize: [50, 50],
+  iconAnchor: [25, 50],   // bottom-centre; use [25, 25] if the image is a round dot
+  popupAnchor: [0, -50]
+})
+
+watch(() => props.userLocation, showUser)
+
+watch(() => props.profiles, drawSitters)
+
+watch(() => props.origin, (o) => {
+  originMarker?.remove()
+  originMarker = null
+  if (!o || !map.value) return
+  map.value.flyTo([o.lat, o.lng], 14)
+  originMarker = L.marker([o.lat, o.lng]).addTo(map.value).bindPopup(o.label)
+})
+
+// draw markers
+function drawSitters() {
+  sitterLayer.clearLayers()
+  props.profiles.forEach(sitter => {
+    const coords = sitter.sitterProfile?.serviceArea?.location?.coordinates
+    if (!coords) return
+    const [lng, lat] = coords                    // GeoJSON order
+    const label = document.createElement('strong')
+    label.textContent = sitter.username          // textContent, not HTML
+    L.marker([lat, lng]).bindPopup(label).addTo(sitterLayer)
+  })
+}
+
+// show where user is/ where user selected
+function showUser(u) {
+  userMarker?.remove()
+  userMarker = null
+  if (!u || !map.value) return
+  userMarker = L.marker([u.lat, u.lng], { icon: currentLocationIcon })
+    .addTo(map.value).bindPopup('You are here')
+  if (!props.origin) map.value.setView([u.lat, u.lng], 13)
+}
+
+
+
+onMounted(()=>{
+    //initialise map inside of map container
+     map.value = L.map(mapContainer.value).setView([1.3521, 103.8198], 12);
+
+    //add tile layer to map
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map.value);
+
+    sitterLayer.addTo(map.value)
+    showUser(props.userLocation)
+    drawSitters()
+})
+
+//remove map when unmounted
+onBeforeUnmount(() => map.value?.remove())
+</script>
+
+<template>
+    <div ref="mapContainer" style="height:300px" class="border rounded mb-2"></div>
+
+</template>

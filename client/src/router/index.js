@@ -6,7 +6,7 @@ import Home from "../views/Home.vue"
 import ProfileView from "../views/Profile.vue";
 import EditProfile from '../views/EditProfile.vue'
 import GroupBookings from '../views/GroupBookings.vue';
-import OwnerHome from '../components/OwnerHome.vue'
+import OwnerHome from '../views/OwnerHome.vue'
 import RolePicker from '../components/RolePicker.vue'
 import BookingRequests from '../views/BookingRequests.vue'
 import MyBookings from '../views/MyBookings.vue'
