@@ -46,34 +46,33 @@ const taskSummary = computed(()=> {
 
       <div v-if="!expanded" :id="`details-${booking._id}`" class="border-top pt-2 mb-3">
         <h6 class="small text-uppercase text-muted mb-2">Tasks</h6>
-
         <ul v-if="taskSummary.length" class="list-unstyled mb-2">
           <li
-            v-for="(cat, index) in taskSummary"
+            v-for="(taskcat, index) in taskSummary"
             :key="index"
             class="d-flex justify-content-between flex-wrap gap-1 small py-1"
           >
-            <span class="fw-semibold">{{ cat.category }}</span>
+            <span class="fw-semibold">{{ taskcat.category }}</span>
             <span class="text-muted">
-              {{ cat.dailyFrequency }} per day · {{ cat.bookingFrequency }} per booking
+              {{ taskcat.dailyFrequency }} per day · {{ taskcat.bookingFrequency }} per booking
             </span>
           </li>
         </ul>
         <p v-else class="small text-muted mb-2">No tasks added yet.</p>
       </div>  
       <div v-else>
-<h6 class="small text-uppercase text-muted mt-3 mb-2">Task details</h6>
-<p v-if="!tasklist.items.length" class="small text-muted">No tasks added yet.</p>
-  <div v-for="(task, i) in tasklist.items" :key="i" class="border rounded p-2 mb-2">
-    <div class="d-flex justify-content-between align-items-start gap-2">
-      <div>
-        <div class="fw-semibold">{{ task.title }}</div>
-        <div class="small text-muted">
-          {{ task.category }}
-          <span v-if="petNamesFor(task, booking)"> · {{ petNamesFor(task, booking) }}</span>
-        </div>
-      </div>
-      <span v-if="task.requiresPhoto" class="badge text-bg-light border">📷 Photo required</span>
+        <h6 class="small text-uppercase text-muted mt-3 mb-2">Task details</h6>
+        <p v-if="!tasklist.items.length" class="small text-muted">No tasks added yet.</p>
+          <div v-for="(task, i) in tasklist.items" :key="i" class="border rounded p-2 mb-2">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div>
+                <div class="fw-semibold">{{ task.title }}</div>
+                <div class="small text-muted">
+                  {{ task.category }}
+                  <span v-if="petNamesFor(task, booking)"> · {{ petNamesFor(task, booking) }}</span>
+                </div>
+              </div>
+              <span v-if="task.requiresPhoto" class="badge text-bg-light border">📷 Photo required</span>
     </div>
 
     <dl class="row small mb-0 mt-2">
