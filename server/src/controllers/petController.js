@@ -1,4 +1,5 @@
 import Pet from '../models/petModel.js'
+import { uploadImage, deleteImage } from '../config/cloudinary.js'
 
 export async function getPets(req, res) {
   try {
@@ -17,6 +18,7 @@ export async function getPetById(req, res) {
 }
 
 export async function createPet(req, res) {
+  let photo;
   try {
     const { name, species, breed, ageMonths, description } = req.body
 
@@ -24,9 +26,18 @@ export async function createPet(req, res) {
       return res.status(400).json({ message: 'name and species are required' });
     }
 
-    const pet = await Pet.create({ owner: req.session.userId, name, species, breed, ageMonths, description })
+    if (req.file) {
+      const r = await uploadImage(req.file.buffer, {
+        folder: 'petsociety/pets',
+        transformation: [{ width: 800, height: 800, crop: 'limit' }] 
+      })
+      photo = { url: r.secure_url, publicId: r.public_id }
+    }
+
+    const pet = await Pet.create({ owner: req.session.userId, name, species, breed, ageMonths, description, photo })
     res.status(201).json(pet);
   } catch(err) {
+    await deleteImage(photo?.publicId)
     console.error(err);
     return res.status(500).json({ message: 'Error adding pets'})
   }
@@ -49,6 +60,7 @@ export async function deletePet(req, res) {
     if (!pet) {
       return res.status(404).json({ message: 'Pet not found' })
     }
+    await deleteImage(pet.photo?.publicId) 
     res.json({ message: 'Pet removed' })
   } catch(err) {
     console.error(err);
