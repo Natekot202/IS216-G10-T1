@@ -92,7 +92,7 @@ function toMinutes(time) {
 function shortTime(minutes) {
   const h24 = Math.floor(minutes / 60) % 24
   const m = minutes % 60
-  return `${h24 % 12 || 12}${m ? ':' + String(m).padStart(2, '0') : ''}${h24 >= 12 ? 'p' : 'a'}`
+  return `${h24 % 12 || 12}${m ? ':' + String(m).padStart(2, '0') : ''}${h24 >= 12 ? 'pm' : 'am'}`
 }
 // What one booking looks like inside one day's square, e.g. '9a–12p · Buddy'.
 // The first day uses the start time, the last day the end time; days in between say 'All day'.
