@@ -28,9 +28,19 @@ const petSchema = new mongoose.Schema({
   description: {
     type: String,
     trim: true 
-  }
-  }
-  // { timestamps: true }
+  },
+    photo: {
+      url: {
+        type: String,
+        default: ''
+      },
+      publicId: {
+        type: String,
+        default: ''
+      }
+    }
+  },
+  { timestamps: true }
 )
 
 export default mongoose.model('Pet', petSchema)

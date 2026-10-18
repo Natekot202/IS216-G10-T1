@@ -8,11 +8,11 @@ import {
   deletePet
 } from '../controllers/petController.js'
 import asyncHandler from '../middleware/asyncHandler.js'
+import { uploadPhoto } from '../middleware/upload.js'
 
 const router = Router()
 
 router.get('/', requireOwner, asyncHandler(getPets))
-router.post('/', requireOwner, asyncHandler(createPet))
+router.post('/', requireOwner, uploadPhoto, asyncHandler(createPet))
 router.delete('/:id', requireOwner, asyncHandler(deletePet))
-
 export default router

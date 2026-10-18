@@ -2,6 +2,7 @@ import mongoose from 'mongoose'
 import User from '../models/UserModel.js'
 import Pet from '../models/petModel.js'
 import Review from '../models/reviewModel.js'
+import { uploadImage, deleteImage } from '../config/cloudinary.js'
 
 const PUBLIC_FIELDS = 'username bio profilePicture role sitterProfile createdAt'
 
@@ -100,4 +101,39 @@ export async function updateMyProfile(req, res) {
     }
     throw err
   }
+}
+
+export async function updateMyPicture(req, res) {
+  if (!req.file) {
+    return res.status(400).json({ message: 'Please choose an image.' })
+  }
+
+  const result = await uploadImage(req.file.buffer, {
+    folder: 'petsociety/profiles',
+    public_id: String(req.session.userId),
+    overwrite: true,
+    invalidate: true,
+    transformation: [{ width: 600, height: 600, crop: 'fill', gravity: 'auto' }]
+  })
+
+  const user = await User.findByIdAndUpdate(
+    req.session.userId,
+    { 'profilePicture.url': result.secure_url, 'profilePicture.publicId': result.public_id },
+    { new: true }
+  ).select('-password +ownerProfile.address')
+
+  res.json(user)
+}
+
+export async function removeMyPicture(req, res) {
+  const current = await User.findById(req.session.userId).select('profilePicture')
+  await deleteImage(current?.profilePicture?.publicId)
+
+  const user = await User.findByIdAndUpdate(
+    req.session.userId,
+    { 'profilePicture.url': '', 'profilePicture.publicId': '' },
+    { new: true }
+  ).select('-password +ownerProfile.address')
+
+  res.json(user)
 }
