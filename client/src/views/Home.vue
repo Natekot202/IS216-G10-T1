@@ -2,7 +2,7 @@
 
 import { currentUser } from "../services/auth.js";
 import OwnerHome from "../components/OwnerHome.vue";
-import SitterHome from "../components/SitterHome.vue";
+import SitterHome from "../views/SitterHome.vue";
 
 </script>
 

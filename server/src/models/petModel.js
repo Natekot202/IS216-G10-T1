@@ -20,16 +20,27 @@ const petSchema = new mongoose.Schema({
     type: String,
     trim: true 
   },
-  age: { 
+  ageMonths: { 
     type: Number,
-    min: 0 
+    min: 0,
+    max: 600
   },
   description: {
     type: String,
     trim: true 
-  }
-  }
-  // { timestamps: true }
+  },
+    photo: {
+      url: {
+        type: String,
+        default: ''
+      },
+      publicId: {
+        type: String,
+        default: ''
+      }
+    }
+  },
+  { timestamps: true }
 )
 
 export default mongoose.model('Pet', petSchema)

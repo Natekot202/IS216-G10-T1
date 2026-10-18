@@ -6,7 +6,7 @@
 export const CHOSEN_STATUSES = ['paid', 'in-progress', 'completed']
 
 export function sitterName(booking) {
-  return booking.sitterId?.name || booking.sitter?.name || 'Sitter'
+  return booking.sitterId?.username || booking.sitterId?.name || booking.sitter?.name || 'Sitter'
 }
 
 export function petNames(booking) {

@@ -1,0 +1,137 @@
+import { Router } from 'express'
+import mongoose from 'mongoose'
+import Availability, { sgtMidnight, toSgtDateString } from '../models/Availability.js'
+import Booking from '../models/bookingModel.js'
+import CareChecklist, { CATEGORIES } from '../models/CareChecklist.js'
+import Pet from '../models/petModel.js'
+import User from '../models/UserModel.js'
+import { requireOwner, requireLogin } from '../middleware/authMiddleware.js'
+import asyncHandler from '../middleware/asyncHandler.js'
+
+const router = Router()
+
+const DAY_MS = 24 * 60 * 60 * 1000
+const BOOKED_STATUSES = ['accepted', 'paid', 'in-progress']
+
+// Every 'YYYY-MM-DD' from start to end, inclusive.
+function daysBetween(start, end) {
+  const days = []
+  for (let t = start.getTime(); t <= end.getTime(); t += DAY_MS) days.push(toSgtDateString(new Date(t)))
+  return days
+}
+
+// POST /api/bookings
+// Body: { sitterId, petIds: [id], startDate: 'YYYY-MM-DD', endDate: 'YYYY-MM-DD', notes }
+// Creates a 'pending' booking if every check passes.
+router.post('/', requireOwner, asyncHandler(async (req, res) => {
+  const { sitterId, petIds, startDate, endDate, notes = '', tasks = [] } = req.body
+  const ownerId = req.session.userId
+
+  // 1. Input checks
+  if (!mongoose.isValidObjectId(sitterId)) return res.status(400).json({ message: 'Choose a sitter.' })
+  if (!Array.isArray(petIds) || petIds.length === 0) return res.status(400).json({ message: 'Select at least one pet.' })
+
+  const start = sgtMidnight(startDate)
+  const end = sgtMidnight(endDate)
+  if (!start || !end) return res.status(400).json({ message: 'Choose a valid start and end date.' })
+  if (startDate < toSgtDateString(new Date())) return res.status(400).json({ message: 'Start date cannot be in the past.' })
+  if (end < start) return res.status(400).json({ message: 'End date must be on or after the start date.' })
+
+  // 2. The sitter exists and has a daily rate
+  const sitter = await User.findById(sitterId)
+  if (!sitter || sitter.role !== 'sitter') return res.status(404).json({ message: 'Sitter not found.' })
+  const ratePerDay = sitter.sitterProfile?.petsittingRates
+  if (!ratePerDay) return res.status(400).json({ message: 'This sitter has not set a daily rate yet.' })
+
+  // 3. The pets belong to this owner
+  const pets = await Pet.find({ _id: { $in: petIds }, owner: ownerId })
+  if (pets.length !== petIds.length) return res.status(400).json({ message: 'You can only book for your own pets.' })
+
+  // 4. The sitter is available on every day
+  const days = daysBetween(start, end)
+  const available = await Availability.find({ sitterId, date: { $gte: start, $lte: end }, status: 'available' })
+  const availableDays = available.map((a) => toSgtDateString(a.date))
+  const missing = days.filter((d) => !availableDays.includes(d))
+  if (missing.length) {
+    return res.status(409).json({ message: `The sitter is not available on ${missing.join(', ')}.` })
+  }
+
+  // 5. No overlap with the sitter's accepted / paid / in-progress bookings.
+  // Two date ranges overlap when each one starts on or before the other ends.
+  const clash = await Booking.findOne({
+    sitterId,
+    status: { $in: BOOKED_STATUSES },
+    startDate: { $lte: end },
+    endDate: { $gte: start }
+  })
+  if (clash) {
+    return res.status(409).json({
+      message: `The sitter already has a booking from ${toSgtDateString(clash.startDate)} to ${toSgtDateString(clash.endDate)}.`
+    })
+  }
+
+  // 6. Care checklist (optional): check every task before anything is saved
+  if (!Array.isArray(tasks) || tasks.length > 20) {
+    return res.status(400).json({ message: 'Send at most 20 care tasks.' })
+  }
+  const bookingPetIds = petIds.map(String)
+  const items = []
+  for (const t of tasks) {
+    const title = String(t.title || '').trim()
+    if (!title) return res.status(400).json({ message: 'Every care task needs a description.' })
+    if (!CATEGORIES.includes(t.category)) return res.status(400).json({ message: `"${t.category}" is not a task type.` })
+    if (!Number.isInteger(t.dailyFrequency) || t.dailyFrequency < 1 || t.dailyFrequency > 10) {
+      return res.status(400).json({ message: 'Times per day must be a whole number from 1 to 10.' })
+    }
+    // A task is for the pets chosen on it, which must be pets in this booking. None chosen = all of them.
+    const taskPets = Array.isArray(t.petIds) && t.petIds.length ? t.petIds.map(String) : bookingPetIds
+    if (!taskPets.every((id) => bookingPetIds.includes(id))) {
+      return res.status(400).json({ message: 'A care task can only be for a pet in this booking.' })
+    }
+    items.push({ category: t.category, title, dailyFrequency: t.dailyFrequency, petIds: taskPets })
+  }
+
+  // 7. Create the booking
+  const booking = await Booking.create({
+    ownerId,
+    sitterId,
+    petIds,
+    startDate: start,
+    endDate: end,
+    notes,
+    totalPrice: ratePerDay * days.length,
+    status: 'pending'
+  })
+
+  // 8. Save the care checklist, linked to the booking by bookingId
+  if (items.length) await CareChecklist.create({ bookingId: booking._id, items })
+
+  res.status(201).json({
+    _id: booking._id,
+    startDate: toSgtDateString(booking.startDate),
+    endDate: toSgtDateString(booking.endDate),
+    days: days.length,
+    totalPrice: booking.totalPrice,
+    status: booking.status,
+    tasks: items.length
+  })
+}))
+
+// GET /api/bookings/:id/care-tasks
+// The care tasks the owner added to this booking request. Only the booking's owner or sitter can read them.
+// Out: { items: [{ category, title, petIds, dailyFrequency }] } (empty list if there are none)
+router.get('/:id/care-tasks', requireLogin, asyncHandler(async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Booking not found.' })
+  const booking = await Booking.findById(req.params.id)
+  if (!booking) return res.status(404).json({ message: 'Booking not found.' })
+
+  const me = String(req.session.userId)
+  if (me !== String(booking.ownerId) && me !== String(booking.sitterId)) {
+    return res.status(403).json({ message: 'This booking is not yours.' })
+  }
+
+  const checklist = await CareChecklist.findOne({ bookingId: booking._id })
+  res.json({ items: checklist ? checklist.items : [] })
+}))
+
+export default router

@@ -8,7 +8,6 @@ const route = useRoute()
 const router = useRouter()
 
 const hideElem = computed(() => route.meta.hideElem === true)
-const hideLinks = computed(() => route.meta.hideLinks === true)
 
 const searchLink = computed(() => (currentUser.value ? '/home' : '/browse'))
 const open = ref(false);
@@ -28,40 +27,41 @@ async function handleLogout() {
     <router-link class="navbar-brand" to="/">
       <span class="brand-emoji">🐾</span> PetSociety
     </router-link>
+
       <button
         class="navbar-toggler"
         type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" 
+        aria-expanded="false"
         aria-label="Toggle navigation"
-        :aria-expanded="open"
-        @click="open = !open"
       >
         <span class="navbar-toggler-icon"></span>
       </button>
+
       <div
         class="collapse navbar-collapse flex-md-column align-items-md-stretch flex-md-grow-1 mt-md-4"
-        :class="{ show: open }"
+        id="navbarSupportedContent"
       >        
         <ul class="navbar-nav flex-md-column mb-md-auto">
-            <li v-if="!hideElem && !hideLinks" class="nav-item">
+            <li v-if="!hideElem" class="nav-item">
               <router-link class="nav-link" :to="searchLink">{{ currentUser?.role === 'sitter' ? 'Home' : 'Search Sitters' }}</router-link>
             </li>
             <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
-              <router-link class="nav-link" to="#" active-class="" exact-active-class="">My Bookings</router-link>
+              <router-link class="nav-link" to="/owner/bookings">My Bookings</router-link>
             </li>
             <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
-              <router-link class="nav-link" to="#" active-class="" exact-active-class="">My Calendar</router-link>
+              <router-link class="nav-link" to="/sitter/calendar">My Calendar</router-link>
             </li>
             <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
-              <router-link class="nav-link" to="#" active-class="" exact-active-class="">Booking Requests</router-link>
+              <router-link class="nav-link" to="/sitter/requests">Booking Requests</router-link>
             </li>
             <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
               <router-link class="nav-link" to="#" active-class="" exact-active-class="">My Reviews</router-link>
             </li>
             <li v-if="currentUser && !hideElem" class="nav-item">
               <router-link class="nav-link" to="/profile"> My Profile</router-link>
-            </li>
-            <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
-              <router-link class="nav-link" to="/pets">Pets</router-link>
             </li>
         </ul>
         <div class="mt-3 mt-md-auto pb-2 pb-md-0">
