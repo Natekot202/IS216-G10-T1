@@ -32,7 +32,7 @@ const showRoute = computed(() => ['accepted', 'paid', 'in-progress'].includes(pr
         <StatusPill :status="booking.status" />
       </div>
       <p class="text-muted mb-2">{{ viewer === 'sitter' ? 'Owner' : 'Sitter' }}: {{ otherPerson }}</p>
-      <p class="mb-1">📅 {{ formatDateRange(booking.startDate, booking.endDate) }}</p>
+      <p class="mb-1">📅 {{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime) }}</p>
       <p class="mb-1">💵 {{ formatPrice(booking.totalPrice) }}</p>
       <p v-if="booking.notes" class="small text-muted mb-0">"{{ booking.notes }}"</p>
 

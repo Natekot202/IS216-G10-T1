@@ -72,7 +72,7 @@ function showTripLink(booking) {
                 </div>
               </div>
             </td>
-            <td class="text-nowrap">{{ formatDateRange(b.startDate, b.endDate) }}</td>
+            <td class="text-nowrap">{{ formatDateRange(b.startDate, b.endDate, b.startTime, b.endTime) }}</td>
             <td class="d-none d-md-table-cell">{{ formatPrice(b.totalPrice) }}</td>
             <td><StatusPill :status="b.status" /></td>
             <td class="text-end">

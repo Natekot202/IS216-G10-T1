@@ -6,12 +6,12 @@ import CareChecklist, { CATEGORIES } from '../models/CareChecklist.js'
 import Pet from '../models/petModel.js'
 import User from '../models/UserModel.js'
 import { requireOwner, requireLogin } from '../middleware/authMiddleware.js'
+import { bookingRange, findClash, describeBooking, toMinutes, START_TIME_RE, END_TIME_RE } from '../utils/bookingTimes.js'
 import asyncHandler from '../middleware/asyncHandler.js'
 
 const router = Router()
 
 const DAY_MS = 24 * 60 * 60 * 1000
-const BOOKED_STATUSES = ['accepted', 'paid', 'in-progress']
 
 // Every 'YYYY-MM-DD' from start to end, inclusive.
 function daysBetween(start, end) {
@@ -21,10 +21,11 @@ function daysBetween(start, end) {
 }
 
 // POST /api/bookings
-// Body: { sitterId, petIds: [id], startDate: 'YYYY-MM-DD', endDate: 'YYYY-MM-DD', notes }
+// Body: { sitterId, petIds: [id], startDate: 'YYYY-MM-DD', startTime: '09:00', endDate: 'YYYY-MM-DD', endTime: '17:30', notes, tasks }
+// Times are Singapore time in 30-minute steps; endTime can be '24:00' (end of the day).
 // Creates a 'pending' booking if every check passes.
 router.post('/', requireOwner, asyncHandler(async (req, res) => {
-  const { sitterId, petIds, startDate, endDate, notes = '', tasks = [] } = req.body
+  const { sitterId, petIds, startDate, startTime, endDate, endTime, notes = '', tasks = [] } = req.body
   const ownerId = req.session.userId
 
   // 1. Input checks
@@ -36,6 +37,16 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
   if (!start || !end) return res.status(400).json({ message: 'Choose a valid start and end date.' })
   if (startDate < toSgtDateString(new Date())) return res.status(400).json({ message: 'Start date cannot be in the past.' })
   if (end < start) return res.status(400).json({ message: 'End date must be on or after the start date.' })
+
+  // Times are compulsory: HH:00 or HH:30. (An all-day booking is 00:00 to 24:00.)
+  if (!START_TIME_RE.test(startTime || '') || !END_TIME_RE.test(endTime || '') || endTime === '00:00') {
+    return res.status(400).json({ message: 'Choose a start time and an end time (in 30-minute steps).' })
+  }
+  if (startDate === endDate && toMinutes(endTime) <= toMinutes(startTime)) {
+    return res.status(400).json({ message: 'End time must be after the start time.' })
+  }
+  const range = bookingRange({ startDate: start, endDate: end, startTime, endTime }) // exact start and end moments
+  if (range.start <= Date.now()) return res.status(400).json({ message: 'The start time has already passed.' })
 
   // 2. The sitter exists and has a daily rate
   const sitter = await User.findById(sitterId)
@@ -56,18 +67,11 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     return res.status(409).json({ message: `The sitter is not available on ${missing.join(', ')}.` })
   }
 
-  // 5. No overlap with the sitter's accepted / paid / in-progress bookings.
-  // Two date ranges overlap when each one starts on or before the other ends.
-  const clash = await Booking.findOne({
-    sitterId,
-    status: { $in: BOOKED_STATUSES },
-    startDate: { $lte: end },
-    endDate: { $gte: start }
-  })
+  // 5. No clash with the sitter's accepted / paid / in-progress bookings, checked by exact time.
+  // (Pending requests don't block, because the sitter hasn't said yes yet.)
+  const clash = await findClash(sitterId, range)
   if (clash) {
-    return res.status(409).json({
-      message: `The sitter already has a booking from ${toSgtDateString(clash.startDate)} to ${toSgtDateString(clash.endDate)}.`
-    })
+    return res.status(409).json({ message: `The sitter is already booked ${describeBooking(clash)}.` })
   }
 
   // 6. Care checklist (optional): check every task before anything is saved
@@ -97,7 +101,9 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     sitterId,
     petIds,
     startDate: start,
+    startTime,
     endDate: end,
+    endTime,
     notes,
     totalPrice: ratePerDay * days.length,
     status: 'pending'
@@ -109,7 +115,9 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
   res.status(201).json({
     _id: booking._id,
     startDate: toSgtDateString(booking.startDate),
+    startTime: booking.startTime,
     endDate: toSgtDateString(booking.endDate),
+    endTime: booking.endTime,
     days: days.length,
     totalPrice: booking.totalPrice,
     status: booking.status,

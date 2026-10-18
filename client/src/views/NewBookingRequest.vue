@@ -2,6 +2,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
+import { formatTime } from '../utils/bookingHelpers.js'
+import { toDateString, prettyDate } from '../utils/bookingTimeHelpers.js'
+import BookingDatePicker from '../components/BookingDatePicker.vue'
+import CareChecklistEditor from '../components/CareChecklistEditor.vue'
 
 // Same setup as services/bookingApi.js: Vite forwards /api to the server, and
 // withCredentials sends the login cookie.
@@ -10,25 +14,17 @@ const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api', with
 const route = useRoute()
 const sitterId = route.query.sitterId // from the URL: /bookings/new?sitterId=...
 
-// Turns a Date into 'YYYY-MM-DD' (what <input type="date"> uses), in local time.
-function toDateString(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-// '2026-10-20' -> '20 Oct 2026'
-function prettyDate(s) {
-  return new Date(s + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-const today = toDateString(new Date())
-
 const sitter = ref(null) // { username, sitterProfile: { petsittingRates, ... } }
 const pets = ref([]) // the logged-in owner's pets
-const availability = ref({}) // { '2026-10-20': 'available' | 'blocked' | 'booked' }
+const availability = ref({}) // { '2026-10-20': 'available' | 'blocked' }
+const busy = ref([]) // times the sitter is already booked: [{ start, end }] as moments (milliseconds)
 const loadError = ref('')
 
 // What the owner fills in
 const selectedPets = ref([]) // array of pet ids
-const startDate = ref('')
-const endDate = ref('')
+// What the date picker says was chosen (it sends this to us): { startDate, startTime, endDate, endTime, clash }
+const when = ref({ startDate: '', startTime: '', endDate: '', endTime: '', clash: false })
+const tasks = ref([]) // the care tasks (the checklist editor sends us this list)
 const notes = ref('')
 
 const error = ref('')
@@ -40,10 +36,10 @@ const rate = computed(() => sitter.value?.sitterProfile?.petsittingRates || 0)
 
 // returns an array of day dates from start to end, inclusive. Empty if the dates aren't filled in properly.
 const chosenDays = computed(() => {
-  if (!startDate.value || !endDate.value || endDate.value < startDate.value) return []
+  if (!when.value.startDate || !when.value.endDate || when.value.endDate < when.value.startDate) return []
   const days = []
-  const d = new Date(startDate.value + 'T00:00:00') // dateObj for start-date 
-  const end = new Date(endDate.value + 'T00:00:00') // dateObj for end-date
+  const d = new Date(when.value.startDate + 'T00:00:00') // dateObj for start-date 
+  const end = new Date(when.value.endDate + 'T00:00:00') // dateObj for end-date
   while (d <= end) {
     days.push(toDateString(d)) // convert the current date into a string and add it to days 
     d.setDate(d.getDate() + 1) // move d forward by one day by updating the initial d dateObj
@@ -58,6 +54,9 @@ const totalPrice = computed(() => rate.value * chosenDays.value.length)
 const unavailableDays = computed(() => chosenDays.value.filter((d) => availability.value[d] !== 'available'))
 // array of days within chosenDays array where availability != 'available'
 
+// Safety net: did the date picker find that the chosen time runs into a time the sitter is booked?
+const clash = computed(() => when.value.clash)
+
 function togglePet(id) {
   if (selectedPets.value.includes(id)) selectedPets.value = selectedPets.value.filter((p) => p !== id) 
   //if pet id is alr in selectedPet arary, clicking the pet means yw to remove it, so .filter keeps only the pets != to that pet id 
@@ -65,35 +64,17 @@ function togglePet(id) {
   // adds pet id to selectedPets array 
 }
 
-// ----- Care checklist -----
-const categories = ['feed', 'walk', 'groom', 'medication', 'other'] // same list the server accepts
-const tasks = ref([]) // each task: { category, title, dailyFrequency, petIds }
-
 // The pets picked above, as full objects (so a task can show their names)
 const selectedPetList = computed(() => pets.value.filter((p) => selectedPets.value.includes(p._id)))
-
-function addTask() {
-  // petIds: [] means "all the selected pets"
-  tasks.value.push({ category: 'feed', title: '', dailyFrequency: 1, petIds: [] })
-}
-
-function removeTask(index) {
-  tasks.value.splice(index, 1) // remove 1 task at this position
-}
-
-// Same idea as togglePet, but for the pets chosen on one task
-function toggleTaskPet(task, id) {
-  if (task.petIds.includes(id)) task.petIds = task.petIds.filter((p) => p !== id)
-  else task.petIds.push(id)
-}
-
 
 async function sendRequest() {
   error.value = ''
   // Quick checks before calling the server (the server checks these again)
   if (selectedPets.value.length === 0) return (error.value = 'Select at least one pet.')
-  if (!startDate.value || !endDate.value) return (error.value = 'Choose a start and end date.')
-  if (endDate.value < startDate.value) return (error.value = 'End date must be on or after the start date.')
+  if (!when.value.startDate || !when.value.endDate) return (error.value = 'Choose a start and end date.')
+  if (when.value.endDate < when.value.startDate) return (error.value = 'End date must be on or after the start date.')
+  if (!when.value.startTime || !when.value.endTime) return (error.value = 'Choose a start time and an end time.')
+  if (clash.value) return (error.value = 'The sitter is already booked during this time. Please choose different times.')
   if (unavailableDays.value.length) {
     return (error.value = `The sitter is not available on ${unavailableDays.value.map(prettyDate).join(', ')}.`)
   }
@@ -111,8 +92,10 @@ async function sendRequest() {
     const res = await api.post('/bookings', {
       sitterId,
       petIds: selectedPets.value,
-      startDate: startDate.value,
-      endDate: endDate.value,
+      startDate: when.value.startDate,
+      startTime: when.value.startTime,
+      endDate: when.value.endDate,
+      endTime: when.value.endTime,
       notes: notes.value,
       tasks: tasks.value.map((t) => {
         // keep only pets that are still selected; if none are left, the task is for all selected pets
@@ -136,14 +119,17 @@ async function sendRequest() {
 onMounted(async () => {
   if (!sitterId) return (loadError.value = 'No sitter selected. Pick a sitter from Search Sitters first.')
   try {
-    const [s, p, a] = await Promise.all([
+    const [s, p, a, b] = await Promise.all([
       api.get(`/users/${sitterId}`), // sitter's public profile (name, rate)
       api.get('/pets'), // my pets
-      api.get(`/availability/${sitterId}`) // sitter's available days
+      api.get(`/availability/${sitterId}`), // sitter's available days
+      api.get(`/availability/${sitterId}/busy`) // times the sitter is already booked
     ])
     sitter.value = s.data
     pets.value = p.data
     a.data.forEach((day) => (availability.value[day.date] = day.status))
+    busy.value = b.data.map((x) => ({ start: new Date(x.start).getTime(), end: new Date(x.end).getTime() })) 
+    // converts timestamp_str into milliseconds since 1970 so that u can easily compare start-time and end-time 
   } catch (err) {
     loadError.value = err.response?.data?.message || 'Could not load this sitter.'
   }
@@ -160,7 +146,9 @@ onMounted(async () => {
     <div class="card-body text-center py-5">
       <div class="fs-1">🐾</div>
       <h2 class="h5">Request sent to {{ sitter.username }}</h2>
-      <p class="text-muted mb-1">{{ prettyDate(booking.startDate) }} – {{ prettyDate(booking.endDate) }} · ${{ booking.totalPrice }}</p>
+      <p class="text-muted mb-1">
+        {{ prettyDate(booking.startDate) }}, {{ formatTime(booking.startTime) }} – {{ prettyDate(booking.endDate) }}, {{ formatTime(booking.endTime) }} · ${{ booking.totalPrice }}
+      </p>
       <p class="small">Status: <span class="badge text-bg-warning">{{ booking.status }}</span></p>
       <p v-if="booking.tasks" class="small text-muted">{{ booking.tasks }} care task{{ booking.tasks === 1 ? '' : 's' }} included</p>
       <router-link to="/owner/bookings" class="btn btn-dark mt-2">View My Bookings</router-link>
@@ -169,7 +157,7 @@ onMounted(async () => {
 
   <!-- The form -->
   <div v-else-if="sitter" class="row g-3">
-    <div class="col-lg-8">
+    <div class="col-12">
       <div class="card shadow-sm">
         <div class="card-body">
           <!-- Sitter -->
@@ -197,78 +185,59 @@ onMounted(async () => {
             </button>
           </div>
 
-          <!-- Dates -->
-          <h3 class="h6 text-uppercase text-muted fw-bold">Dates</h3>
-          <div class="row g-2 mb-4">
-            <div class="col-sm-6">
-              <label class="form-label small" for="start">Start date</label>
-              <input id="start" v-model="startDate" type="date" class="form-control" :min="today" />
-            </div>
-            <div class="col-sm-6">
-              <label class="form-label small" for="end">End date</label>
-              <input id="end" v-model="endDate" type="date" class="form-control" :min="startDate || today" />
-            </div>
+          <!-- Dates and times (the calendar picker) -->
+          <div class="mb-3">
+            <BookingDatePicker :availability="availability" :busy="busy" @change="when = $event" />
           </div>
+          <!--
+          @change doesnt mean "run whenever sth in the child component changes" ; instead it means : 
+          -> run whenever BookingDatePicker emits an event named change.”
+
+          how it works : 
+
+          watch(....) exists within the bookingDatePicker 
+
+          when one of those values within watch(..) changes, watch callback runs, calls emit('change', choice)
+
+          parent page(this page) recieves the emitted event, @change="when = $event" runs : 
+          
+            1. sends the parents availability,busy varirable into bookingDatePicker(child page) 
+            2. within bookingdatepicker, it builds the object called change, and returns it to the parent, which the parent recieves as the when object 
+          -->
+
+          <p v-if="chosenDays.length" class="small mb-4">
+            {{ chosenDays.length }} day{{ chosenDays.length === 1 ? '' : 's' }} × ${{ rate }} = <strong>${{ totalPrice }}</strong>
+          </p>
 
           <!-- Notes -->
           <h3 class="h6 text-uppercase text-muted fw-bold">Notes to Sitter</h3>
           <textarea v-model="notes" class="form-control" rows="4" placeholder="Feeding times, medication, walking routine…"></textarea>
 
           <!-- Care checklist -->
-          <h3 class="h6 text-uppercase text-muted fw-bold mt-4">Care Checklist</h3>
-          <p class="small text-muted">What should the sitter do each day? Optional.</p>
-
-          <div v-for="(task, i) in tasks" :key="i" class="border rounded p-2 mb-2">
-            <div class="row g-2 align-items-end">
-              <div class="col-sm-3">
-                <label class="form-label small mb-1">Type</label>
-                <select v-model="task.category" class="form-select form-select-sm">
-                  <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
-                </select>
-              </div>
-              <div class="col-sm-5">
-                <label class="form-label small mb-1">What to do</label>
-                <input v-model="task.title" type="text" maxlength="120" class="form-control form-control-sm" placeholder="e.g. Feed 1 cup kibble at 8am" />
-              </div>
-              <div class="col-6 col-sm-2">
-                <label class="form-label small mb-1">Times a day</label>
-                <input v-model.number="task.dailyFrequency" type="number" min="1" max="10" class="form-control form-control-sm" />
-              </div>
-              <div class="col-6 col-sm-2 text-end">
-                <button type="button" class="btn btn-sm btn-outline-danger" @click="removeTask(i)">Remove</button>
-              </div>
-            </div>
-            <!-- Only worth choosing pets when more than one is selected -->
-            <div v-if="selectedPetList.length > 1" class="d-flex flex-wrap align-items-center gap-2 mt-2">
-              <span class="small text-muted">For:</span>
-              <button
-                v-for="pet in selectedPetList"
-                :key="pet._id"
-                type="button"
-                class="btn btn-sm rounded-pill px-2 py-0"
-                :class="task.petIds.includes(pet._id) ? 'btn-dark' : 'btn-outline-secondary'"
-                @click="toggleTaskPet(task, pet._id)"
-              >
-                {{ pet.name }}
-              </button>
-              <span v-if="task.petIds.length === 0" class="small text-muted">(all selected pets)</span>
-            </div>
-          </div>
-
-          <button type="button" class="btn btn-outline-secondary btn-sm" @click="addTask">+ Add Task</button>
+          <CareChecklistEditor :pets="selectedPetList" @change="tasks = $event" />
+          <!-- 
+          same concept as bookingDatePicker abv 
+          -->
         </div>
       </div>
     </div>
 
-    <!-- Price preview (right on wide screens, below on small) -->
-    <div class="col-lg-4">
+    <!-- Price preview (full width, just above the Send button) -->
+    <div class="col-12">
       <div class="card shadow-sm">
         <div class="card-body">
           <h3 class="h6 text-uppercase text-muted fw-bold mb-3">Price Preview</h3>
           <div class="d-flex justify-content-between small"><span>Daily rate</span><span>${{ rate }}</span></div>
           <div class="d-flex justify-content-between small"><span>Days</span><span>{{ chosenDays.length || '–' }}</span></div>
+          <div v-if="when.startTime && when.endTime" class="d-flex justify-content-between small">
+            <span>Time</span><span>{{ formatTime(when.startTime) }} – {{ formatTime(when.endTime) }}</span>
+          </div>
           <hr />
           <div class="d-flex justify-content-between fw-bold"><span>Total</span><span>${{ totalPrice }}</span></div>
+          <p class="small text-muted mt-2 mb-0">Charged per calendar day.</p>
+          <div v-if="clash" class="alert alert-danger small py-2 mt-3 mb-0">
+            The sitter is already booked during this time. Please choose different times.
+          </div>
           <div v-if="unavailableDays.length" class="alert alert-warning small py-2 mt-3 mb-0">
             Not available on {{ unavailableDays.map(prettyDate).join(', ') }}
           </div>
@@ -278,7 +247,7 @@ onMounted(async () => {
 
     <div class="col-12">
       <div v-if="error" class="alert alert-danger py-2">{{ error }}</div>
-      <button class="btn btn-dark w-100 py-2 fw-semibold" :disabled="sending" @click="sendRequest">
+      <button class="btn btn-dark w-100 py-2 fw-semibold" :disabled="sending || clash" @click="sendRequest">
         {{ sending ? 'Sending…' : 'Send Booking Request' }}
       </button>
     </div>

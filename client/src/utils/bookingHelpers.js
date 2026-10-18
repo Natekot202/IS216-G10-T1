@@ -14,11 +14,30 @@ export function petNames(booking) {
   return names.length ? names.join(', ') : 'Pet'
 }
 
-export function formatDateRange(start, end) {
+// '09:30' -> '9:30 am', '24:00' (end of the day) -> '12:00 am'
+export function formatTime(time) {
+  const [h, m] = time.split(':').map(Number)
+  const minutes = (h * 60 + m) % (24 * 60)
+  const h24 = Math.floor(minutes / 60)
+  return `${h24 % 12 || 12}:${String(minutes % 60).padStart(2, '0')} ${h24 >= 12 ? 'pm' : 'am'}`
+}
+
+// '21 Oct 2026' for one day, '21 Oct – 23 Oct 2026' for several.
+// With times (bookings made from now on): '21 Oct 2026, 9:00 am – 12:00 pm' or '21 Oct, 9:00 am – 23 Oct 2026, 5:00 pm'.
+export function formatDateRange(start, end, startTime, endTime) {
   const opts = { day: 'numeric', month: 'short' }
   const s = new Date(start).toLocaleDateString('en-SG', opts)
   const e = new Date(end).toLocaleDateString('en-SG', { ...opts, year: 'numeric' })
-  return s === new Date(end).toLocaleDateString('en-SG', opts) ? e : `${s} – ${e}`
+  const sameDay = s === new Date(end).toLocaleDateString('en-SG', opts)
+  if (startTime && endTime) {
+    if (sameDay) {
+      return startTime === '00:00' && endTime === '24:00'
+        ? `${e}, all day`
+        : `${e}, ${formatTime(startTime)} – ${formatTime(endTime)}`
+    }
+    return `${s}, ${formatTime(startTime)} – ${e}, ${formatTime(endTime)}`
+  }
+  return sameDay ? e : `${s} – ${e}`
 }
 
 export function formatPrice(amount) {
