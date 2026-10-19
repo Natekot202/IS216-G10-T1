@@ -3,6 +3,7 @@ import User from '../models/UserModel.js'
 import Pet from '../models/petModel.js'
 import Review from '../models/reviewModel.js'
 import { uploadImage, deleteImage } from '../config/cloudinary.js'
+import { geocodePostalCode } from '../utils/geocode.js'
 
 const PUBLIC_FIELDS = 'username bio profilePicture role sitterProfile createdAt'
 
@@ -61,6 +62,24 @@ export async function updateMyProfile(req, res) {
     }
     updates['ownerProfile.address.line1'] = line1
     updates['ownerProfile.address.postalCode'] = postalCode
+
+    // Home coordinates, used to check that routes and walks start and end at home
+    if (postalCode) {
+      let location
+      try {
+        location = await geocodePostalCode(postalCode)
+      } catch (err) {
+        console.error(err)
+        return res.status(502).json({ message: "Couldn't look up your postal code right now. Please try again." })
+      }
+      if (!location) {
+        return res.status(400).json({ message: 'Postal code not found.' })
+      }
+      updates['ownerProfile.address.location'] = location
+    } else {
+      updates.$unset = { 'ownerProfile.address.location': '' }  // postal code cleared, so clear home too
+    }
+
   }
   
   if (req.session.role === 'sitter' && req.body.sitterProfile) {
