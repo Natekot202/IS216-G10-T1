@@ -7,7 +7,7 @@ import ProfileHeader from '../components/ProfileHeader.vue';
 import OwnerDetails from '../components/OwnerDetails.vue'
 import SitterDetails from '../components/SitterDetails.vue'
 import { usersApi } from '../services/api.js'
-
+import SitterReviews from '../components/SitterReview.vue'
 
 const route = useRoute()
 const profile = ref(null)
@@ -18,8 +18,7 @@ async function load() {
   error.value = ''
   profile.value = null
   if (isMine.value) { 
-    profile.value = currentUser.value; r
-    eturn 
+    profile.value = currentUser.value; return 
   } try {
     profile.value = await usersApi.getById(route.params.id)
   } catch (err) {
@@ -44,9 +43,15 @@ watch([() => route.params.id, currentUser], load, { immediate: true })
         </div>
 
         <div class="col-12 col-md-8">
-          <OwnerDetails v-if="profile.role === 'owner'" :owner-id="profile._id" :editable="isMine" />
+          <OwnerDetails v-if="profile.role === 'owner'"
+              :owner-id="profile._id"
+              :owner-name="profile.username"
+              :editable="isMine" />
           <SitterDetails v-else :profile="profile" :editable="isMine" />
         </div>
+      </div>
+      <div v-if="profile.role === 'sitter'" class="mt-4">
+        <SitterReviews :sitter-id="profile._id" />
       </div>
     </template>
   </div>
