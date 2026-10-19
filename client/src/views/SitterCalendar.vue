@@ -92,7 +92,7 @@ function toMinutes(time) {
 function shortTime(minutes) {
   const h24 = Math.floor(minutes / 60) % 24
   const m = minutes % 60
-  return `${h24 % 12 || 12}${m ? ':' + String(m).padStart(2, '0') : ''}${h24 >= 12 ? 'p' : 'a'}`
+  return `${h24 % 12 || 12}${m ? ':' + String(m).padStart(2, '0') : ''}${h24 >= 12 ? 'pm' : 'am'}`
 }
 // What one booking looks like inside one day's square, e.g. '9a–12p · Buddy'.
 // The first day uses the start time, the last day the end time; days in between say 'All day'.
@@ -213,9 +213,8 @@ onMounted(async () => {
       const end = new Date(b.endDate + 'T00:00:00')
       while (d <= end) {
         const key = toDateString(d.getFullYear(), d.getMonth(), d.getDate())
-        if (!bookedDays.value[key]) bookedDays.value[key] = [] // first booking on this day
-        bookedDays.value[key].push(b) // a day can hold more than one booking
-        d.setDate(d.getDate() + 1)
+        if (!bookedDays.value[key]) bookedDays.value[key] = [] // if booking doesnt exist in bookedDays, add it to bookedDays as the first booking 
+        d.setDate(d.getDate() + 1) // loop to the next day 
       }
     })
   } catch (err) {
