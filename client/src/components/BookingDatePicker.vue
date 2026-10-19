@@ -26,14 +26,14 @@ const emit = defineEmits(['change'])
 
 const today = toDateString(new Date())
 
-// What the owner has chosen so far
+// start and end date + timing that the owner wants 
 const startDate = ref('') // 'YYYY-MM-DD'
 const startTime = ref('') // '09:00'
 const endDate = ref('')
 const endTime = ref('') // '17:30' (or '24:00' = end of the day)
 
 // The month shown in the calendar picker
-const viewYear = ref(new Date().getFullYear())
+const viewYear = ref(new Date().getFullYear()) //2026
 const viewMonth = ref(new Date().getMonth()) // 0 = January
 const monthName = computed(() =>
   new Date(viewYear.value, viewMonth.value, 1).toLocaleDateString('en-SG', { month: 'long', year: 'numeric' })
@@ -64,11 +64,12 @@ const lastEndDate = computed(() => {
   if (!startDate.value) return ''
   let last = startDate.value
   const d = new Date(startDate.value + 'T00:00:00')
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 90; i++) { 
     d.setDate(d.getDate() + 1) // look at the next day
     const day = toDateString(d)
     if (props.availability[day] !== 'available') break // not available: can't go any further
-    const dayStart = momentOf(day, 0)
+
+    const dayStart = momentOf(day, 0) // starts at 12am on that date 
     if (!isBusy(props.busy, dayStart, momentOf(day, DAY_MIN))) {
       last = day // a completely free day: fine, keep going
       continue
@@ -131,12 +132,12 @@ const endSlots = computed(() => {
   const startMs = momentOf(startDate.value, toMinutes(startTime.value))
   const list = []
   for (let m = 30; m <= DAY_MIN; m += 30) {
-    const value = m === DAY_MIN ? '24:00' : toHHMM(m) // 24:00 = the end of the day
+    const value = m === DAY_MIN ? '24:00' : toHHMM(m) //when m == 1440, special case, toHHMM doesnt work, assign it 24:00 (which it actl is ) 
     const endMs = momentOf(endDate.value, m)
-    const afterStart = endMs > startMs
-    const free = afterStart && !isBusy(props.busy, startMs, endMs)
+    const afterStart = endMs > startMs 
+    const free = afterStart && !isBusy(props.busy, startMs, endMs) // checks wether booking end is aft booking start + person isnt busy during that period 
     const note = (value === '24:00' ? ' (end of day)' : '') + (afterStart && !free ? ' (booked)' : '')
-    list.push({ value, label: formatTime(value) + note, disabled: !free })
+    list.push({ value, label: formatTime(value) + note, disabled: !free }) //disabled =!free ; so if free, will be disabled and greyeded out ; if not wont be 
   }
   return list
 })

@@ -213,9 +213,8 @@ onMounted(async () => {
       const end = new Date(b.endDate + 'T00:00:00')
       while (d <= end) {
         const key = toDateString(d.getFullYear(), d.getMonth(), d.getDate())
-        if (!bookedDays.value[key]) bookedDays.value[key] = [] // first booking on this day
-        bookedDays.value[key].push(b) // a day can hold more than one booking
-        d.setDate(d.getDate() + 1)
+        if (!bookedDays.value[key]) bookedDays.value[key] = [] // if booking doesnt exist in bookedDays, add it to bookedDays as the first booking 
+        d.setDate(d.getDate() + 1) // loop to the next day 
       }
     })
   } catch (err) {

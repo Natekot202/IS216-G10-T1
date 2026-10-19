@@ -17,7 +17,8 @@ const sitterId = route.query.sitterId // from the URL: /bookings/new?sitterId=..
 const sitter = ref(null) // { username, sitterProfile: { petsittingRates, ... } }
 const pets = ref([]) // the logged-in owner's pets
 const availability = ref({}) // { '2026-10-20': 'available' | 'blocked' }
-const busy = ref([]) // times the sitter is already booked: [{ start, end }] as moments (milliseconds)
+const busy = ref([]) // times the sitter is already booked: [{ start, end }] as moments (milliseconds) e.g. busy = [  { start: 1792476000000,  end: 1792486800000 } ]
+
 const loadError = ref('')
 
 // What the owner fills in
@@ -129,7 +130,7 @@ onMounted(async () => {
     pets.value = p.data
     a.data.forEach((day) => (availability.value[day.date] = day.status))
     busy.value = b.data.map((x) => ({ start: new Date(x.start).getTime(), end: new Date(x.end).getTime() })) 
-    // converts timestamp_str into milliseconds since 1970 so that u can easily compare start-time and end-time 
+    // uses .getTime() to convert timestamp_str into milliseconds since 1970 so that u can easily compare start-time and end-time 
   } catch (err) {
     loadError.value = err.response?.data?.message || 'Could not load this sitter.'
   }
