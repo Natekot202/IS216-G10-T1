@@ -10,13 +10,15 @@ export function useGeoTracker(){
     const position = ref(null); // latest position, [lng, lat]
     const path = ref([]);       // stores every accepted point [[lng, lat], ...]
     const accuracy = ref(null); // to metres
-    const tracking = ref(false)
+    const tracking = ref(false) // true while GPS is on
+    const recording = ref(false) // true while points are being added to path
     const error = ref('');
     let watchId = null;
 
     // when browser gets a new GPS reading
     // saves readings accuracy, checks accuracy, updates position, adds to path
     function onPosition(pos){
+        error.value = '';
 
         // accuracy value higher, more inaccurate
         const {longitude, latitude, accuracy: acc} = pos.coords
@@ -28,6 +30,9 @@ export function useGeoTracker(){
         // create new point, assigned to ref variable
         const point = [longitude, latitude]
         position.value = point
+
+        // only build the path while recording
+        if(!recording.value) return
 
         // checks against previous point
         const last = path.value.at(-1)
@@ -48,16 +53,16 @@ export function useGeoTracker(){
         error.value = messages[err.code] ?? err.message
     }
 
-    // starts tracking
+    // starts GPS (shows the user's position, but doesn't record a path yet)
     // navigator is a browser global variable
     function start() {
         if (!('geolocation' in navigator)) {
             error.value = 'This browser does not support location tracking.'
             return
         }
+        if (watchId !== null) return // pressing start when already recording does nothing
 
         error.value = '';
-        path.value = []
         tracking.value = true;
         watchId = navigator.geolocation.watchPosition(onPosition, onError, {
             enableHighAccuracy: true, // use GPS rather than WiFi/cell location
@@ -66,16 +71,28 @@ export function useGeoTracker(){
         })
     }
 
-    // ends tracking
+    // ends GPS tracking
     function stop(){
         if(watchId !== null) navigator.geolocation.clearWatch(watchId);
         watchId = null;
         tracking.value = false;
+        recording.value = false;
+    }
+
+    // begins a new recording: clears the old path and starts it at the current position
+    function startRecording(){
+        path.value = position.value ? [position.value] : []
+        recording.value = true
+    }
+
+    // ends the recording; adds the final position so the path ends exactly where the user stopped
+    function stopRecording(){
+        recording.value = false
+        if(position.value && position.value !== path.value.at(-1)) path.value.push(position.value)
     }
 
     onBeforeUnmount(stop) // stop GPS if the user leaves the page
-    
-    // returns constants
-    return {position, path, accuracy, tracking, error, start, stop}
-}
 
+    // returns constants
+    return {position, path, accuracy, tracking, recording, error, start, stop, startRecording, stopRecording}
+}
