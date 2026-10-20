@@ -13,6 +13,7 @@ import MyBookings from '../views/MyBookings.vue'
 import SitterCalendar from '../views/SitterCalendar.vue'
 import NewBookingRequest from '../views/NewBookingRequest.vue'
 import RecordRoute from '../views/RecordRoute.vue'
+import MyRoutes from '../views/MyRoutes.vue'
 
 const routes = [
 { path: "/login", component: LoginView, meta : { hideElem: true } },
@@ -28,7 +29,9 @@ const routes = [
 { path: '/owner/bookings/group/:groupId', name: 'owner-booking-group', component: GroupBookings, meta: { role: 'owner' } },
 { path: '/sitter/calendar', name: 'sitter-calendar', component: SitterCalendar, meta: { role: 'sitter' } },
 { path: '/bookings/new', name: 'new-booking', component: NewBookingRequest, meta: { role: 'owner' } },
+{ path: '/owner/routes', name: 'my-routes', component: MyRoutes, meta: { role: 'owner' } },
 { path: '/owner/routes/new', name: 'record-route', component: RecordRoute, meta: { role: 'owner' } },
+{ path: '/owner/routes/:id/record', name: 'rerecord-route', component: RecordRoute, meta: { role: 'owner' } },
 ]
 
 const router = createRouter({

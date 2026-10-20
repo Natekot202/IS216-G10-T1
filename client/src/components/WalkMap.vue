@@ -12,6 +12,7 @@ maplibregl.setWorkerUrl(workerUrl)
 const props = defineProps({
   position: {type: Array, default: null},
   walkedPath: {type: Array, default: () => []},
+  plannedRoute: {type: Array, default: () => []}, // a saved route to show, [[lng, lat], ...]
   home: {type: Array, default: null},          // owner's home, [lng, lat]
   homeRadiusM: {type: Number, default: 75}     // size of the shaded "start and finish here" circle
 })
@@ -47,6 +48,16 @@ function showHome(h) {
   map.getSource('home-area')?.setData(homeArea(h))
 }
 
+// zooms the map so the whole route fits on screen
+function fitTo(coords) {
+  if (!map || coords.length < 2) return
+  const bounds = coords.reduce(
+    (b, c) => b.extend(c),
+    new maplibregl.LngLatBounds(coords[0], coords[0])
+  )
+  map.fitBounds(bounds, { padding: 40 })
+}
+
 onMounted(() => {
   map = new maplibregl.Map({
     // the div to draw the map into
@@ -69,10 +80,17 @@ onMounted(() => {
     map.addLayer({id: 'home-area', type: 'fill', source: 'home-area',
       paint: {'fill-color': TEAL, 'fill-opacity': 0.12, 'fill-outline-color': TEAL} })
 
+    // sets up the saved route visual (teal dashed), drawn under the walked path
+    map.addSource('planned', {type: 'geojson', data: line(props.plannedRoute)})
+    map.addLayer({id: 'planned', type: 'line', source: 'planned',
+      paint: {'line-color': TEAL, 'line-width': 3, 'line-dasharray': [2, 1.5]} })
+
     // sets up the walked path visual
     map.addSource('walked', {type : 'geojson', data: line(props.walkedPath)})
     map.addLayer({id: 'walked', type: 'line', source: 'walked',
       paint: {'line-color': CORAL, 'line-width': 3} })
+
+    fitTo(props.plannedRoute)
   })
 
   showHome(props.home)
@@ -80,6 +98,12 @@ onMounted(() => {
 
 // moves the home and circle if home changes
 watch(() => props.home, showHome)
+
+// redraws the saved route and zooms to it when a different route is chosen
+watch(() => props.plannedRoute, (c) => {
+  map?.getSource('planned')?.setData(line(c))
+  fitTo(c)
+})
 
 // watch triggers callback when reactive state changes
 // triggers when props.positon is updated

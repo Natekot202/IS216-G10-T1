@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch} from 'vue'
+import { useRoute } from 'vue-router'
 import { distance, length, lineString, simplify } from '@turf/turf'
 import WalkMap from '../components/WalkMap.vue'
 import { useGeoTracker } from '../utils/useGeoTracker.js'
@@ -18,6 +19,13 @@ const routeName = ref('');
 const saving = ref(false);
 const saveError = ref('');
 const savedRoute = ref(null);
+
+// Re-record mode: opened from /owner/routes/:id/record to replace an existing route's path
+// (pageRoute is the page's URL info from Vue Router, not a walking route)
+const pageRoute = useRoute()
+const routeId = pageRoute.params.id ?? null   // null when recording a new route
+const existingRoute = ref(null)               // the route being re-recorded
+const loadError = ref('')
 
 // The owner's home as [lng, lat], from the postal code on their profile
 const home = computed(() => currentUser.value?.ownerProfile?.address?.location?.coordinates ?? null)
@@ -44,6 +52,19 @@ const formatDistance = (m) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${m}
 
 onMounted(async () => {
   if (!currentUser.value) await fetchUser()
+
+  // when re-recording, load the old route so it can be shown on the map and its name kept
+  if (routeId) {
+    try {
+      existingRoute.value = await walkRoutesApi.getById(routeId)
+      routeName.value = existingRoute.value.name
+    } catch (err) {
+      loadError.value = err.response?.data?.message ?? 'Could not load this route.'
+      step.value = 'ready'
+      return
+    }
+  }
+
   step.value = 'ready'
   if (home.value) start()   // GPS on straight away, so the owner can see how far they are from home
 })
@@ -65,7 +86,7 @@ function reset() {
   hasLeftHome.value = false;
   stopRecording()
   path.value = []
-  routeName.value = ''
+  routeName.value = existingRoute.value?.name ?? ''   // re-recording keeps the old name
   saveError.value = ''
   savedRoute.value = null
   step.value = 'ready'
@@ -84,7 +105,9 @@ async function save() {
   try {
     // Drop points that barely change the shape (within about 2 m), so the route is smaller to store
     const simplified = simplify(lineString(path.value), { tolerance: 0.00002 }).geometry.coordinates
-    savedRoute.value = await walkRoutesApi.create(name, simplified)
+    savedRoute.value = routeId
+      ? await walkRoutesApi.update(routeId, { name, path: simplified })   // re-record: replace the old path
+      : await walkRoutesApi.create(name, simplified)                      // new route
     step.value = 'saved'
   } catch (err) {
     saveError.value = err.response?.data?.message ?? 'Could not save the route. Please try again.'
@@ -97,12 +120,19 @@ async function save() {
 <template>
   <div class="d-flex flex-column vh-100 p-3 gap-3">
     <header>
-      <h1 class="page-title mb-1">Record a walking route</h1>
-      <p class="text-body-secondary mb-0">Walk the route with your phone. It must start and finish at your home.</p>
+      <router-link :to="{ name: 'my-routes' }" class="btn btn-link text-secondary p-0 mb-1">← My routes</router-link>
+      <h1 class="page-title mb-1">{{ existingRoute ? `Re-record "${existingRoute.name}"` : 'Record a walking route' }}</h1>
+      <p class="text-body-secondary mb-0">
+        Walk the route with your phone. It must start and finish at your home.
+        <template v-if="existingRoute">The old route is shown as a dashed line.</template>
+      </p>
     </header>
 
+    <!-- Couldn't load the route being re-recorded -->
+    <div v-if="loadError" class="alert alert-danger mb-0">{{ loadError }}</div>
+
     <!-- No home location yet: can't record -->
-    <div v-if="step !== 'loading' && !home" class="alert alert-danger mb-0">
+    <div v-else-if="step !== 'loading' && !home" class="alert alert-danger mb-0">
       Add your postal code in <router-link to="/editProfile">Edit Profile</router-link> first.
       We use it to check that routes start and finish at your home.
     </div>
@@ -162,10 +192,20 @@ async function save() {
       <!-- Saved -->
       <div v-if="step === 'saved'" class="alert alert-success d-flex flex-wrap align-items-center gap-2 mb-0">
         <span>Saved <strong>{{ savedRoute.name }}</strong> ({{ formatDistance(savedRoute.distanceM) }}).</span>
-        <button class="btn btn-link text-secondary ms-auto p-0" @click="reset">Record another route</button>
+        <span class="ms-auto d-flex gap-3">
+          <button v-if="!routeId" class="btn btn-link text-secondary p-0" @click="reset">Record another route</button>
+          <router-link :to="{ name: 'my-routes' }" class="btn btn-link text-secondary p-0">Back to my routes</router-link>
+        </span>
       </div>
 
-      <WalkMap class="flex-grow-1 rounded-3 border" :home="home" :home-radius-m="HOME_RADIUS_M" :position="position" :walked-path="path" />
+      <WalkMap
+        class="flex-grow-1 rounded-3 border"
+        :home="home"
+        :home-radius-m="HOME_RADIUS_M"
+        :position="position"
+        :walked-path="path"
+        :planned-route="existingRoute?.path.coordinates ?? []"
+      />
     </template>
   </div>
 </template>
