@@ -1,6 +1,6 @@
 <script setup>
 import { currentUser } from "../services/auth.js";
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import L from 'leaflet';
 import axios from 'axios';
 import SitterProfileCard from '../components/SitterProfileCard.vue'
@@ -8,6 +8,7 @@ import StarRating from '../components/StarRating.vue'
 import Map from '../components/Map.vue'
 
 const URL = 'http://localhost:5000'
+const profilePic = computed(() => currentUser.value?.profilePicture?.url || "")
 const sitterProfiles = ref([])
 const errorMsg = ref("")
 const selectedPets = ref([])
@@ -22,8 +23,106 @@ const maxValue = ref(100)
 //search rating
 const userRating = ref(0) //initial rating value
 
-//search sitters
+//search name
 const searchKey = ref("")
+const availableFrom = ref("")
+const draftFrom = ref("")
+
+// search date
+const availableTo = ref("")
+const draftTo = ref("")
+const showDatePicker = ref(false)
+const calendarMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+const sitterAvailability = ref({})
+let availabilityRequestId = 0
+
+//create date keys in calandar popup
+function dateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+const todayKey = dateKey(new Date())
+const calendarTitle = computed(() => calendarMonth.value.toLocaleDateString('en-SG', { month: 'long', year: 'numeric' }))
+const calendarWeeks = computed(() => {
+  const year = calendarMonth.value.getFullYear()
+  const month = calendarMonth.value.getMonth()
+  const days = []
+  const offset = new Date(year, month, 1).getDay()
+  for (let i = 0; i < offset; i++) days.push(null)
+  for (let day = 1; day <= new Date(year, month + 1, 0).getDate(); day++) {
+    const date = new Date(year, month, day)
+    days.push({ key: dateKey(date), day })
+  }
+  while (days.length % 7) days.push(null)
+  return Array.from({ length: days.length / 7 }, (_, i) => days.slice(i * 7, i * 7 + 7))
+})
+const dateRangeLabel = computed(() => {
+  if (!availableFrom.value) return 'Select dates'
+  const format = (date) => new Date(`${date}T00:00:00`).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })
+  return availableTo.value ? `${format(availableFrom.value)} – ${format(availableTo.value)}` : `${format(availableFrom.value)} – choose end date`
+})
+
+function changeCalendarMonth(offset) {
+  calendarMonth.value = new Date(calendarMonth.value.getFullYear(), calendarMonth.value.getMonth() + offset, 1)
+}
+
+function pickAvailabilityDate(date) {
+  if (!date || date < todayKey) return
+  if (!draftFrom.value || draftTo.value || date < draftFrom.value) {
+    draftFrom.value = date
+    draftTo.value = ""
+    return
+  }
+  draftTo.value = date
+}
+
+function isInSelectedRange(date) {
+  return Boolean(date && draftFrom.value && draftTo.value && date >= draftFrom.value && date <= draftTo.value)
+}
+
+function confirmAvailabilityDates() {
+  if (!draftFrom.value || !draftTo.value) return
+  availableFrom.value = draftFrom.value
+  availableTo.value = draftTo.value
+  showDatePicker.value = false
+}
+
+function toggleDatePicker() {
+  if (!showDatePicker.value) {
+    draftFrom.value = availableFrom.value
+    draftTo.value = availableTo.value
+  }
+  showDatePicker.value = !showDatePicker.value
+}
+
+const requestedDates = computed(() => {
+  if (!availableFrom.value || !availableTo.value || availableTo.value < availableFrom.value) return []
+  const dates = []
+  const day = new Date(`${availableFrom.value}T00:00:00`)
+  const end = new Date(`${availableTo.value}T00:00:00`)
+  while (day <= end) {
+    dates.push(`${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`)
+    day.setDate(day.getDate() + 1)
+  }
+  return dates
+})
+
+watch([availableFrom, availableTo, sitterProfiles], async () => {
+  const requestId = ++availabilityRequestId
+  sitterAvailability.value = {}
+  if (!requestedDates.value.length || !sitterProfiles.value.length) return
+
+  const entries = await Promise.all(sitterProfiles.value.map(async (sitter) => {
+    try {
+      const response = await axios.get(`${URL}/api/availability/${sitter._id}`)
+      return [sitter._id, Object.fromEntries(response.data.map(({ date, status }) => [date, status]))]
+    } catch (error) {
+      console.warn(`Could not load availability for sitter ${sitter._id}`, error)
+      return [sitter._id, {}]
+    }
+  }))
+  if (requestId === availabilityRequestId) sitterAvailability.value = Object.fromEntries(entries)
+})
 
 function filterByPets(list) {
   const targetPets = [...selectedPets.value].map((p) => p.toLowerCase().trim());
@@ -62,14 +161,15 @@ const searchResults = computed(() => {
   results = filterByRating(results);
   results = filterByPrice(results);
   results = filterBySearch(results);
+  if (requestedDates.value.length) {
+    results = results.filter((sitter) => {
+      const availability = sitterAvailability.value[sitter._id]
+      return availability && requestedDates.value.every((date) => availability[date] === 'available')
+    })
+  }
   results = filterByDistance(results)
   return sortByDistance(results)
 });
-
-//yet to be implemented (calandar)
-function filterByDate(results){
-  return
-}
 
 function clearFilters(){
   selectedPets.value=[]
@@ -80,6 +180,17 @@ function clearFilters(){
   locationQuery.value=""
   origin.value = null
   maxDistanceKm.value = maxDistanceLimit
+  availableFrom.value = ""
+  availableTo.value = ""
+  draftFrom.value = ""
+  draftTo.value = ""
+}
+
+function clearAvailabilityDates() {
+  availableFrom.value = ""
+  availableTo.value = ""
+  draftFrom.value = ""
+  draftTo.value = ""
 }
 
 async function loadSitterProfiles(){
@@ -232,7 +343,7 @@ onMounted(()=>{
           </p>
         </div>
         <router-link to="/profile" v-if="currentUser">
-          <img src="../assets/img/tempProfile.jpg"
+          <img v-if="profilePic" :src="profilePic"
             class="rounded-circle ms-auto"
             style="width: 50px; height: 50px; object-fit: cover; border:1px solid #c44f1c"
             alt="Circular Profile">
@@ -242,8 +353,8 @@ onMounted(()=>{
       <div class="row gx-3">
         <!-- filters  -->
         <div class="col-md-4">
+          <!-- map  -->
           <Map :profiles="searchResults" :origin="origin" :userLocation="userLocation"></Map>
-          
           <div class="border p-3 shadow" style="border-radius: 10px; background-color: white;">
             <p class="text-secondary">Filters</p>
             <!-- location filter  -->
@@ -272,9 +383,40 @@ onMounted(()=>{
                 of {{ origin ? origin.label : 'your location' }}
               </template>
             </small>
-            <!-- calandar filter  -->
-            <label for="date" class="form-label fw-medium">Available date </label>
-            <input type="date" placeholder="Pick date" class="form-control mb-3" id = "date">
+            <!-- availability date filter -->
+            <label class="form-label fw-medium">Available dates</label>
+            <div class="position-relative mb-1">
+              <button type="button" class="form-control text-start d-flex justify-content-between align-items-center" aria-haspopup="dialog" :aria-expanded="showDatePicker" @click="toggleDatePicker">
+                <span>{{ dateRangeLabel }}</span><span aria-hidden="true">▦</span>
+              </button>
+              <!-- show date calandar to pick date  -->
+              <div v-if="showDatePicker" class="availability-picker shadow bg-white border rounded p-3" role="dialog" aria-label="Choose available date range">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Previous month" @click="changeCalendarMonth(-1)">‹</button>
+                  <strong>{{ calendarTitle }}</strong>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Next month" @click="changeCalendarMonth(1)">›</button>
+                </div>
+                <div class="availability-calendar">
+                  <span v-for="weekday in ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']" :key="weekday" class="weekday">{{ weekday }}</span>
+                  <template v-for="(week, weekIndex) in calendarWeeks" :key="weekIndex">
+                    <span v-for="(date, dayIndex) in week" :key="date?.key || `blank-${weekIndex}-${dayIndex}`" class="day-cell"
+                    :class="{
+                      'range-cell': isInSelectedRange(date?.key),
+                      'range-start': date && draftFrom && draftTo && draftFrom !== draftTo && date.key === draftFrom,
+                      'range-end': date && draftFrom && draftTo && draftFrom !== draftTo && date.key === draftTo
+                    }">
+                      <button v-if="date" type="button" class="calendar-day" :class="{ endpoint: date.key === draftFrom || date.key === draftTo }" :disabled="date.key < todayKey" @click="pickAvailabilityDate(date.key)">{{ date.day }}</button>
+                    </span>
+                  </template>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                  <button type="button" class="btn btn-outline-secondary btn-sm" @click="clearAvailabilityDates">Clear days</button>
+        
+                  <button type="button" class="btn btn-primary btn-sm apply-days" :disabled="!draftFrom || !draftTo" @click="confirmAvailabilityDates">Confirm dates</button>
+                </div>
+              </div>
+            </div>
+            <small class="text-secondary d-block mb-3">Choose a consecutive date range. Sitters must be marked available on every selected day.</small>
             <!-- price filter  -->
             <label for="price" class="form-label fw-medium">Price</label>
             <div class="col-12">
@@ -437,5 +579,67 @@ onMounted(()=>{
   display: flex;
   justify-content: space-between;
   top: 30px;
+}
+
+.availability-picker {
+  width: 300px;
+  font-family: Roboto, system-ui, -apple-system, sans-serif;
+}
+
+.availability-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 4px;
+  text-align: center;
+}
+
+/* MO TU WE ... headers */
+.weekday {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #3c3c3c;
+  padding-bottom: 8px;
+}
+
+.day-cell {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Light orange range band; start/end rules must stay below range-cell. */
+.day-cell.range-cell  { background: #fff0e3; }
+.day-cell.range-start { background: linear-gradient(to right, transparent 50%, #fff0e3 50%); }
+.day-cell.range-end   { background: linear-gradient(to right, #fff0e3 50%, transparent 50%); }
+
+.calendar-day {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 15px;
+  color: #333;
+  cursor: pointer;
+}
+.calendar-day:hover:not(:disabled) { background: #fce2cf; }
+
+/* past dates: grey + strikethrough */
+.calendar-day:disabled {
+  color: #c8c8c8;
+  text-decoration: line-through;
+  cursor: default;
+}
+
+/* Selected endpoints: solid light orange circles. */
+.calendar-day.endpoint,
+.calendar-day.endpoint:hover {
+  background: #fda501;
+  color: #3d2417;
+  font-weight: 700;
 }
 </style>
