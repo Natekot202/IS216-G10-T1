@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import defaultAvatar from '../assets/img/tempProfile.jpg'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 import { formatTime } from '../utils/bookingHelpers.js'
@@ -163,7 +164,7 @@ onMounted(async () => {
         <div class="card-body">
           <!-- Sitter -->
           <div class="d-flex align-items-center gap-3 mb-4">
-            <div class="avatar">{{ sitter.username.charAt(0).toUpperCase() }}</div>
+            <img class="avatar rounded-circle img-fluid" :src="sitter.profilePicture?.url || defaultAvatar">
             <div>
               <div class="fw-semibold">{{ sitter.username }}</div>
               <div class="small text-muted">${{ rate }}/day</div>
@@ -257,14 +258,9 @@ onMounted(async () => {
 
 <style scoped>
 .avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: #fbeee4;
-  color: #c44f1c;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
+  width: 50px; 
+  height: 50px; 
+  object-fit: cover; 
+  border:1px solid grey
 }
 </style>
