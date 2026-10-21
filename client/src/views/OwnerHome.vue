@@ -352,7 +352,7 @@ onMounted(()=>{
       <!-- main body -->
       <div class="row gx-3">
         <!-- filters  -->
-        <div class="col-md-4">
+        <div class="col-lg-4 order-lg-last order-first">
           <!-- map  -->
           <Map :profiles="searchResults" :origin="origin" :userLocation="userLocation"></Map>
           <div class="border p-3 shadow" style="border-radius: 10px; background-color: white;">
@@ -490,7 +490,7 @@ onMounted(()=>{
         </div>
         
         <!-- search body  -->
-        <div class="col-md-8 order-first">
+        <div class="col-lg-8 order-first">
           <!-- search bar  -->
           <div class="col-12 mb-3">
             <input type="text" v-model="searchKey" placeholder="Search by sitter name" class="form-control">
