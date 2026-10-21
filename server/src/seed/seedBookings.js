@@ -58,11 +58,11 @@ async function seed() {
   const password = await bcrypt.hash(SEED_PASSWORD, 10)
 
   const owner = await User.create({ username: 'Seed Owner', email: SEED_OWNER_EMAIL, password, role: 'owner' })
-  const sitter = await User.create({ username: 'Seed Sitter', email: SEED_SITTER_EMAIL, password, role: 'sitter' })
-  const sitter2 = await User.create({ username: 'Second Sitter', email: SEED_SITTER2_EMAIL, password, role: 'sitter' })
+  const sitter = await User.create({ username: 'Seed Sitter', email: SEED_SITTER_EMAIL, password, role: 'sitter', sitterProfile: { petsittingRates: RATE_PER_DAY } })
+  const sitter2 = await User.create({ username: 'Second Sitter', email: SEED_SITTER2_EMAIL, password, role: 'sitter', sitterProfile: { petsittingRates: RATE_PER_DAY } })
 
-  const mochi = await Pet.create({ owner: owner._id, name: 'Mochi', species: 'Dog', breed: 'Shiba Inu', age: 3, description: 'Friendly, loves walks' })
-  const luna = await Pet.create({ owner: owner._id, name: 'Luna', species: 'Cat', breed: 'British Shorthair', age: 2, description: 'Shy at first' })
+  const mochi = await Pet.create({ owner: owner._id, name: 'Mochi', species: 'Dog', breed: 'Shiba Inu', ageMonths: 36, description: 'Friendly, loves walks' })
+  const luna = await Pet.create({ owner: owner._id, name: 'Luna', species: 'Cat', breed: 'British Shorthair', ageMonths: 24, description: 'Shy at first' })
 
   // One trip sent to 2 sitters at once (same pets and dates, same groupId)
   const taiwan = { groupId: 'seed-taiwan-trip', groupName: 'Taiwan Trip' }

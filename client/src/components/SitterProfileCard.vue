@@ -1,5 +1,6 @@
 <script setup>
 import ShowStarRating from './ShowStarRating.vue';
+import defaultAvatar from '../assets/img/tempProfile.jpg'
 
 const props = defineProps({sitter: Object})
 
@@ -10,7 +11,7 @@ const props = defineProps({sitter: Object})
     <div class="card">
         <div class="card-body">
             <div class="d-flex gap-2">
-                <img src="../assets/img/tempProfile.jpg"
+                <img :src="sitter.profilePicture?.url || defaultAvatar"
                     class="rounded-circle img-fluid"
                     style="width: 50px; height: 50px; object-fit: cover; border:1px solid grey"
                     alt="Circular Profile">
