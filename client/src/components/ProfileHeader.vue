@@ -23,7 +23,7 @@ const needsLogin = computed(() =>
     <img
       :src="profile.profilePicture?.url || defaultAvatar"
       alt="Profile picture"
-      class="rounded mb-2"
+      class="rounded mb-2 w-100"
       width="300"
       style="aspect-ratio: 1; object-fit: cover;"/>
     <p class="fw-bold mb-1">{{ profile.username }}</p>

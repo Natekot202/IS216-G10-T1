@@ -6,9 +6,10 @@ const router = useRouter();
 
 <template>
     <div class="container landing d-flex align-items-center py-4 py-lg-5">
+        <div class="landing-bg" aria-hidden="true"></div>
         <div class="row g-4 g-lg-5 align-items-center w-100 mx-0">
             <div class="col-12 col-lg-6 text-center text-lg-start">
-                <h1 class="display-5 fw-bold mb-2">Welcome to PetSociety🐾</h1>
+                <h1 class="landing-title">Welcome to PetSociety</h1>
                 <p class="fs-5 text-muted mb-4">Trusted sitters for the pets you love.</p>
 
                 <h2 class="h5 fw-semibold mb-3">Are you new here?</h2>
@@ -35,9 +36,9 @@ const router = useRouter();
                 </div>
             </div>
 
-            <div class="col-12 col-lg-6 text-center">
+            <!-- <div class="col-12 col-lg-6 text-center">
                 <img src="../assets/img/landingPage.jpg" class="img-fluid rounded-4" alt="A dog and a cat">
-            </div>
+            </div> -->
         </div>
     </div>
 </template>
@@ -47,18 +48,26 @@ const router = useRouter();
     min-height: 85vh;
 }
 .login-box {
-    background: #fff;
-    border: 1px solid #ead9cc;
+    background: rgba(255, 250, 245, 0.65);
+    border: 1px solid rgba(196, 119, 86, 0.25);
     border-radius: 12px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    
 }
 .role-btn {
-    border: 1px solid #2b2420;
-    color: #2b2420;
-    background: #fff;
+  border: 1px solid #2b2420;
+  color: #2b2420;
+  background: rgba(255, 250, 245, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: background 0.2s, border-color 0.2s;
 }
+
 .role-btn:hover {
-    background: #c47756;
-    border-color: #c47756;
-    color: #fff;
+  background: rgba(196, 119, 86, 0.28);
+  border-color: #c47756;
+  color: #2b2420;
 }
+
 </style>
