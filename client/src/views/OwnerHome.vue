@@ -6,6 +6,7 @@ import axios from 'axios';
 import SitterProfileCard from '../components/SitterProfileCard.vue'
 import StarRating from '../components/StarRating.vue'
 import Map from '../components/Map.vue'
+import LocationQuery from "../components/LocationQuery.vue";
 
 const URL = 'http://localhost:5000'
 const profilePic = computed(() => currentUser.value?.profilePicture?.url || "")
@@ -264,7 +265,6 @@ function onLocationInput() {
     return
   }
   if (q.length < 3) return
-
   //rate limiting
   debounceTimer = setTimeout(() => fetchLocationSuggestions(q), 400)
 }
@@ -358,20 +358,12 @@ onMounted(()=>{
           <div class="border p-3 shadow" style="border-radius: 10px; background-color: white;">
             <p class="text-secondary">Filters</p>
             <!-- location filter  -->
-            <label for="locations" class="form-label fw-medium">Locations</label>
-            <div class="position-relative mb-3">
-              <input type="text" placeholder="Select location" class="form-control" id="locations"
-                    v-model="locationQuery"
-                    @input="onLocationInput"
-                    @keydown.enter.prevent="locationSuggestions[0] && selectLocation(locationSuggestions[0])"
-                    autocomplete="off">
-              <ul v-if="locationSuggestions.length" class="list-group position-absolute w-100 shadow" style="z-index:1000">
-                <li v-for="s in locationSuggestions" :key="s.label"
-                    class="list-group-item list-group-item-action"
-                    style="cursor:pointer"
-                    @click="selectLocation(s)">{{ s.label }}</li>
-              </ul>
-            </div>
+            <locationQuery 
+              v-model:location-query="locationQuery" 
+              :location-suggestions="locationSuggestions" 
+              @enterLocation="onLocationInput"
+              @selectLocation="selectLocation">
+            </locationQuery>
             <!-- distance filter -->
             <label for="distance" class="form-label fw-medium">Distance</label>
             <input id="distance" type="range" class="form-range" min="1" :max="maxDistanceLimit" step="1"

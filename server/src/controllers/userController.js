@@ -6,6 +6,15 @@ import { uploadImage, deleteImage } from '../config/cloudinary.js'
 
 const PUBLIC_FIELDS = 'username bio profilePicture role sitterProfile createdAt'
 
+export async function getAllUsers(req, res){
+   try {
+        const users = await User.find()
+        res.json(users)
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({ message: 'Error in loading user profiles' });
+    }
+}
 export async function getPublicProfile(req, res) {
   if (!mongoose.isValidObjectId(req.params.id)) {
     return res.status(404).json({ message: 'User not found' })
