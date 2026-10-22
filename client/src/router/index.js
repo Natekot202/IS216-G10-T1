@@ -21,7 +21,7 @@ const routes = [
 { path: '/home', name: 'home', component: Home }, // logged in users
 { path: '/browse', component: OwnerHome }, // logged out users
 { path: '/profile', name: 'profile', component: ProfileView, meta: { auth: true } },
-{ path: '/editProfile', name: 'editProfile', component: EditProfile, meta: { auth: true } },
+{ path: '/editProfile', name: 'editProfile', component: EditProfile, meta: { auth: true, hideElem: true } },
 { path: '/users/:id', name: 'user', component: ProfileView },
 { path: '/sitter/requests', name: 'sitter-requests', component: BookingRequests, meta: { role: 'sitter' } },
 { path: '/owner/bookings', name: 'owner-bookings', component: MyBookings, meta: { role: 'owner' } },
