@@ -6,6 +6,7 @@ export const DAY_MIN = 24 * 60 // number of minutes in a day
 export const SLOT_MS = 30 * 60 * 1000 // one 30-minute slot, in milliseconds
 
 // Turns a Date into 'YYYY-MM-DD' (what the server uses), in local time.
+// hv to +1 for month cos jan in js is month 0, in real life is 1
 export function toDateString(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
@@ -32,7 +33,7 @@ export function momentOf(date, minutes) {
   return new Date(date + 'T00:00:00+08:00').getTime() + minutes * 60000
 }
 
-// is the sitter already booked at any point between these two moments?
+// purpose : checks wether a proposed booking overlaps with any confirmed booking 
 // (`busy` is the sitter's booked times: [{ start, end }] as moments)
 export function isBusy(busy, startMs, endMs) {
   return busy.some((b) => startMs < b.end && b.start < endMs)
@@ -43,18 +44,35 @@ export function isBusy(busy, startMs, endMs) {
 // checks ether the end of the proposed booking is after the start of a confirmed booking 
 
 
-// is this 30-minute slot in the future and not already booked?
-export function slotFree(busy, date, minutes) {
+// purpose : gets the sitters available working slots for that day,  used to load a dates availibility, mainly in the calendar
+// this includes slots that are already booked because they were technically "available" , only excludes slots that were marked unavail in the first place  
+export function slotsFor(availability, date) {
+  return availability[date]?.slots || []
+}
+// takes this in  : const availability = { "2026-10-25": { slots: [540, 570, 600] } // 9:00, 9:30, 10:00}
+//  returns : [540, 570, 600], i.e  the half-hour slots the sitter is free for on one day, as minutes after midnight
+
+
+// purpose : checks that the half hour slots between the start time i.e 'startMinutes' till the end time i.e 'endMinutes' are free 
+// used when a user selects start and end time,
+export function slotsCover(slots, startMinutes, endMinutes) {
+  for (let m = startMinutes; m < endMinutes; m += 30) if (!slots.includes(m)) return false
+  return true
+}
+// if any of the slots arent free, return false ; else return true 
+
+// purpose : checks wether one individual half-hr is selectable, used in booking request time selection  
+export function slotFree(busy, date, minutes, slots) {
   const start = momentOf(date, minutes) 
-  return start > Date.now() && !isBusy(busy, start, start + SLOT_MS)  
+  return slots.includes(minutes) && start > Date.now() && !isBusy(busy, start, start + SLOT_MS)  
 }
 // minutes is the minutes aft midnight that the specific 30min slot starts from 
 // converts the start of the slot -> milliseconds from 1970 
 //  checks that slot is after current date + check if busy from start to end of the slot 
 
-// does the day have at least one free slot?
-export function dayHasFreeSlot(busy, date) {
-  for (let m = 0; m < DAY_MIN; m += 30) if (slotFree(busy, date, m)) return true
+// purpose : does the day have at least one free slot? if yes, status = avail ; if no, status = unavail 
+export function dayHasFreeSlot(busy, date, slots) {
+  for (let m = 0; m < DAY_MIN; m += 30) if (slotFree(busy, date, m, slots)) return true
   return false
 }
 // loops through all slots within the whole day, checks if slotFree returns true for each slot 
