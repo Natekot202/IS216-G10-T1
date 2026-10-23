@@ -123,6 +123,7 @@ export function findTasklist(bookingId, { sitterView = false } = {}) {
 }
 
 // task.petIds holds ids like 'p1', the booking's petIds holds { _id, name }
+// temporary function
 export function petNamesFor(task, booking) {
   return (task.petIds || [])
     .map((id) => booking.petIds?.find((p) => p._id === id)?.name)

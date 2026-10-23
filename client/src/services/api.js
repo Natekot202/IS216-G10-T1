@@ -37,4 +37,7 @@ export const reviewsApi = {
 }
 
 // export default api
-export const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+// Empty by default so `${API}/api/...` is a relative URL: it goes to whichever site served the page
+// and Vite's proxy forwards it to the server. A hard-coded http://localhost:5000 breaks on phones
+// (localhost would mean the phone itself).
+export const API = import.meta.env.VITE_API_URL || "";
