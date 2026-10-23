@@ -7,7 +7,7 @@ const locationQueryModel = defineModel('locationQuery')
 </script>
 <template>
     <label for="locations" v-if='label' class="form-label fw-medium">Locations</label>
-    <div class="position-relative mb-3">
+    <div class="position-relative mb-2">
         <input type="text" placeholder="Select location" class="form-control" id="locations"
             v-model="locationQueryModel"
             @input="$emit('enterLocation')"
