@@ -2,16 +2,15 @@ const mongoose = require('mongoose')
 const { Schema } = mongoose
 
 // The allowed task types. Each one is registered as a discriminator below.
-const CATEGORIES = ['feed', 'walk', 'groom', 'medication', 'other']
+export const CATEGORIES = ['feed', 'walk', 'groom', 'medication', 'other']
 
 // Sitters only get the full task details once the booking has reached one of these statuses
 // (i.e. the owner has paid). Before that they see the short version.
-const FULL_DETAIL_STATUSES = ['paid', 'in-progress', 'completed']
+export const FULL_DETAIL_STATUSES = ['paid', 'in-progress', 'completed']
 
 // Fields a sitter must NOT see before then. Everything else on a task is the "short version".
-const DETAIL_FIELDS = [
+export const DETAIL_FIELDS = [
   'instructions',
-  'ownerNote',
   'referencePhotos',
   'medicationName',
   'dosage',
@@ -187,7 +186,7 @@ itemsPath.discriminator('other', new Schema({}))
 // ---------- helper for the route ----------
 
 // Returns a copy of the items without the detail fields (the sitter's short version).
-function stripDetails(items) {
+export function stripDetails(items) {
   return items.map((item) => {
     const plain = typeof item.toObject === 'function' ? item.toObject() : { ...item }
     for (const field of DETAIL_FIELDS) delete plain[field]
@@ -195,8 +194,14 @@ function stripDetails(items) {
   })
 }
 
-module.exports = mongoose.model('Tasklist', tasklistSchema)
-module.exports.CATEGORIES = CATEGORIES
-module.exports.FULL_DETAIL_STATUSES = FULL_DETAIL_STATUSES
-module.exports.DETAIL_FIELDS = DETAIL_FIELDS
-module.exports.stripDetails = stripDetails
+export async function getPetNames(booking_id){
+  try{
+    await task.populate('petIds', 'name');
+    
+  }catch(error){
+    console.log(error)
+  }
+}
+
+const TaskList = mongoose.model('Tasklist', tasklistSchema)
+export default TaskList
