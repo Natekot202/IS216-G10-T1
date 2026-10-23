@@ -17,7 +17,7 @@ const sitterId = route.query.sitterId // from the URL: /bookings/new?sitterId=..
 
 const sitter = ref(null) // { username, sitterProfile: { petsittingRates, ... } }
 const pets = ref([]) // the logged-in owner's pets
-const availability = ref({}) // { '2026-10-20': 'available' | 'blocked' }
+const availability = ref({}) // { '2026-10-20': { status: 'available' | 'blocked', slots: [540, 570, ...] } }
 const busy = ref([]) // times the sitter is already booked: [{ start, end }] as moments (milliseconds) e.g. busy = [  { start: 1792476000000,  end: 1792486800000 } ]
 
 const loadError = ref('')
@@ -53,7 +53,7 @@ const chosenDays = computed(() => {
 const totalPrice = computed(() => rate.value * chosenDays.value.length)
 
 // Chosen days the sitter hasn't marked as available
-const unavailableDays = computed(() => chosenDays.value.filter((d) => availability.value[d] !== 'available'))
+const unavailableDays = computed(() => chosenDays.value.filter((d) => availability.value[d]?.status !== 'available'))
 // array of days within chosenDays array where availability != 'available'
 
 // Safety net: did the date picker find that the chosen time runs into a time the sitter is booked?
@@ -129,7 +129,7 @@ onMounted(async () => {
     ])
     sitter.value = s.data
     pets.value = p.data
-    a.data.forEach((day) => (availability.value[day.date] = day.status))
+    a.data.forEach((day) => (availability.value[day.date] = { status: day.status, slots: day.slots }))
     busy.value = b.data.map((x) => ({ start: new Date(x.start).getTime(), end: new Date(x.end).getTime() })) 
     // uses .getTime() to convert timestamp_str into milliseconds since 1970 so that u can easily compare start-time and end-time 
   } catch (err) {
