@@ -24,8 +24,7 @@ const needsLogin = computed(() =>
       :src="profile.profilePicture?.url || defaultAvatar"
       alt="Profile picture"
       class="rounded mb-2"
-      width="300"
-      style="aspect-ratio: 1; object-fit: cover;"/>
+      style="width:260px; height:260px; object-fit: cover;"/>
     <p class="fw-bold mb-1">{{ profile.username }}</p>
     <p v-if="editable && profile.email" class="text-muted mb-2">{{ profile.email }}</p>
     <p class="text-break">{{ profile.bio || 'No bio yet.' }}</p>

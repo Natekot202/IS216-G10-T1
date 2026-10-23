@@ -114,14 +114,10 @@ watch(() => [props.ownerId, props.editable], loadPets, { immediate: true })
       <div v-else-if="!pets.length" class="text-muted pb-2">
         {{ editable ? 'No pets yet - add the first one below.' : 'No pets listed yet.' }}
       </div>
-      <div v-else class="row g-3 mb-4">
-        <PetCard
-          v-for="pet in pets"
-          :key="pet._id"
-          :pet="pet"
-          :editable="editable"
-          @delete="deletePet"
-        />
+      <div v-else class="pet-strip mb-4">
+        <div v-for="pet in pets" :key="pet._id" class="pet-strip__item">
+          <PetCard :pet="pet" :editable="editable" @delete="deletePet" />
+        </div>
       </div>
       <div v-if="editable">
         <h4 class="mb-3">Add a pet</h4>

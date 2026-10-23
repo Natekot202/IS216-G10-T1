@@ -35,7 +35,9 @@ async function submit() {
 
 <template>
   <div class="container" style="max-width: 420px">
-    <h1 class="h3 mt-4">Log In</h1>
+  <div class="landing-bg" aria-hidden="true"></div>
+
+    <h1 class="landing-title">Log In</h1>
     <p>We're excited to have you back.</p>
 
     <div v-if="message" class="alert alert-danger">
