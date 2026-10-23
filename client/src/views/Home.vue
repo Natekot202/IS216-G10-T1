@@ -1,7 +1,7 @@
 <script setup>
 
 import { currentUser } from "../services/auth.js";
-import OwnerHome from "../components/OwnerHome.vue";
+import OwnerHome from "../views/OwnerHome.vue";
 import SitterHome from "../views/SitterHome.vue";
 
 </script>

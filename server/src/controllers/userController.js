@@ -3,10 +3,18 @@ import User from '../models/UserModel.js'
 import Pet from '../models/petModel.js'
 import Review from '../models/reviewModel.js'
 import { uploadImage, deleteImage } from '../config/cloudinary.js'
-import { geocodePostalCode } from '../utils/geocode.js'
 
 const PUBLIC_FIELDS = 'username bio profilePicture role sitterProfile createdAt'
 
+export async function getAllUsers(req, res){
+   try {
+        const users = await User.find()
+        res.json(users)
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({ message: 'Error in loading user profiles' });
+    }
+}
 export async function getPublicProfile(req, res) {
   if (!mongoose.isValidObjectId(req.params.id)) {
     return res.status(404).json({ message: 'User not found' })
@@ -42,46 +50,82 @@ export async function getUserReviews(req, res) {
   res.json(reviews)
 }
 
+// location helpers
+function validCoords(lat, lng) {
+  return Number.isFinite(lat) && Number.isFinite(lng) &&
+    lat >= 1.1 && lat <= 1.5 && lng >= 103.5 && lng <= 104.1
+    // sg coordinates ^ 
+}
+
+function parseAddress(input) {
+  if (!input || typeof input !== 'object') {
+    return { error: 'Invalid address.' }
+  }
+  const line1 = String(input.line1 ?? '').trim()
+  const postalCode = String(input.postalCode ?? '').trim()
+  const lat = Number(input.lat)
+  const lng = Number(input.lng)
+
+  if (!line1 || !/^\d{6}$/.test(postalCode)) {
+    return { error: 'Please choose an address from the suggestions.' }
+  }
+  if (!validCoords(lat, lng)) {
+    return { error: 'That address is not in Singapore.' }
+  }
+  return {
+    address: {
+      line1,
+      unit: String(input.unit ?? '').trim().slice(0, 20),
+      postalCode,
+      location: { type: 'Point', coordinates: [lng, lat] }
+    }
+  }
+}
+
 export async function updateMyProfile(req, res) {
   const username = req.body.username?.trim()
   const bio = req.body.bio ?? ''
 
-  if (!username) return res.status(400).json({ message: 'Username is required.' })
+  if (!username) {
+    return res.status(400).json({ message: 'Username is required.' })
+  }
   if (/[@\s]/.test(username)) {
     return res.status(400).json({ message: "Username can't contain @ or spaces." })
   }
 
   const updates = { username, bio }
 
-  if (req.session.role === 'owner' && req.body.address && typeof req.body.address === 'object') {
-    const line1 = String(req.body.address.line1 ?? '').trim()
-    const postalCode = String(req.body.address.postalCode ?? '').trim()
+  // address: owners and sitters both save one, stored privately
+  if ('address' in req.body) {
+    const isOwner = req.session.role === 'owner'
+    const key = isOwner ? 'ownerProfile.address' : 'sitterProfile.address'
 
-    if (postalCode && !/^\d{6}$/.test(postalCode)) {
-      return res.status(400).json({ message: 'Postal code must be 6 digits.' })
-    }
-    updates['ownerProfile.address.line1'] = line1
-    updates['ownerProfile.address.postalCode'] = postalCode
-
-    // Home coordinates, used to check that routes and walks start and end at home
-    if (postalCode) {
-      let location
-      try {
-        location = await geocodePostalCode(postalCode)
-      } catch (err) {
-        console.error(err)
-        return res.status(502).json({ message: "Couldn't look up your postal code right now. Please try again." })
+    if (req.body.address === null) {
+      updates[key] = null
+      if (!isOwner) {
+        updates['sitterProfile.serviceArea.location'] = null
       }
-      if (!location) {
-        return res.status(400).json({ message: 'Postal code not found.' })
-      }
-      updates['ownerProfile.address.location'] = location
     } else {
-      updates.$unset = { 'ownerProfile.address.location': '' }  // postal code cleared, so clear home too
-    }
+      const parsed = parseAddress(req.body.address)
+      if (parsed.error) {
+        return res.status(400).json({ message: parsed.error })
+      }
+      if (!isOwner) {
+        parsed.address.unit = ''
+      }
+      updates[key] = parsed.address
 
+      if (!isOwner) {
+        // public point: rounded to 2 decimals (about 1 km) so it can't identify a home
+        const [lng, lat] = parsed.address.location.coordinates
+        updates['sitterProfile.serviceArea.location'] = {
+          type: 'Point',
+          coordinates: [Math.round(lng * 100) / 100, Math.round(lat * 100) / 100]
+        }
+      }
+    }
   }
-  
+
   if (req.session.role === 'sitter' && req.body.sitterProfile) {
     const sp = req.body.sitterProfile
 
@@ -90,7 +134,7 @@ export async function updateMyProfile(req, res) {
       return res.status(400).json({ message: 'Rate must be 0 or more.' })
     }
 
-    let start = null                                  // null clears the field
+    let start = null
     if (sp.experienceStart) {
       start = new Date(`${sp.experienceStart}-01`)
       if (Number.isNaN(start.getTime())) {
@@ -102,19 +146,21 @@ export async function updateMyProfile(req, res) {
     updates['sitterProfile.experienceStart'] = start
     updates['sitterProfile.petTypes'] = sp.petTypes || []
     updates['sitterProfile.services'] = sp.services || []
-    updates['sitterProfile.serviceArea.label'] = (sp.serviceArea || '').trim()
+    updates['sitterProfile.serviceArea.label'] = String(sp.serviceArea ?? '').trim()
   }
 
   try {
     const user = await User.findByIdAndUpdate(req.session.userId, updates, {
       new: true,
       runValidators: true
-    }).select('+ownerProfile.address')              
+    }).select('+ownerProfile.address +sitterProfile.address')
 
     req.session.username = user.username
     res.json(user)
   } catch (err) {
-    if (err.code === 11000) return res.status(409).json({ message: 'Username is already taken.' })
+    if (err.code === 11000) {
+      return res.status(409).json({ message: 'Username is already taken.' })
+    }
     if (err.name === 'ValidationError') {
       return res.status(400).json({ message: Object.values(err.errors)[0].message })
     }

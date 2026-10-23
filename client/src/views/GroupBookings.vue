@@ -45,7 +45,7 @@ onMounted(async () => {
     <h1 class="mt-3 mb-1">{{ first.groupName || 'Trip' }}</h1>
     <h4 class="mb-2 pet-names">{{ petNames(first) }}</h4>
     <p class="text-muted mb-4">
-      {{ formatDateRange(first.startDate, first.endDate) }} · {{ bookings.length }} requests sent
+      {{ formatDateRange(first.startDate, first.endDate, first.startTime, first.endTime) }} · {{ bookings.length }} requests sent
     </p>
 
     <div v-if="chosen" class="alert alert-success">

@@ -1,4 +1,6 @@
 import Booking from '../models/bookingModel.js'
+import { syncBookingToGoogle } from '../utils/googleCalendar.js'
+import { bookingRange, findClash, describeBooking } from '../utils/bookingTimes.js'
 
 // GET /api/bookings                         -> all my bookings
 // GET /api/bookings?status=pending,accepted -> only those statuses
@@ -52,8 +54,21 @@ export const updateBookingStatus = async (req, res) => {
     return res.status(400).json({ message: `Only pending bookings can be accepted or declined. This one is ${booking.status}.` })
   }
 
+  // A sitter can't accept a request that overlaps another booking they already accepted.
+  // (Two pending requests may overlap each other, so this is checked again at the moment of accepting.)
+  if (status === 'accepted') {
+    const clash = await findClash(booking.sitterId, bookingRange(booking), booking._id)
+    if (clash) {
+      return res.status(409).json({ message: `You already have a booking ${describeBooking(clash)}, so you can't accept this overlapping request.` })
+    }
+  }
+
   booking.status = status
   await booking.save()
 
-  res.json(booking)
+  // When a sitter accepts, add the booking to their Google Calendar.
+  // This never blocks or fails the accept: googleSync just says what happened, e.g. { synced: true }.
+  const googleSync = status === 'accepted' ? await syncBookingToGoogle(booking) : null
+
+  res.json({ ...booking.toObject(), googleSync })
 }

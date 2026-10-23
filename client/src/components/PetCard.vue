@@ -2,10 +2,8 @@
 import { formatAge } from '../utils/formatAge.js'
 
 defineProps({
-  pet: {
-    type: Object,
-    required: true
-  }
+  pet: { type: Object, required: true },
+  editable: { type: Boolean, default: false }
 })
 
 
@@ -30,10 +28,7 @@ defineEmits(['delete'])
         <p class="card-text">{{ pet.description }}</p>
       </div>
       <div class="card-footer bg-transparent border-top-0 text-end">
-        <button
-          class="btn btn-sm btn-outline-danger"
-          @click="$emit('delete', pet._id)"
-        >
+        <button v-if="editable" type="button" class="btn btn-sm btn-outline-danger" @click="$emit('delete', pet._id)">
           Remove
         </button>
       </div>

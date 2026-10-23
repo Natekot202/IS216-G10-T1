@@ -37,7 +37,9 @@ async function submit() {
 
 <template>
   <div class="container" style="max-width: 420px">
-    <h1 class="h3 my-4">Create account</h1>
+    <div class="landing-bg" aria-hidden="true"></div>
+
+    <h1 class="landing-title">Create account</h1>
 
     <div v-if="errors.length" class="alert alert-danger">
       <div v-for="e in errors" :key="e">{{ e }}</div>

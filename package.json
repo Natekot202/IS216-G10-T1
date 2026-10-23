@@ -8,5 +8,10 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "cloudinary": "^2.11.0",
+    "leaflet": "^1.9.4",
+    "leaflet-geosearch": "^4.4.0"
+  }
 }

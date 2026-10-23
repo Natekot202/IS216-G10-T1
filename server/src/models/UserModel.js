@@ -16,6 +16,7 @@ const pointSchema = new mongoose.Schema(
 const addressSchema = new mongoose.Schema(
   {
     line1: { type: String, trim: true },
+    unit: { type: String, trim: true, maxlength: 20 }, 
     postalCode: { type: String, trim: true, match: /^\d{6}$/ }, 
     location: pointSchema                                       
   },
@@ -89,6 +90,10 @@ const userSchema = new mongoose.Schema({
         enum: services 
       }], 
       default: [] 
+    },
+    address: { 
+      type: addressSchema, 
+      select: false 
     },
     serviceArea: {
       label: { 

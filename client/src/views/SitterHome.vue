@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { bookingsApi } from '../services/bookingApi.js'
 import { currentUser } from '../services/auth.js'
 import BookingCard from '../components/BookingCard.vue'
+import { formatTime } from '../utils/bookingHelpers.js'
 
 const bookings = ref([])
 const loading = ref(true)
@@ -81,7 +82,7 @@ onMounted(loadDashboard)
           <h6 class="mt-4 mb-2 text-muted">Also coming up</h6>
           <ul class="list-group">
             <li v-for="b in alsoComingUp" :key="b._id" class="list-group-item d-flex justify-content-between align-items-center">
-              <span>{{ petNames(b) }} · {{ formatDate(b.startDate) }}</span>
+              <span>{{ petNames(b) }} · {{ formatDate(b.startDate) }}{{ b.startTime ? ', ' + formatTime(b.startTime) : '' }}</span>
               <span class="small text-muted">{{ b.status }}</span>
             </li>
           </ul>
@@ -96,7 +97,7 @@ onMounted(loadDashboard)
             <li v-for="b in newRequests.slice(0, 3)" :key="b._id" class="list-group-item">
               <div class="fw-semibold">{{ petNames(b) }}</div>
               <div class="small text-muted">
-                {{ b.ownerId?.username }} · {{ formatDate(b.startDate) }} – {{ formatDate(b.endDate) }} · ${{ b.totalPrice }}
+                {{ b.ownerId?.username }} · {{ formatDate(b.startDate) }}{{ b.startTime ? ' ' + formatTime(b.startTime) : '' }} – {{ formatDate(b.endDate) }}{{ b.endTime ? ' ' + formatTime(b.endTime) : '' }} · ${{ b.totalPrice }}
               </div>
             </li>
           </ul>

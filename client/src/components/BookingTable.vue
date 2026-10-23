@@ -1,10 +1,12 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import StatusPill from './StatusPill.vue'
 import BookingTasks from './BookingTasks.vue'
+import defaultAvatar from '../assets/img/tempProfile.jpg'
 import { formatDateRange, formatPrice } from '../utils/bookingHelpers'
 
 const props = defineProps({
+  
   bookings: { type: Array, required: true },
   viewer: { type: String, default: 'owner' }, // 'owner' or 'sitter'
   busyId: { type: String, default: null }, // booking being accepted/declined right now
@@ -72,7 +74,7 @@ function showTripLink(booking) {
                 </div>
               </div>
             </td>
-            <td class="text-nowrap">{{ formatDateRange(b.startDate, b.endDate) }}</td>
+            <td class="text-nowrap">{{ formatDateRange(b.startDate, b.endDate, b.startTime, b.endTime) }}</td>
             <td class="d-none d-md-table-cell">{{ formatPrice(b.totalPrice) }}</td>
             <td><StatusPill :status="b.status" /></td>
             <td class="text-end">
