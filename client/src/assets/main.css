@@ -142,3 +142,9 @@ body {
   color: #2b2420;
   font-size: clamp(1.9rem, 4vw, 3.2rem);
 }
+
+/* checkbox checked */
+.form-check-input.review-check:checked {
+  background-color: #c47756;
+  border-color: #c47756;
+}

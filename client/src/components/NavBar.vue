@@ -74,6 +74,9 @@ async function handleLogout() {
               <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
                 <router-link class="nav-link" to="/owner/bookings">My Bookings</router-link>
               </li>
+              <li v-if="!hideElem" class="nav-item">
+                <router-link class="nav-link" to="/session">Session</router-link>
+              </li>
               <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
                 <router-link class="nav-link" to="/owner/routes">My Routes</router-link>
               </li>
@@ -82,9 +85,6 @@ async function handleLogout() {
               </li>
               <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
                 <router-link class="nav-link" to="/sitter/requests">Booking Requests</router-link>
-              </li>
-              <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
-                <router-link class="nav-link" to="/sitter/reviews">Reviews & Ratings</router-link>
               </li>
               <li v-if="currentUser && !hideElem" class="nav-item">
                 <router-link class="nav-link" to="/profile"> My Profile</router-link>

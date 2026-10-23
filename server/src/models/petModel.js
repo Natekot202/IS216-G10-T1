@@ -14,7 +14,8 @@ const petSchema = new mongoose.Schema({
   species: {
     type: String,
     required: true,
-    trim: true 
+    trim: true,
+    maxLength: 40
   },
   breed: {
     type: String,

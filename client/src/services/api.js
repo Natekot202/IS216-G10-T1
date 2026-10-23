@@ -23,6 +23,19 @@ export const usersApi = {
   removePicture: () => api.delete('/users/me/picture').then((res) => res.data)
 }
 
+export const visitsApi = {
+  today: () => api.get('/visits/today').then((res) => res.data),
+  start: (bookingId) => api.post(`/visits/booking/${bookingId}/start`).then((res) => res.data),
+  setTask: (visitId, taskId, count) =>
+    api.patch(`/visits/${visitId}/tasks/${taskId}`, { count }).then((res) => res.data),
+  end: (visitId, formData) => api.post(`/visits/${visitId}/end`, formData).then((res) => res.data)
+}
+
+export const reviewsApi = {
+  create: (data) => api.post('/reviews', data).then((res) => res.data),
+  getForBooking: (bookingId) => api.get(`/reviews/booking/${bookingId}`).then((res) => res.data)
+}
+
 // export default api
 // Empty by default so `${API}/api/...` is a relative URL: it goes to whichever site served the page
 // and Vite's proxy forwards it to the server. A hard-coded http://localhost:5000 breaks on phones

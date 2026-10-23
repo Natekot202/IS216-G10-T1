@@ -12,7 +12,7 @@ import BookingRequests from '../views/BookingRequests.vue'
 import MyBookings from '../views/MyBookings.vue'
 import SitterCalendar from '../views/SitterCalendar.vue'
 import NewBookingRequest from '../views/NewBookingRequest.vue'
-import Reviews from '../views/SitterReview.vue'
+import Session from '../views/Session.vue'
 import RecordRoute from '../views/RecordRoute.vue'
 import MyRoutes from '../views/MyRoutes.vue'
 
@@ -25,12 +25,13 @@ const routes = [
 { path: '/profile', name: 'profile', component: ProfileView, meta: { auth: true } },
 { path: '/editProfile', name: 'editProfile', component: EditProfile, meta: { auth: true, hideElem: true } },
 { path: '/users/:id', name: 'user', component: ProfileView },
+{ path: '/session', name: 'session', component: Session, meta: { auth: true } },
 { path: '/sitter/requests', name: 'sitter-requests', component: BookingRequests, meta: { role: 'sitter' } },
 { path: '/owner/bookings', name: 'owner-bookings', component: MyBookings, meta: { role: 'owner' } },
 { path: '/owner/bookings/group/:groupId', name: 'owner-booking-group', component: GroupBookings, meta: { role: 'owner' } },
 { path: '/sitter/calendar', name: 'sitter-calendar', component: SitterCalendar, meta: { role: 'sitter' } },
 { path: '/bookings/new', name: 'new-booking', component: NewBookingRequest, meta: { role: 'owner' } },
-{ path: '/sitter/reviews', name: 'sitter-reviews', component: Reviews, meta : { role: 'sitter'} },
+{ path: '/bookings/new', name: 'new-booking', component: NewBookingRequest, meta: { role: 'owner' } },
 { path: '/owner/routes', name: 'my-routes', component: MyRoutes, meta: { role: 'owner' } },
 { path: '/owner/routes/new', name: 'record-route', component: RecordRoute, meta: { role: 'owner' } },
 { path: '/owner/routes/:id/record', name: 'rerecord-route', component: RecordRoute, meta: { role: 'owner' } },

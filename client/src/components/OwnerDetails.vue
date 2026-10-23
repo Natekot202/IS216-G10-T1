@@ -8,7 +8,7 @@ const pets = ref([])
 const loading = ref(true)
 const error = ref('')
 const submitting = ref(false)
-const pet_types = ["Dog", "Cat", "Bird", "Rabbit", "Hamster"];
+const pet_types = ["Dog", "Cat", "Bird", "Rabbit", "Hamster", "Other"];
 
 const props = defineProps({
   ownerId: { type: String, default: '' },
@@ -18,7 +18,7 @@ const props = defineProps({
 
 const { file: photoFile, preview: photoPreview, error: photoError, input: fileInput, onPick, clear: resetPhoto } = usePhotoPicker()
 
-const form = reactive({ name: '', species: '', breed: '', ageYears: '', ageMonths: '', description: '' })
+const form = reactive({ name: '', species: '', otherSpecies: '', breed: '', ageYears: '', ageMonths: '', description: '' })
 
 async function loadPets() {
   if (!props.ownerId) {
@@ -39,7 +39,8 @@ async function loadPets() {
 }
 
 async function addPet() {
-  if (!props.editable || !form.name.trim() || !form.species.trim()) {
+  const species = form.species === 'Other' ? form.otherSpecies.trim() : form.species.trim()
+  if (!props.editable || !form.name.trim() || !species) {
     return
   }
   error.value = ''
@@ -51,7 +52,7 @@ async function addPet() {
 
     const payload = {
     name: form.name.trim(),
-    species: form.species.trim(),
+    species,
     breed: form.breed,
     description: form.description,
     ageMonths: hasAge ? years * 12 + months : undefined
@@ -70,7 +71,7 @@ async function addPet() {
     const created = await petsApi.create(data)   
 
     pets.value.unshift(created)
-    Object.assign(form, { name: '', species: '', breed: '', ageYears: '', ageMonths: '', description: '' })
+    Object.assign(form, { name: '', species: '', otherSpecies: '', breed: '', ageYears: '', ageMonths: '', description: '' })
     resetPhoto()
   } catch (err) {
     error.value = err.response?.data?.message || 'Could not add pet.'
@@ -132,6 +133,11 @@ watch(() => [props.ownerId, props.editable], loadPets, { immediate: true })
               <option value="" disabled>Select a species</option>
               <option v-for="s in pet_types" :key="s" :value="s">{{ s }}</option>
             </select>
+          </div>
+          <div v-if="form.species === 'Other'" class="col-12">
+            <label for="otherSpecies" class="form-label">Please specify</label>
+            <input id="otherSpecies" v-model="form.otherSpecies" type="text" class="form-control"
+                  maxlength="40" placeholder="e.g. Guinea pig" required />
           </div>
           <div class="col-12">
             <label class="form-label">Breed</label>
