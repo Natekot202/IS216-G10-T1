@@ -5,7 +5,7 @@ import axios from 'axios';
 import SitterProfileCard from './SitterProfileCard.vue'
 import StarRating from './StarRating.vue'
 
-const URL = 'http://localhost:5000'
+const URL = import.meta.env.VITE_API_URL || ''   // same as API in services/api.js: relative, so it works on phones too
 const sitterProfiles = ref([])
 const errorMsg = ref("")
 const userRating = ref(3) //initial rating value

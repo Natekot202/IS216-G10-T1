@@ -23,7 +23,7 @@ export function useGeoTracker(){
         // accuracy value higher, more inaccurate
         const {longitude, latitude, accuracy: acc} = pos.coords
 
-        // checks accuracy
+        // assign accuracy to ref variable, checks accuracy
         accuracy.value = acc;
         if(acc > MAX_ACCURACY_M) return // if too inaccurate, skip it
 
@@ -61,13 +61,14 @@ export function useGeoTracker(){
             return
         }
         if (watchId !== null) return // pressing start when already recording does nothing
-
+        
+        // if location info detected and no current recording session
         error.value = '';
         tracking.value = true;
         watchId = navigator.geolocation.watchPosition(onPosition, onError, {
             enableHighAccuracy: true, // use GPS rather than WiFi/cell location
             maximumAge: 0,            // never reuse an old cached reading
-            timeout: 15000
+            timeout: 15000            // after 15s of not receiving GPS signal
         })
     }
 

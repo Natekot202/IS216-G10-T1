@@ -11,6 +11,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // allows client server to accept requests from cloudflare addresses
+    allowedHosts: ['.trycloudflare.com'],
     proxy: {
       // Forwards /api requests to the Express server during development
       '/api': {
@@ -18,5 +20,6 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  
   }
 })
