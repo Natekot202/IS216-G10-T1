@@ -102,7 +102,4 @@ onMounted(loadBookings)
   background: #f1ece6;
   color: #2b2420;
 }
-.main-btn {
-  background-color: #c44f1c;
-}
 </style>

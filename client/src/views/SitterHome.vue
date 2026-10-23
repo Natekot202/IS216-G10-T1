@@ -119,7 +119,4 @@ onMounted(loadDashboard)
 .stat-number {
   color: #c44f1c;
 }
-.main-btn {
-  background-color: #c44f1c;
-}
 </style>

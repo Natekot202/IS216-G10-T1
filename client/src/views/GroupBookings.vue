@@ -60,7 +60,4 @@ onMounted(async () => {
 .pet-names {
   color: #2f6f62;
 }
-.main-btn {
-  background-color: #c44f1c;
-}
 </style>

@@ -142,3 +142,36 @@ body {
   color: #2b2420;
   font-size: clamp(1.9rem, 4vw, 3.2rem);
 }
+
+.btn.btn-brand {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: #c44f1c;
+  --bs-btn-border-color: #c44f1c;
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: #a8421a;
+  --bs-btn-hover-border-color: #a8421a;
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: #8f3816;
+  --bs-btn-active-border-color: #8f3816;
+  --bs-btn-disabled-color: #fff;
+  --bs-btn-disabled-bg: #c44f1c;
+  --bs-btn-disabled-border-color: #c44f1c;
+  --bs-btn-focus-shadow-rgb: 196, 79, 28;
+}
+
+/* The lighter orange some pages use (#c47756) */
+.btn.btn-brand-light {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: #c47756;
+  --bs-btn-border-color: #c47756;
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: #a9603f;
+  --bs-btn-hover-border-color: #a9603f;
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: #8e4f33;
+  --bs-btn-active-border-color: #8e4f33;
+  --bs-btn-disabled-color: #fff;
+  --bs-btn-disabled-bg: #c47756;
+  --bs-btn-disabled-border-color: #c47756;
+  --bs-btn-focus-shadow-rgb: 196, 119, 86;
+}
