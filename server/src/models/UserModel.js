@@ -1,6 +1,6 @@
 import mongoose from 'mongoose'
 
-export const pet_types = ["Dog", "Cat", "Bird", "Rabbit", "Hamster"];
+export const pet_types = ["Dog", "Cat", "Bird", "Rabbit", "Hamster", "Other"];
 export const services = ["Feeding", "Dog walking", "Cat walking", "Feeding Medication"]
 
 // location schema

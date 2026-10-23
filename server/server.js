@@ -13,6 +13,8 @@ import userRoutes from './src/routes/userRoutes.js'
 import availabilityRoutes from './src/routes/availability.js'
 import bookingCreateRoutes from './src/routes/bookingCreate.js'
 import googleCalendarRoutes from './src/routes/googleCalendar.js'
+import visitRoutes from './src/routes/visitRoutes.js'
+import reviewRoutes from './src/routes/reviewRoutes.js'
 import mongoose from 'mongoose'
 
 if (!process.env.SESSION_SECRET){
@@ -54,6 +56,8 @@ app.use('/api/sitters', sitterRoute);
 app.use('/api/users', userRoutes)  
 app.use('/api/availability', availabilityRoutes)
 app.use('/api/bookings', bookingCreateRoutes)
+app.use('/api/visits', visitRoutes)   
+app.use('/api/reviews', reviewRoutes)
 app.use('/api/google', googleCalendarRoutes)
 
 // Fallback 404 for unmatched API routes

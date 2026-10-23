@@ -23,5 +23,18 @@ export const usersApi = {
   removePicture: () => api.delete('/users/me/picture').then((res) => res.data)
 }
 
+export const visitsApi = {
+  today: () => api.get('/visits/today').then((res) => res.data),
+  start: (bookingId) => api.post(`/visits/booking/${bookingId}/start`).then((res) => res.data),
+  setTask: (visitId, taskId, count) =>
+    api.patch(`/visits/${visitId}/tasks/${taskId}`, { count }).then((res) => res.data),
+  end: (visitId, formData) => api.post(`/visits/${visitId}/end`, formData).then((res) => res.data)
+}
+
+export const reviewsApi = {
+  create: (data) => api.post('/reviews', data).then((res) => res.data),
+  getForBooking: (bookingId) => api.get(`/reviews/booking/${bookingId}`).then((res) => res.data)
+}
+
 // export default api
 export const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
