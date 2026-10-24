@@ -1,11 +1,12 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import axios from 'axios'
+import { Popover } from 'bootstrap'
 import { useRoute } from 'vue-router'
 import AvailabilityCalendar from '../components/AvailabilityCalendar.vue'
 import { availabilityApi } from '../services/availabilityApi.js'
 import { toDateString } from '../utils/bookingTimeHelpers.js'
-import { ALL_DAY, shortTime, groupBookingsByDay, paintedSlots } from '../utils/availabilityHelpers.js'
+import { ALL_DAY, shortTime, groupBookingsByDay, chipText, paintedSlots } from '../utils/availabilityHelpers.js'
 
 // Same setup as services/bookingApi.js: Vite forwards /api to the server, and
 // withCredentials sends the login cookie. (Only the Google Calendar calls use it here.)
@@ -64,15 +65,51 @@ function undoChanges() {
   message.value = null
 }
 
+// ----- Selected day: click a day on the calendar, then set its hours from here -----
+const selected = ref(today)
+const dayStart = ref(0) // minutes after midnight
+const dayEnd = ref(24 * 60)
+
+const selectedTitle = computed(() =>
+  new Date(selected.value + 'T00:00:00').toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })
+)
+// the bookings on the selected day, written the same way as inside the calendar squares
+const selectedBookings = computed(() =>
+  (groupBookingsByDay(bookings.value)[selected.value] || []).map((b) => chipText(b, selected.value))
+)
+const selectedStatus = computed(() => {
+  const slots = changes.value[selected.value] ?? saved.value[selected.value] ?? null
+  if (slots === null) return 'Not set yet'
+  if (!slots.length) return 'Not available'
+  const hours = slots.length / 2
+  return `${hours} free hour${hours === 1 ? '' : 's'}`
+})
+
+function applyDay(on) {
+  if (dayEnd.value <= dayStart.value) {
+    message.value = { type: 'warning', text: 'The end time must be after the start time.' }
+    return
+  }
+  const date = selected.value
+  const current = changes.value[date] ?? saved.value[date] ?? null
+  const list = paintedSlots(current, date, dayStart.value, dayEnd.value, on, groupBookingsByDay(bookings.value)[date] || [], today, nowMinutes)
+  if (list) {
+    setSlots(date, list)
+    message.value = null
+  } else {
+    message.value = { type: 'warning', text: `Nothing to change: those hours are already ${on ? 'available' : 'unavailable'}, in the past, or booked.` }
+  }
+}
+
 // ----- Days I'm free: set the same weekdays and hours for the next few weeks -----
 const patDays = ref([1, 2, 3, 4, 5]) // weekdays 0 = Sunday ... 6 = Saturday
 const patWeeks = ref(4)
 const patStartMinutes = ref(0) // minutes after midnight
 const patEndMinutes = ref(24 * 60)
 const dayNames = [
-  { n: 1, name: 'Mon' }, { n: 2, name: 'Tue' }, { n: 3, name: 'Wed' }, { n: 4, name: 'Thu' },
-  { n: 5, name: 'Fri' }, { n: 6, name: 'Sat' }, { n: 0, name: 'Sun' }
-]
+  { n: 0, name: 'Sun' }, { n: 1, name: 'Mon' }, { n: 2, name: 'Tue' }, { n: 3, name: 'Wed' },
+  { n: 4, name: 'Thu' }, { n: 5, name: 'Fri' }, { n: 6, name: 'Sat' }
+] // starts on Sunday, like the calendar
 const fromOptions = ALL_DAY // every half-hour 12:00 am ... 11:30 pm
 const toOptions = [...ALL_DAY.slice(1), 24 * 60] // every half-hour 12:30 am ... 12:00 am (end of the day)
 
@@ -104,8 +141,8 @@ function applyPattern(on) {
     }
   }
   message.value = changed
-    ? { type: 'info', text: `${changed} day${changed === 1 ? '' : 's'} set as ${on ? 'available' : 'unavailable'}. Days with a dot are not saved yet: check them, then press Save changes.` }
-    : { type: 'info', text: `Nothing to change: those hours are already ${on ? 'available' : 'unavailable'}, in the past, or booked.` }
+    ? null // the yellow bar above already says there are unsaved days
+    : { type: 'warning', text: `Nothing to change: those hours are already ${on ? 'available' : 'unavailable'}, in the past, or booked.` }
 }
 
 // ----- Google Calendar -----
@@ -130,6 +167,32 @@ async function disconnectGoogle() {
   await loadGoogle()
   message.value = { type: 'success', text: 'Disconnected from Google Calendar.' }
 }
+
+// The switch: off -> on goes to Google's permission screen, on -> off asks first
+function toggleGoogle() {
+  if (!google.value.connected) connectGoogle()
+  else if (window.confirm('Turn off Google Calendar sync? New bookings will not be added. Bookings already in your Google Calendar stay there.')) disconnectGoogle()
+}
+
+// The small (i) button next to the switch shows a Bootstrap popover when hovered or focused.
+// The button only exists once the Google status has loaded, so we wait for the ref to be filled.
+const infoButton = ref(null)
+let infoPopover = null
+watch(infoButton, (el) => {
+  if (infoPopover) infoPopover.dispose()
+  infoPopover = el
+    ? new Popover(el, {
+        trigger: 'hover focus',
+        placement: 'bottom',
+        html: true,
+        title: 'Google Calendar sync',
+        content: '<p class="mb-2">Connect to see all your PetSociety bookings in your Google Calendar.</p><p class="mb-0 text-muted">Accepted bookings are added automatically and cancelled ones are removed. We can\'t see the rest of your calendar.</p>'
+      })
+    : null
+})
+onBeforeUnmount(() => {
+  if (infoPopover) infoPopover.dispose()
+})
 
 // Adds any accepted booking that isn't in Google Calendar yet
 async function retryGoogleSync() {
@@ -156,7 +219,7 @@ onMounted(async () => {
   await loadGoogle()
   // Google sends the sitter back here with ?google=connected / denied / error
   const result = route.query.google
-  if (result === 'connected') message.value = { type: 'success', text: 'Google Calendar connected ✅ Accepted bookings are added automatically.' }
+  if (result === 'connected') message.value = { type: 'success', text: 'Google Calendar connected. Accepted bookings are added automatically.' }
   else if (result === 'denied') message.value = { type: 'danger', text: 'Google Calendar was not connected (you cancelled).' }
   else if (result === 'error') message.value = { type: 'danger', text: 'Could not connect Google Calendar. Please try again.' }
 })
@@ -164,9 +227,39 @@ onMounted(async () => {
 
 <template>
   <div class="cal-page">
-    <h1 class="page-title mb-3">My Availability</h1>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <h1 class="page-title mb-0">My Calendar</h1>
 
-    <div v-if="message" :class="`alert alert-${message.type} py-2`">{{ message.text }}</div>
+      <!-- Google Calendar sync switch (hidden if the server has no Google keys) -->
+      <div v-if="google && google.configured" class="google-box d-flex align-items-center gap-2">
+        <div class="form-check form-switch mb-0">
+          <input
+            id="google-switch"
+            class="form-check-input"
+            type="checkbox"
+            role="switch"
+            :checked="google.connected"
+            @click.prevent="toggleGoogle"
+          />
+          <label class="form-check-label fw-semibold" for="google-switch">Sync to Google Calendar</label>
+        </div>
+        <button v-if="google.connected && google.needsReconnect" class="btn btn-outline-danger btn-sm" @click="connectGoogle">Reconnect</button>
+        <button v-else-if="google.connected && google.unsynced" class="btn btn-outline-dark btn-sm" @click="retryGoogleSync">
+          Retry sync ({{ google.unsynced }})
+        </button>
+        <button ref="infoButton" type="button" class="info-btn" aria-label="What does Google Calendar sync do?">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="11"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div v-if="message" :class="`notice alert alert-${message.type} alert-dismissible`" role="status">
+      <span v-if="message.type === 'success'" class="notice-icon" aria-hidden="true">✓</span>
+      {{ message.text }}
+      <button type="button" class="btn-close" aria-label="Close" @click="message = null"></button>
+    </div>
 
     <!-- Unsaved changes -->
     <div v-if="changeCount" class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-2 py-2">
@@ -179,26 +272,58 @@ onMounted(async () => {
       </span>
     </div>
 
-    <!-- The calendar itself is a child component; this page keeps the data and the unsaved changes -->
-    <div class="card cal-card mb-3">
-      <div class="card-body">
-        <AvailabilityCalendar
-          :saved="saved"
-          :changes="changes"
-          :bookings="bookings"
-          editable
-          @paint="onPaint"
-        />
-      </div>
-    </div>
-
     <div class="row g-3">
-      <!-- Days I'm free -->
-      <div class="col-md-6">
-        <div class="card cal-card h-100">
+      <div class="col-lg-8">
+        <!-- The calendar itself is a child component; this page keeps the data and the unsaved changes -->
+        <div class="card cal-card">
           <div class="card-body">
-            <h3 class="side-title">Days I'm free</h3>
-            <p class="small text-muted">Tap the days, choose the hours and how many weeks, then mark them.</p>
+            <AvailabilityCalendar
+              :saved="saved"
+              :changes="changes"
+              :bookings="bookings"
+              :selected="selected"
+              editable
+              @paint="onPaint"
+              @select="selected = $event"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-4 d-flex flex-column gap-3">
+        <!-- Selected day -->
+        <div class="card cal-card">
+          <div class="card-body">
+            <h3 class="side-title">Selected day</h3>
+            <p class="selected-title mb-1">{{ selectedTitle }}</p>
+            <p class="small text-muted mb-1">{{ selectedStatus }}</p>
+            <p v-for="line in selectedBookings" :key="line" class="small mb-1">Booked: {{ line }}</p>
+            <div class="row g-2 my-2">
+              <div class="col-6">
+                <label class="form-label small mb-1" for="day-start">From</label>
+                <select id="day-start" v-model="dayStart" class="form-select form-select-sm">
+                  <option v-for="m in fromOptions" :key="m" :value="m">{{ shortTime(m) }}</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1" for="day-end">Until</label>
+                <select id="day-end" v-model="dayEnd" class="form-select form-select-sm">
+                  <option v-for="m in toOptions" :key="m" :value="m">{{ shortTime(m) }}{{ m === 1440 ? ' (end of day)' : '' }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-available flex-fill" @click="applyDay(true)">Set as free</button>
+              <button class="btn btn-unavailable flex-fill" @click="applyDay(false)">Not free</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Repeat every week -->
+        <div class="card cal-card">
+          <div class="card-body">
+            <h3 class="side-title">Repeat every week</h3>
+            <p class="small text-muted">Tap the days, choose the hours and how many weeks, then set them.</p>
             <div class="free-days mb-3">
               <button
                 v-for="d in dayNames"
@@ -206,6 +331,7 @@ onMounted(async () => {
                 type="button"
                 class="free-day"
                 :class="{ on: patDays.includes(d.n) }"
+                :aria-pressed="patDays.includes(d.n)"
                 @click="togglePatDay(d.n)"
               >
                 {{ d.name }}
@@ -230,40 +356,10 @@ onMounted(async () => {
               <option v-for="w in 12" :key="w" :value="w">{{ w }} week{{ w === 1 ? '' : 's' }}</option>
             </select>
             <div class="d-flex gap-2">
-              <button class="btn btn-available flex-fill" @click="applyPattern(true)">Mark available</button>
-              <button class="btn btn-unavailable flex-fill" @click="applyPattern(false)">Mark unavailable</button>
+              <button class="btn btn-available flex-fill" @click="applyPattern(true)">Set as free</button>
+              <button class="btn btn-unavailable flex-fill" @click="applyPattern(false)">Not free</button>
             </div>
             <p class="small text-muted mt-2 mb-0">Hours in the past and booked hours are never changed.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Google Calendar (hidden if the server has no Google keys) -->
-      <div v-if="google && google.configured" class="col-md-6">
-        <div class="card cal-card h-100">
-          <div class="card-body">
-            <h3 class="side-title">Google Calendar</h3>
-
-            <template v-if="!google.connected">
-              <p class="small text-muted">Connect your Google Calendar and accepted bookings are added to it automatically.</p>
-              <button class="btn btn-outline-dark btn-sm w-100" @click="connectGoogle">Connect Google Calendar</button>
-            </template>
-
-            <template v-else-if="google.needsReconnect">
-              <p class="small text-danger">Google stopped the connection. Reconnect to keep syncing.</p>
-              <button class="btn btn-outline-dark btn-sm w-100" @click="connectGoogle">Reconnect Google Calendar</button>
-            </template>
-
-            <template v-else>
-              <p class="small mb-2">✅ Connected. Accepted bookings are added automatically.</p>
-              <p v-if="google.unsynced" class="small text-muted mb-2">
-                {{ google.unsynced }} upcoming booking{{ google.unsynced === 1 ? ' is' : 's are' }} not in your Google Calendar yet.
-              </p>
-              <div class="d-flex gap-2">
-                <button v-if="google.unsynced" class="btn btn-outline-dark btn-sm flex-fill" @click="retryGoogleSync">Retry sync</button>
-                <button class="btn btn-outline-secondary btn-sm flex-fill" @click="disconnectGoogle">Disconnect</button>
-              </div>
-            </template>
           </div>
         </div>
       </div>
@@ -288,6 +384,35 @@ onMounted(async () => {
 .page-title { font-size: 1.9rem; font-weight: 600; letter-spacing: -0.01em; }
 .side-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.75rem; font-weight: 600; }
 .cal-card { border: 1px solid var(--line); border-radius: 8px; box-shadow: none; }
+/* ----- notice at the top: centred, soft, with a close x ----- */
+.notice {
+  text-align: center;
+  font-weight: 600;
+  padding: 0.7rem 3rem; /* same room on both sides, so the text stays centred next to the x */
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(43, 36, 32, 0.08);
+}
+.notice .btn-close { padding: 1rem; }
+.notice-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: #198754;
+  color: #fff;
+  font-size: 0.75rem;
+}
+.selected-title { font-family: 'Fredoka', 'Nunito', sans-serif; font-size: 1.2rem; font-weight: 600; }
+
+/* ----- Google Calendar switch ----- */
+.google-box { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px 6px 12px; }
+.google-box .form-check-input:checked { background-color: #c44f1c; border-color: #c44f1c; }
+.info-btn { border: 0; background: none; color: var(--muted); padding: 2px; line-height: 0; border-radius: 50%; }
+.info-btn:hover, .info-btn:focus-visible { color: var(--ink); }
+
 
 .btn-accent { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn-accent:hover { background: #b06647; border-color: #b06647; color: #fff; }

@@ -22,9 +22,11 @@ const props = defineProps({
   bookings: { type: Array, required: true }, // accepted / paid / in-progress bookings
   editable: { type: Boolean, default: false }, // false = look only (no dragging)
   highlight: { type: Object, default: null }, // a booking request to point out: { startDate, startTime, endDate, endTime }
-  focusDate: { type: String, default: '' } // 'YYYY-MM-DD': when this changes, the calendar jumps to that day
+  focusDate: { type: String, default: '' }, // 'YYYY-MM-DD': when this changes, the calendar jumps to that day
+  selected: { type: String, default: '' } // 'YYYY-MM-DD': the day the page has picked, drawn with a dark outline
 })
-const emit = defineEmits(['paint'])
+// 'select' tells the page which day was clicked (the page can ignore it)
+const emit = defineEmits(['paint', 'select'])
 
 const now = new Date()
 // new Date() automatically creates a JavaScript Date object containing the browser's current local date and time.
@@ -123,6 +125,7 @@ function paintRange(date, startMinutes, endMinutes, on) {
 // Month view: press on a day, then drag across more days (the whole day is set)
 // props not editable when parent renders calendar in view only mode, e.g. for owner to see sitter avialability
 function startDayPaint(date) {
+  emit('select', date)
   if (!props.editable || !canChange(date)) return
   painting.value = true
   paintDay(date) //to paint that first day itself 
@@ -136,6 +139,7 @@ function paintDay(date) {
 
 // Week view: press on a half-hour, then drag across more half-hours (a row or a column)
 function startSlotPaint(date, m) {
+  emit('select', date)
   if (!props.editable) return
   painting.value = true
   paintSlot(date, m)
@@ -301,6 +305,7 @@ function hideBooking() {
               past: d.date < today,
               today: d.date === today,
               asked: inHighlight(d.date),
+              selected: d.date === selected,
               unsaved: changes[d.date] }]"
             @mousedown.prevent="startDayPaint(d.date)"
             @mouseenter="paintDay(d.date)"
@@ -488,6 +493,7 @@ function hideBooking() {
 .day.past { opacity: 0.45; }
 .day.today { outline: 2px solid var(--accent); outline-offset: -1px; }
 .day.asked { outline: 2px dashed var(--accent); outline-offset: -2px; } /* days of the request being looked at */
+.day.selected { box-shadow: inset 0 0 0 3px var(--ink); } /* the day picked in the side card */
 .day.unsaved::after {
   content: '';
   position: absolute;
