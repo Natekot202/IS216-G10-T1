@@ -1,6 +1,4 @@
 <script setup>
-import { computed } from 'vue'
-import { currentUser } from '../services/auth.js'
 import defaultAvatar from '../assets/img/tempProfile.jpg'
 
 const props = defineProps({
@@ -8,48 +6,45 @@ const props = defineProps({
   editable: { type: Boolean, default: false }
 })
 
-const canRequestBooking = computed(() => 
-  !props.editable && props.profile.role === 'sitter' && currentUser.value?.role === 'owner'
-)
-
-const needsLogin = computed(() => 
-  !props.editable && props.profile.role === 'sitter' && !currentUser.value
-)
-
 </script>
 
 <template>
-  <div class="p-2">
-    <img
-      :src="profile.profilePicture?.url || defaultAvatar"
-      alt="Profile picture"
-      class="rounded mb-2"
-      style="width:260px; height:260px; object-fit: cover;"/>
-    <p class="fw-bold mb-1">{{ profile.username }}</p>
-    <p v-if="editable && profile.email" class="text-muted mb-2">{{ profile.email }}</p>
-    <p class="text-break">{{ profile.bio || 'No bio yet.' }}</p>
-
-    <router-link
-      v-if="editable"
-      class="btn btn-sm text-white"
-      style="background-color:#c47756;"
-      to="/editProfile">
-      Edit Details
-    </router-link>
-
-    <router-link
-      v-else-if="canRequestBooking"
-      class="btn btn-sm text-white"
-      style="background-color:#c47756;"
-      :to="{ path: '/bookings/new', query: { sitterId: profile._id } }">
-      Request Booking
-    </router-link>
-
-    <router-link
-      v-else-if="needsLogin"
-      class="btn btn-sm btn-outline-dark"
-      to="/login">
-      Log in to request a booking
-    </router-link>
+  <div class="ph-card">
+    <img :src="profile.profilePicture?.url || defaultAvatar" alt="Profile picture" class="ph-photo" />
+    <p class="ph-name">{{ profile.username }}</p>
+    <p v-if="editable && profile.email" class="ph-email">{{ profile.email }}</p>
+    <p class="ph-bio">{{ profile.bio || 'No bio yet.' }}</p>
   </div>
 </template>
+
+<style scoped>
+.ph-photo {
+  display: block;
+  width: 100%;
+  max-width: 220px;
+  aspect-ratio: 1;
+  margin-bottom: 1rem;
+  border-radius: 20px;
+  object-fit: cover;
+}
+.ph-name {
+  margin: 0 0 0.15rem;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: #2b2420;
+}
+.ph-email {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: #5c524b;
+  overflow-wrap: anywhere;
+}
+.ph-bio {
+  max-width: 38ch;
+  margin: 0.5rem 0 1rem;
+  color: #2b2420;
+  overflow-wrap: anywhere;
+}
+</style>

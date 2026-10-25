@@ -51,7 +51,7 @@ async function submit() {
     </form>
 
     <span> Don't have an account? </span>
-    <router-link class="link-primary link-underline-opacity-100-hover" to="/register">Create One</router-link>
+    <router-link class="link-underline-opacity-100-hover" style="color:#c44f1c;" to="/register">Create One</router-link>
 
 
   </div>
