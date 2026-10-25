@@ -30,7 +30,7 @@ watch([() => route.params.id, currentUser], load, { immediate: true })
 </script>
 
 <template>
-  <div class="container mt-1 mb-4">
+  <div class="container-fluid mt-1 mb-4">
     <div v-if="error" class="alert alert-warning">{{ error }}</div>
 
     <template v-else-if="profile">

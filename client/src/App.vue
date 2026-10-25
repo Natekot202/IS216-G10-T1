@@ -12,7 +12,7 @@ onMounted(fetchUser);
   <NavBar />
 
     <!-- main view  -->
-  <main class="container py-4">
+  <main class="container-fluid py-4">
     <router-view />
   </main>
   
