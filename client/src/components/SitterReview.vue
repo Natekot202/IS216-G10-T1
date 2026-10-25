@@ -185,10 +185,11 @@ watch(ratingFilter, (r) => {
 }
 .sr-title {
   margin: 0;
-  font-family: 'Trirong', Georgia, serif;
-  font-size: 1.35rem;
-  font-weight: 700;
+  font-family: 'fredoka', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 500;
   color: #2b2420;
+  letter-spacing: -0.01em;
 }
 .sr-sort {
   width: auto;

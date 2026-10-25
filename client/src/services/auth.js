@@ -1,21 +1,20 @@
 import { ref } from "vue";
-import { API } from "./api.js";
+import { authApi } from './api.js'
 
-export const currentUser = ref(null); // logged out
+export const currentUser = ref(null); 
 
 export async function fetchUser() {
   try {
-    const res = await fetch(`${API}/api/auth/me`, { credentials: "include" });
-    currentUser.value = res.ok ? await res.json() : null;
+    currentUser.value = await authApi.me()
   } catch {
-    currentUser.value = null;
+    currentUser.value = null          // a 401 means nobody is logged in
   }
 }
 
 export async function logout() {
-  await fetch(`${API}/api/auth/logout`, {
-    method: "POST", 
-    credentials: "include" 
-    });
-  currentUser.value = null;
+  try {
+    await authApi.logout()
+  } finally {
+    currentUser.value = null
+  }
 }

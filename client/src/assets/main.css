@@ -1,7 +1,6 @@
-/* Project-wide overrides on top of Bootstrap */
-
 body {
   background-color: #fff9f4;
+  /* background-color: #f5e9db; */
 }
 
 .navbar-brand {
@@ -17,7 +16,6 @@ body {
 }
 
 /* Nav bar */
-
 .topbar {
   position: sticky;
   top: 0;
@@ -140,7 +138,7 @@ body {
     inset: 0;
     z-index: -1;
     background:
-        linear-gradient(rgba(255, 250, 245, 0.8), rgba(255, 250, 245, 0.8)),  
+    linear-gradient(90deg, rgba(88, 80, 76, 0.9) 0%, rgba(122, 113, 108, 0.62) 55%, rgba(43, 36, 32, 0.25) 100%),
         url('../assets/img/AuthPage.jpg') center / cover no-repeat;
 }
 
@@ -148,8 +146,9 @@ body {
   font-family: "Fraunces", sans-serif;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #2b2420;
+  color: #221f1e;
   font-size: clamp(1.9rem, 4vw, 3.2rem);
+  text-shadow: 1px 1px rgb(134, 85, 10);
 }
 
 /* checkbox checked */

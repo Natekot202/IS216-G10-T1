@@ -35,7 +35,7 @@ watch([() => route.params.id, currentUser], load, { immediate: true })
 
     <template v-else-if="profile">
       <div class="d-flex flex-wrap align-items-center justify-content-between border-bottom pb-2 mb-3">
-        <h3 class="mb-0">{{ isMine ? 'My Profile' : `${profile.username}'s Profile` }}</h3>
+        <h3 class="page-title">{{ isMine ? 'My Profile' : `${profile.username}'s Profile` }}</h3>
         <ProfileActions :profile="profile" :editable="isMine" />
       </div>
 
@@ -58,3 +58,13 @@ watch([() => route.params.id, currentUser], load, { immediate: true })
     </template>
   </div>
 </template>
+
+<style scoped>
+.page-title {
+  font-family: 'fredoka', sans-serif;
+  font-size: 1.9rem;
+  font-weight: 600; 
+  letter-spacing: -0.01em;
+  margin-bottom: 0;
+}
+</style>
