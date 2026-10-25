@@ -13,7 +13,8 @@ const props = defineProps({
     <img :src="profile.profilePicture?.url || defaultAvatar" alt="Profile picture" class="ph-photo" />
     <p class="ph-name">{{ profile.username }}</p>
     <p v-if="editable && profile.email" class="ph-email">{{ profile.email }}</p>
-    <p class="ph-bio">{{ profile.bio || 'No bio yet.' }}</p>
+    <h5 v-if="profile.role === 'sitter'" style="font-family: 'Trirong', serif; font-weight:700;">About</h5>
+    <p class="ph-bio">{{ profile.bio || 'No bio yet.' }}</p>  
   </div>
 </template>
 
@@ -29,8 +30,8 @@ const props = defineProps({
 }
 .ph-name {
   margin: 0 0 0.15rem;
-  font-family: 'Fraunces', Georgia, serif;
-  font-size: 1.6rem;
+  font-family: 'Trirong', serif;
+  font-size: 1.8rem;
   font-weight: 700;
   line-height: 1.15;
   color: #2b2420;
@@ -42,7 +43,7 @@ const props = defineProps({
   overflow-wrap: anywhere;
 }
 .ph-bio {
-  max-width: 38ch;
+  max-width: 30ch;
   margin: 0.5rem 0 1rem;
   color: #2b2420;
   overflow-wrap: anywhere;

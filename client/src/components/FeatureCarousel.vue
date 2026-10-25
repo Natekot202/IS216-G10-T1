@@ -193,24 +193,24 @@ function onTouchEnd(e) {
   --ink: #2b2420;
   --accent: #c47756;
   --accent-deep: #c44f1c;
-  --sand: #f4e4d3;
-  --muted: #5c524b;
+  --glow: #e3946f;                
+  --muted: #5c524b;                  
   --fc-interval: 6s;
   position: relative;
+  width: 100%;
+  min-width: 0;
   max-width: 460px;
   margin-inline: auto;
   padding: 1.1rem 1.1rem 0.9rem;
-  border-radius: 20px;
-  background: rgba(255, 250, 245, 0.72);
-  border: 1px solid rgba(196, 119, 86, 0.25);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  width: 100%;
-  min-width: 0;
   overflow: hidden;
+  border-radius: 20px;
+  background: rgba(43, 36, 32, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
-/* slides sit in one grid cell, so the card never changes height */
 .fc-stack {
   display: grid;
   grid-template-columns: minmax(0, 1fr);   
@@ -229,25 +229,27 @@ function onTouchEnd(e) {
 }
 
 .fc-stage {
+  min-width: 0;
   min-height: 220px;
   padding: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 14px;
-  background: var(--sand);
-  min-width: 0;
   overflow: hidden;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
 .fc-title {
   margin: 1.1rem 0 0.3rem;
   font-size: 1.4rem;
-  color: var(--ink);
+  color: #fff;
 }
 .fc-text {
   margin: 0;
   max-width: 36ch;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.78);
 }
 
 @media (max-width: 400px) {
@@ -270,7 +272,6 @@ function onTouchEnd(e) {
   }
 }
 
-/* shared preview pieces */
 .mock {
   width: 100%;
   max-width: 300px;
@@ -280,14 +281,13 @@ function onTouchEnd(e) {
   background: #fff;
   border-radius: 12px;
   padding: 0.7rem 0.85rem;
-  box-shadow: 0 8px 18px rgba(120, 70, 40, 0.12);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
 }
 .stars {
   color: var(--accent-deep);
   letter-spacing: 0.05em;
 }
 
-/* find */
 .chips {
   display: flex;
   gap: 0.4rem;
@@ -315,7 +315,7 @@ function onTouchEnd(e) {
   margin-top: 0.5rem;
 }
 .sitter--dim {
-  opacity: 0.7;
+  opacity: 0.8;
 }
 .avatar {
   flex: 0 0 auto;
@@ -353,7 +353,6 @@ function onTouchEnd(e) {
   color: var(--muted);
 }
 
-/* book */
 .mock-book {
   text-align: center;
 }
@@ -392,7 +391,6 @@ function onTouchEnd(e) {
   font-size: 0.8rem;
 }
 
-/* checklist */
 .task {
   display: flex;
   align-items: center;
@@ -436,14 +434,14 @@ function onTouchEnd(e) {
   transform: rotate(45deg);
 }
 
-/* route */
 .map {
   display: block;
   width: 100%;
   height: auto;
   border-radius: 12px;
-  box-shadow: 0 8px 18px rgba(120, 70, 40, 0.12);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
 }
+
 .street {
   fill: none;
   stroke: #eadbc8;
@@ -480,10 +478,9 @@ function onTouchEnd(e) {
   margin: 0.5rem 0 0;
   text-align: center;
   font-size: 0.8rem;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.72);
 }
 
-/* report */
 .photos {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -515,7 +512,6 @@ function onTouchEnd(e) {
   color: var(--ink);
 }
 
-/* motion: only on the slide being shown */
 .fc-slide.is-active .box--on {
   animation: fc-pop 0.35s ease-out var(--d, 0s) backwards;
 }
@@ -572,7 +568,7 @@ function onTouchEnd(e) {
   height: 0.55rem;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(43, 36, 32, 0.2);
+  background: rgba(255, 255, 255, 0.28);
   transition: width 0.3s ease;
 }
 .fc-dot__bar--active {
@@ -581,7 +577,7 @@ function onTouchEnd(e) {
 .fc-dot__fill {
   position: absolute;
   inset: 0;
-  background: var(--accent);
+  background: var(--glow);
   transform-origin: left;
   animation: fc-fill var(--fc-interval) linear forwards;
 }
@@ -595,19 +591,19 @@ function onTouchEnd(e) {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  border: 1px solid #e6d3c0;
-  background: rgba(255, 255, 255, 0.8);
-  color: var(--ink);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s;
 }
 .fc-arrow:hover {
-  background: rgba(196, 119, 86, 0.28);
-  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 .fc-dot:focus-visible,
 .fc-arrow:focus-visible {
-  outline: 2px solid var(--accent-deep);
+  outline: 2px solid var(--glow);
   outline-offset: 2px;
 }
 

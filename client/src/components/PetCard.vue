@@ -4,17 +4,18 @@ import { formatAge } from '../utils/formatAge.js'
 
 const props = defineProps({
   pet: { type: Object, required: true },
-  editable: { type: Boolean, default: false }
+  editable: { type: Boolean, default: false },
+  editing: { type: Boolean, default: false }
 })
 
-defineEmits(['delete'])
+defineEmits(['edit','delete'])
 
 const age = computed(() => (props.pet.ageMonths != null ? `${formatAge(props.pet.ageMonths)} old` : ''))
 
 </script>
 
 <template>
-  <article class="pc">
+  <article class="pc" :class="{ 'pc--editing': editing }">
     <div class="pc__photo">
       <img v-if="pet.photo?.url" :src="pet.photo.url" :alt="`Photo of ${pet.name}`" loading="lazy" />
       <div v-else class="pc__fallback" aria-hidden="true">
@@ -27,13 +28,21 @@ const age = computed(() => (props.pet.ageMonths != null ? `${formatAge(props.pet
         </svg>
       </div>
 
-      <button v-if="editable" type="button" class="pc__remove" :aria-label="`Remove ${pet.name}`"
-              @click="$emit('delete', pet._id)">
-        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-          <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"
-                fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-      </button>
+      <div v-if="editable" class="pc__actions">
+        <button type="button" class="pc__icon" :aria-label="`Edit ${pet.name}`" @click="$emit('edit', pet)">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"
+                  fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <button type="button" class="pc__icon pc__icon--danger" :aria-label="`Remove ${pet.name}`"
+                @click="$emit('delete', pet._id)">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"
+                  fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
     </div>
 
     <div class="pc__body">
@@ -48,6 +57,7 @@ const age = computed(() => (props.pet.ageMonths != null ? `${formatAge(props.pet
       <p v-if="pet.description" class="pc__desc" :title="pet.description">{{ pet.description }}</p>
     </div>
   </article>
+
 </template>
 
 <style scoped>
@@ -61,20 +71,24 @@ const age = computed(() => (props.pet.ageMonths != null ? `${formatAge(props.pet
   background: #fff;
   box-shadow: 0 4px 12px rgba(120, 70, 40, 0.12);
 }
+.pc--editing {
+  box-shadow: 0 0 0 2px #c44f1c, 0 4px 12px rgba(120, 70, 40, 0.12);
+}
+
 .pc__photo {
   position: relative;
-  flex: none;                 
+  flex: none;
   aspect-ratio: 1 / 1;
-  overflow: hidden;        
+  overflow: hidden;
   background: #f4e4d3;
 }
 .pc__photo img {
-  position: absolute;       
+  position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 30%;  
+  object-position: center 30%;
 }
 .pc__fallback {
   position: absolute;
@@ -88,10 +102,14 @@ const age = computed(() => (props.pet.ageMonths != null ? `${formatAge(props.pet
   height: auto;
 }
 
-.pc__remove {
+.pc__actions {
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
+  display: flex;
+  gap: 0.4rem;
+}
+.pc__icon {
   width: 2rem;
   height: 2rem;
   display: grid;
@@ -103,11 +121,14 @@ const age = computed(() => (props.pet.ageMonths != null ? `${formatAge(props.pet
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
 }
-.pc__remove:hover {
+.pc__icon:hover {
   background: #fff;
+  color: #a85a38;
+}
+.pc__icon--danger:hover {
   color: #b3261e;
 }
-.pc__remove:focus-visible {
+.pc__icon:focus-visible {
   outline: 2px solid #c44f1c;
   outline-offset: 2px;
 }

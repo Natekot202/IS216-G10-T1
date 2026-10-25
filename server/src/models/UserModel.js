@@ -12,7 +12,7 @@ const pointSchema = new mongoose.Schema(
   { _id: false }
 );
 
-//address schema containing location schema
+// address schema containing location schema
 const addressSchema = new mongoose.Schema(
   {
     line1: { type: String, trim: true },
@@ -22,6 +22,12 @@ const addressSchema = new mongoose.Schema(
   },
   { _id: false }
 );
+
+// sitter gallery
+const galleryPhotoSchema = new mongoose.Schema({
+  url: { type: String, required: true },
+  publicId: { type: String, required: true }   
+})
 
 const userSchema = new mongoose.Schema({
   username: {
@@ -117,6 +123,11 @@ const userSchema = new mongoose.Schema({
       type: Number, 
       default: 0, 
       min: 0 
+    },
+    gallery: {
+      type: [galleryPhotoSchema],
+      default: [],
+      validate: { validator: (v) => v.length <= 5, message: 'You can add up to 5 photos.' }
     }
   }
 },

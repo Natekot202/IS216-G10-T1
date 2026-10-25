@@ -33,3 +33,18 @@ export function uploadPhotos(req, res, next) {
     next()
   })
 }
+
+export function uploadGallery(req, res, next) {
+  upload.array('photos', 5)(req, res, (err) => {
+    if (err) {
+      let message = err.message
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        message = 'Each image must be under 2 MB.'
+      } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        message = 'You can upload up to 5 photos.'
+      }
+      return res.status(400).json({ message })
+    }
+    next()
+  })
+}

@@ -2,6 +2,8 @@
 import { computed, ref, watch } from 'vue'
 import { usersApi } from '../services/api.js'
 import { formatAge } from '../utils/formatAge.js'
+import PhotoCarousel from './SitterPhotosCarousel.vue'
+
 
 const props = defineProps({
   profile: { type: Object, required: true },
@@ -9,7 +11,7 @@ const props = defineProps({
 })
 
 const sp = computed(() => props.profile.sitterProfile || {})
-
+const gallery = computed(() => sp.value.gallery ?? [])
 const rateAmount = computed(() => (sp.value.petsittingRates > 0 ? `S$${sp.value.petsittingRates}` : ''))
 
 const experience = computed(() => {
@@ -78,7 +80,6 @@ function formatDate(d) {
       </router-link>
     </div>
 
-    <!-- the facts an owner checks first -->
     <div class="sd-band">
       <div class="sd-stat">
         <template v-if="ratingCount">
@@ -109,8 +110,8 @@ function formatDate(d) {
               fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
         <circle cx="12" cy="10" r="2.3" fill="currentColor" />
       </svg>
-      <span v-if="hasArea">Serves <strong>{{ area }}</strong></span>
-      <span v-else class="text-muted">Service area not set</span>
+      <span v-if="hasArea" style="font-family:'Trirong', serif; font-size:1.2rem;">Serves <strong>{{ area }}</strong></span>
+      <span v-else class="text-muted" style="font-family:'Trirong', serif; font-size:1.2rem;">Service area not set</span>
     </p>
 
     <section class="sd-group">
@@ -128,6 +129,15 @@ function formatDate(d) {
       </ul>
       <p v-else class="text-muted mb-0">None listed yet</p>
     </section>
+
+    <PhotoCarousel v-if="gallery.length" :photos="gallery" :name="profile.username" class="mb-4" />
+
+    <div v-else-if="editable" class="sd-nudge">
+      <p class="mb-2">Add photos of yourself so owners know who is coming to their home.</p>
+      <router-link to="/editProfile" class="btn btn-sm text-white" style="background-color:#a85a38;">
+        Add photos
+      </router-link>
+    </div>   
   </div>
 </template>
 
@@ -141,13 +151,12 @@ function formatDate(d) {
   color: #2b2420;
 }
 
-/* one panel; thin dividers separate the three facts */
 .sd-band {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border: 1px solid #e6d3c0;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.7);
+  background: #2b2420;
+  box-shadow: 0 10px 24px rgba(43, 36, 32, 0.25);
 }
 .sd-stat {
   display: flex;
@@ -155,28 +164,23 @@ function formatDate(d) {
   gap: 0.15rem;
   min-width: 0;
   padding: 1.1rem 1.25rem;
+  font-family: 'Trirong', serif;
+  font-size: 18px;
 }
 .sd-stat + .sd-stat {
-  border-left: 1px solid #e6d3c0;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
 }
 .sd-big {
-  font-family: 'Trirong', serif;
-  font-size: clamp(1.35rem, 0.8rem + 1.4vw, 1.9rem);
-  font-weight: 700;
-  line-height: 1.1;
-  text-wrap: balance;
-  color: #2b2420;
+  color: #fff;
 }
 .sd-big--empty {
-  color: #b9aba0;
+  color: rgba(255, 255, 255, 0.4);
 }
 .sd-stars {
-  color: #c44f1c;
-  letter-spacing: 0.06em;
+  color: #e3946f;
 }
 .sd-sub {
-  font-size: 0.85rem;
-  color: #5c524b;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 @media (max-width: 575.98px) {
@@ -185,7 +189,7 @@ function formatDate(d) {
   }
   .sd-stat + .sd-stat {
     border-left: 0;
-    border-top: 1px solid #e6d3c0;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
   }
 }
 
@@ -203,11 +207,12 @@ function formatDate(d) {
 
 .sd-group {
   margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 .sd-heading {
   margin: 0 0 0.6rem;
-  font-family: 'Fraunces', Georgia, serif;
-  font-size: 1.05rem;
+  font-family: 'Trirong', serif;
+  font-size: 1.2rem;
   font-weight: 700;
   color: #2b2420;
 }
@@ -221,8 +226,9 @@ function formatDate(d) {
 }
 .sd-pills li {
   padding: 0.3rem 0.8rem;
-  border-radius: 999px;
-  background: #f4e4d3;
+  border: 1px solid #e6d3c0;
+  border-radius: 100px;
+  background: #fff;
   color: #2b2420;
   font-size: 0.9rem;
   font-weight: 600;

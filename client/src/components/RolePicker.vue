@@ -46,7 +46,7 @@ const router = useRouter();
 }
 .landing-bg {
   background:
-    linear-gradient(90deg, rgba(255, 250, 245, 0.9) 0%, rgba(255, 250, 245, 0.78) 50%, rgba(255, 250, 245, 0.6) 100%),
+    linear-gradient(90deg, rgba(88, 80, 76, 0.9) 0%, rgba(122, 113, 108, 0.62) 55%, rgba(43, 36, 32, 0.25) 100%),
     url('../assets/img/landingPageMain.webp') center / cover no-repeat;
 }
 
@@ -60,17 +60,10 @@ const router = useRouter();
   }
 }
 
-.landing-title {
-  font-size: clamp(2.1rem, 4.6vw, 3.1rem);
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
-  color: #2b2420;
-}
 .landing-lead {
   margin: 0.9rem 0 1.75rem;
   font-size: 1.15rem;
-  color: #5c524b;
+  color: white;
 }
 
 .landing > .row,
@@ -98,7 +91,7 @@ const router = useRouter();
   transition: background 0.2s, border-color 0.2s;
 }
 .role-card:hover {
-  background: rgba(196, 119, 86, 0.28);
+  background: rgb(228, 222, 222);
   border-color: #c47756;
 }
 .role-card--primary {
@@ -107,7 +100,7 @@ const router = useRouter();
   color: #fff;
 }
 .role-card--primary:hover {
-  background: #8f4a2c;
+  background: #914e32;
   border-color: #8f4a2c;
 }
 .role-card:focus-visible {
@@ -125,10 +118,10 @@ const router = useRouter();
 
 .landing-login {
   margin: 1.25rem 0 0;
-  color: #5c524b;
+  color: white;
 }
 .landing-login a {
-  color: #c44f1c;
+  color: white;
   font-weight: 700;
 }
 

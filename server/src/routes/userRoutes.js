@@ -1,8 +1,8 @@
 import { Router } from 'express'
 import asyncHandler from '../middleware/asyncHandler.js'
-import { requireLogin } from '../middleware/authMiddleware.js'
-import { getAllUsers, getPublicProfile, getUserPets, getUserReviews, updateMyProfile, updateMyPicture, removeMyPicture } from '../controllers/userController.js'
-import { uploadPhoto } from '../middleware/upload.js'
+import { requireLogin, requireSitter } from '../middleware/authMiddleware.js'
+import { getAllUsers, getPublicProfile, getUserPets, getUserReviews, updateMyProfile, updateMyPicture, removeMyPicture, addGalleryPhotos, removeGalleryPhoto } from '../controllers/userController.js'
+import { uploadPhoto, uploadGallery } from '../middleware/upload.js'
 
 
 const router = Router()
@@ -14,5 +14,7 @@ router.get('/:id/reviews', asyncHandler(getUserReviews))
 router.put('/me', requireLogin, asyncHandler(updateMyProfile))
 router.put('/me/picture', requireLogin, uploadPhoto, asyncHandler(updateMyPicture))
 router.delete('/me/picture', requireLogin, asyncHandler(removeMyPicture))
+router.post('/me/gallery', requireSitter, uploadGallery, asyncHandler(addGalleryPhotos))
+router.delete('/me/gallery/:photoId', requireSitter, asyncHandler(removeGalleryPhoto))
 
 export default router

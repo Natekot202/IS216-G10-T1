@@ -35,7 +35,6 @@ const needsLogin = computed(() =>
 .button {
   padding: 0.4rem 0.95rem;
   border: 0;
-  border-radius: 999px;
   background: #a85a38;
   color: #fff;
   font-weight: 600;
