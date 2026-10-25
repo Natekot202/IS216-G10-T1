@@ -11,7 +11,7 @@ import BookingTable from '../components/BookingTable.vue'
 const TABS = [
   { key: 'pending', label: 'Pending', statuses: ['pending'] },
   { key: 'upcoming', label: 'Upcoming', statuses: ['accepted', 'paid', 'in-progress'] },
-  { key: 'past', label: 'Past', statuses: ['completed', 'declined'] }
+  { key: 'past', label: 'Past', statuses: ['completed', 'declined', 'cancelled'] }
 ]
 
 const route = useRoute()
@@ -20,6 +20,9 @@ const router = useRouter()
 const bookings = ref([])
 const loading = ref(true)
 const error = ref('')
+const message = ref('') // e.g. "Booking cancelled."
+const actionError = ref('') // why cancelling failed (the list stays visible)
+const busyId = ref(null)
 const activeTab = ref(TABS.some((t) => t.key === route.query.tab) ? route.query.tab : 'pending')
 
 function bookingsFor(tabKey) {
@@ -56,6 +59,27 @@ async function loadBookings() {
   }
 }
 
+async function cancelBooking(id) {
+  if (!window.confirm('Cancel this booking? The sitter will see it as cancelled. This cannot be undone.')) return
+  busyId.value = id
+  message.value = ''
+  actionError.value = ''
+  try {
+    const updated = await bookingsApi.cancel(id)
+    bookings.value.find((b) => b._id === id).status = updated.status
+    message.value = 'Booking cancelled. You can find it under Past.'
+  } catch (err) {
+    actionError.value = err.response?.data?.message || 'Could not cancel the booking.'
+  } finally {
+    busyId.value = null
+  }
+}
+
+//window.confirm -> built-in browser popup with two buttons: OK and Cancel.
+// if user clicks ok, returns true , so if block runs ; 
+// if user clicks cancel, returns false , if block doesnt run 
+// bookingsApi runs axios.patch to remove the booking via its id 
+
 onMounted(loadBookings)
 </script>
 
@@ -66,6 +90,9 @@ onMounted(loadBookings)
   <div v-else-if="loading" class="text-muted">Loading your bookings…</div>
 
   <template v-else>
+    <div v-if="message" class="alert alert-success">{{ message }}</div>
+    <div v-if="actionError" class="alert alert-warning">{{ actionError }}</div>
+
     <ul class="nav nav-underline mb-4 flex-nowrap overflow-auto">
       <li v-for="tab in TABS" :key="tab.key" class="nav-item">
         <button
@@ -85,7 +112,8 @@ onMounted(loadBookings)
       <router-link to="/home" class="btn text-white main-btn">Find a sitter</router-link>
     </div>
 
-    <BookingTable v-else :bookings="visibleBookings" viewer="owner" />
+    <BookingTable v-else :bookings="visibleBookings" viewer="owner" :busy-id="busyId" @cancel="cancelBooking" />
+    <!-- cancelBooking runs with the childs payload thats passed up  -->
   </template>
 </template>
 

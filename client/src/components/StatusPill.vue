@@ -9,6 +9,7 @@ const labels = {
   'in-progress': 'In Progress',
   completed: 'Completed',
   declined: 'Declined',
+  cancelled: 'Cancelled',
 }
 </script>
 
@@ -24,4 +25,5 @@ const labels = {
 .pill-in-progress { background: #F1EAFB; border-color: #CBB3F0; color: #6A3FB0; }
 .pill-completed { background: #EFF4EC; border-color: #C9DDC2; color: #4C7A3F; }
 .pill-declined { background: #FBEAEA; border-color: #EFB6B6; color: #B23C3C; }
+.pill-cancelled { background: #F1EEEA; border-color: #D6CEC6; color: #5E554D; }
 </style>

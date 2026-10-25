@@ -8,6 +8,7 @@ import User from '../models/UserModel.js'
 import { requireOwner, requireLogin } from '../middleware/authMiddleware.js'
 import { bookingRange, findClash, describeBooking, toMinutes, slotsOf, slotsCover, START_TIME_RE, END_TIME_RE } from '../utils/bookingTimes.js'
 import asyncHandler from '../middleware/asyncHandler.js'
+import { removeBookingFromGoogle } from '../utils/googleCalendar.js'
 
 const router = Router()
 
@@ -149,5 +150,56 @@ router.get('/:id/care-tasks', requireLogin, asyncHandler(async (req, res) => {
   const checklist = await CareChecklist.findOne({ bookingId: booking._id })
   res.json({ items: checklist ? checklist.items : [] })
 }))
+
+// GET /api/bookings/:id
+// One booking, for the Booking Detail page. Only the booking's owner or sitter can read it.
+router.get('/:id', requireLogin, asyncHandler(async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Booking not found.' })
+  const booking = await Booking.findById(req.params.id)
+    .populate('ownerId', 'username email')
+    .populate('sitterId', 'username email')
+    .populate('petIds', 'name species')
+  if (!booking) return res.status(404).json({ message: 'Booking not found.' })
+
+  const me = String(req.session.userId)
+  if (me !== String(booking.ownerId._id) && me !== String(booking.sitterId._id)) {
+    return res.status(403).json({ message: 'This booking is not yours.' })
+  }
+
+  res.json(booking)
+}))
+
+// PATCH /api/bookings/:id/cancel
+// The booking's owner or sitter cancels it. Only pending or accepted bookings that haven't started yet can be cancelled
+// (a paid booking would need a refund, which doesn't exist yet).
+// The sitter's hours free up by themselves: only accepted / paid / in-progress bookings block the calendar.
+// Out: the booking, plus googleRemoved: { removed, reason }
+router.patch('/:id/cancel', requireLogin, asyncHandler(async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Booking not found.' })
+  const booking = await Booking.findById(req.params.id)
+  if (!booking) return res.status(404).json({ message: 'Booking not found.' })
+
+  const me = String(req.session.userId)
+  if (me !== String(booking.ownerId) && me !== String(booking.sitterId)) {
+    return res.status(403).json({ message: 'This booking is not yours.' })
+  }
+  if (!['pending', 'accepted'].includes(booking.status)) {
+    return res.status(400).json({ message: `Only pending or accepted bookings can be cancelled. This one is ${booking.status}.` })
+  }
+  if (bookingRange(booking).start <= Date.now()) {
+    return res.status(400).json({ message: 'This booking has already started, so it can no longer be cancelled.' })
+  }
+
+  booking.status = 'cancelled'
+  await booking.save()
+
+  // Take the booking out of the sitter's Google Calendar. This never blocks or fails the cancel.
+  const googleRemoved = await removeBookingFromGoogle(booking)
+
+  res.json({ ...booking.toObject(), googleRemoved })
+}))
+
+// doesnt delete from database itself ; kiv this 
+// can use to see which people cancel, and the booking wont js vanish from sitter pov 
 
 export default router
