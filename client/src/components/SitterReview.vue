@@ -12,6 +12,9 @@ const loading = ref(true)
 const error = ref('')
 const showAll = ref(false)
 
+const total = computed(() => reviews.value.length || 1)
+const collapsible = computed(() => filtered.value.length > max_shown + 2)
+
 // filters
 const ratingFilter = ref(0)         
 const commentsOnly = ref(false)
@@ -44,7 +47,7 @@ const filtered = computed(() => {
 })
 
 const shownReviews = computed(() =>
-  showAll.value ? filtered.value : filtered.value.slice(0, max_shown)
+  showAll.value || !collapsible.value ? filtered.value : filtered.value.slice(0, MAX_SHOWN)
 )
 
 const filtersActive = computed(
@@ -95,18 +98,26 @@ watch(() => props.sitterId, (id) => {
   }
 }, { immediate: true })
 
+watch(ratingFilter, (r) => {
+  if (r !== 0 && sortBy.value !== 'newest') {
+    sortBy.value = 'newest'
+  }
+})
+
 </script>
 
 <template>
-  <div>
-    <div class="d-flex justify-content-between align-items-baseline border-bottom pb-2 mb-3">
-      <h4 class="mb-0">Reviews<span v-if="!loading"> ({{ reviews.length }})</span></h4>
-      <button v-if="filtered.length > max_shown" type="button"
-              class="btn btn-link btn-sm p-0 text-decoration-none"
-              style="color: #a75836;"
-              :aria-expanded="showAll" @click="showAll = !showAll">
-        {{ showAll ? 'Show less ▴' : 'View all ▾' }}
-      </button>
+  <section class="sr">
+    <div class="sr-head border-bottom">
+      <h4 class="sr-title">Reviews<span v-if="!loading"> ({{ reviews.length }})</span></h4>
+      <div v-if="reviews.length > 1" class="sr-sort">
+        <label for="reviewSort" class="visually-hidden">Sort reviews</label>
+        <select id="reviewSort" v-model="sortBy" class="form-select form-select-sm">
+          <option value="newest">Newest</option>
+          <option value="highest" :disabled="ratingFilter !== 0">Highest rated</option>
+          <option value="lowest" :disabled="ratingFilter !== 0">Lowest rated</option>
+        </select>
+      </div>
     </div>
 
     <div v-if="error" class="alert alert-warning">{{ error }}</div>
@@ -118,87 +129,203 @@ watch(() => props.sitterId, (id) => {
 
     <p v-else-if="!reviews.length" class="text-muted">No reviews yet.</p>
 
-   <template v-else>
-      <!-- filters -->
-      <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-        <button type="button" class="btn btn-sm review-chip"
-                :class="{ 'review-chip--active': ratingFilter === 0 }"
-                :aria-pressed="ratingFilter === 0" @click="ratingFilter = 0">
-          All ({{ reviews.length }})
-        </button>
-        <button v-for="n in [5, 4, 3, 2, 1]" :key="n" type="button" class="btn btn-sm review-chip"
-                :class="{ 'review-chip--active': ratingFilter === n }"
-                :aria-pressed="ratingFilter === n" :disabled="!counts[n]"
+    <div v-else class="sr-layout">
+      <aside class="sr-breakdown" aria-label="Filter by rating">
+        <button v-for="n in [5, 4, 3, 2, 1]" :key="n" type="button" class="sr-bar"
+                :class="{ 'sr-bar--on': ratingFilter === n }"
+                :disabled="!counts[n]" :aria-pressed="ratingFilter === n"
                 @click="ratingFilter = ratingFilter === n ? 0 : n">
-          {{ n }}★ ({{ counts[n] }})
+          <span>{{ n }}★</span>
+          <span class="sr-bar__track">
+            <span class="sr-bar__fill" :style="{ width: `${(counts[n] / total) * 100}%` }"></span>
+          </span>
+          <span class="sr-bar__count">{{ counts[n] }}</span>
         </button>
-      </div>
 
-      <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-        <div class="form-check mb-0">
+        <div class="form-check mt-3 mb-0">
           <input id="commentsOnly" v-model="commentsOnly" type="checkbox" class="form-check-input review-check" />
           <label for="commentsOnly" class="form-check-label small">With comments only</label>
         </div>
-
-        <div class="d-flex align-items-center gap-2 ms-sm-auto">
-          <label for="reviewSort" class="small text-muted mb-0">Sort</label>
-          <select id="reviewSort" v-model="sortBy" class="form-select form-select-sm w-auto">
-            <option value="newest">Newest</option>
-            <option value="highest">Highest rated</option>
-            <option value="lowest">Lowest rated</option>
-          </select>
-        </div>
-
-        <button v-if="filtersActive" type="button" class="btn btn-link btn-sm p-0 text-decoration-none" style="color: #a75836;"
+        <button v-if="filtersActive" type="button" class="btn btn-link btn-sm p-0 mt-2 text-decoration-none" style="color: #a75836;"
                 @click="clearFilters">
           Clear filters
         </button>
-      </div>
+      </aside>
 
-      <!-- output -->
-      <p v-if="!filtered.length" class="text-muted">No reviews match these filters.</p>
+      <div class="sr-list">
+        <p v-if="!filtered.length" class="sr-empty text-muted mb-0">No reviews match these filters.</p>
 
-      <div v-else class="row g-3">
-        <div v-for="r in shownReviews" :key="r._id" class="col-12 col-md-6">
-          <div class="review-card rounded-3 p-3 h-100" :class="{ 'review-card--low': r.rating <= 2 }">
-            <div class="d-flex justify-content-between">
-              <span class="fw-bold">{{ r.owner?.username || 'Anonymous' }}</span>
-              <span v-if="r.createdAt" class="text-muted small">{{ formatDate(r.createdAt) }}</span>
-            </div>
-            <div style="color:#c44f1c;">{{ stars(r.rating) }}</div>
-            <p v-if="r.comment" class="mb-0 text-break">{{ r.comment }}</p>
-          </div>
-        </div>
+        <article v-for="r in shownReviews" :key="r._id" class="sr-card" :class="{ 'sr-card--low': r.rating <= 2 }">
+          <header class="sr-card__top">
+            <span class="sr-stars" :aria-label="`${r.rating} out of 5`">{{ stars(r.rating) }}</span>
+            <time v-if="r.createdAt" :datetime="r.createdAt" class="sr-date">{{ formatDate(r.createdAt) }}</time>
+          </header>
+          <p v-if="r.comment" class="sr-comment">{{ r.comment }}</p>
+          <footer class="sr-by">
+            <span>{{ r.owner?.username || 'Anonymous' }}</span>
+          </footer>
+        </article>
+
+        <button v-if="collapsible" type="button" class="sr-more" :aria-expanded="showAll" @click="showAll = !showAll">
+          {{ showAll ? 'Show fewer reviews' : `Show all ${filtered.length} reviews` }}
+        </button>
       </div>
-    </template>
-  </div>
+    </div>
+  </section>
 </template>
 
 <style scoped>
-.review-card {
-background-color: #fbf1e6;     
-border: 1px solid #e6d3c0;
+.sr-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.6rem;
 }
-
-.review-card--low {
-background-color: #fdeeea;    
-border-color: #ecbcb0;
-}
-
-.review-chip {
-  border: 1px solid #e6d3c0;
-  background-color: #fff;
+.sr-title {
+  margin: 0;
+  font-family: 'Trirong', Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 700;
   color: #2b2420;
 }
-
-.review-chip--active {
-  background-color: #c47756;
-  border-color: #c47756;
-  color: #fff;
+.sr-sort {
+  width: auto;
 }
 
-.review-chip:disabled {
+.sr-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 1.75rem;
+  align-items: start;
+}
+@media (max-width: 767.98px) {
+  .sr-layout {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+}
+
+/* breakdown */
+.sr-bar {
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr) 1.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.3rem 0.45rem;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #2b2420;
+  font-size: 0.9rem;
+  text-align: left;
+}
+.sr-bar:hover:not(:disabled) {
+  background: rgba(196, 119, 86, 0.12);
+}
+.sr-bar--on {
+  background: rgba(196, 119, 86, 0.2);
+}
+.sr-bar:disabled {
   opacity: 0.45;
 }
+.sr-bar:focus-visible {
+  outline: 2px solid #c44f1c;
+  outline-offset: 2px;
+}
+.sr-bar__track {
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #ead9c8;
+}
+.sr-bar__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #c47756;
+}
+.sr-bar__count {
+  text-align: right;
+  color: #5c524b;
+}
 
+/* list */
+.sr-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.85rem;
+}
+.sr-empty,
+.sr-more {
+  grid-column: 1 / -1;
+}
+.sr-more {
+  justify-self: start;
+  padding: 0.45rem 1.1rem;
+  border: 1px solid #c47756;
+  border-radius: 999px;
+  background: transparent;
+  color: #a85a38;
+  font-weight: 600;
+}
+.sr-more:hover {
+  background: rgba(196, 119, 86, 0.14);
+}
+
+.sr-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid #e6d3c0;
+  border-radius: 14px;
+  background: #fbf1e6;
+}
+.sr-card--low {
+  background: #fdeeea;
+  border-color: #ecbcb0;
+}
+.sr-card__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.sr-stars {
+  color: #c44f1c;
+  letter-spacing: 0.05em;
+}
+.sr-date {
+  font-size: 0.8rem;
+  color: #5c524b;
+}
+.sr-comment {
+  margin: 0;
+  color: #2b2420;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.sr-by {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: auto;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #5c524b;
+}
+.sr-avatar {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #a85a38;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
 </style>

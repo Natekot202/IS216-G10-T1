@@ -8,6 +8,7 @@ import OwnerDetails from '../components/OwnerDetails.vue'
 import SitterDetails from '../components/SitterDetails.vue'
 import { usersApi } from '../services/api.js'
 import SitterReviews from '../components/SitterReview.vue'
+import ProfileActions from '../components/ProfileActions.vue'
 
 const route = useRoute()
 const profile = ref(null)
@@ -33,16 +34,17 @@ watch([() => route.params.id, currentUser], load, { immediate: true })
     <div v-if="error" class="alert alert-warning">{{ error }}</div>
 
     <template v-else-if="profile">
-      <div class="border-bottom pb-2 mb-3">
+      <div class="d-flex flex-wrap align-items-center justify-content-between border-bottom pb-2 mb-3">
         <h3 class="mb-0">{{ isMine ? 'My Profile' : `${profile.username}'s Profile` }}</h3>
+        <ProfileActions :profile="profile" :editable="isMine" />
       </div>
 
       <div class="row g-3">
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-4 col-lg-3">
           <ProfileHeader :profile="profile" :editable="isMine" />
         </div>
 
-        <div class="col-12 col-md-8">
+        <div class="col-12 col-md-8 col-lg-9">
           <OwnerDetails v-if="profile.role === 'owner'"
               :owner-id="profile._id"
               :owner-name="profile.username"

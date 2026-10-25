@@ -61,7 +61,7 @@ async function submit() {
     </form>
 
     <span> Already have an account? </span>
-    <router-link class="link-primary link-underline-opacity-100-hover" to="/login">Log In</router-link>
+    <router-link class="link-underline-opacity-100-hover" style="color:#c44f1c;" to="/login">Log In</router-link>
 
   </div>
 </template>

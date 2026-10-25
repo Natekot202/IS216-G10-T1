@@ -91,11 +91,11 @@ async function handleLogout() {
               </li>
           </ul>
           <div class="nav-account ms-lg-3">
-            <button v-if="currentUser" class="btn text-white" style="background-color:#c44f1c;"
+            <button v-if="currentUser" class="btn text-white" style="background-color:#a85a38;"
                     @click="handleLogout">
               Log out
             </button>
-            <router-link v-else class="btn text-white" style="background-color:#c44f1c;" to="/login">
+            <router-link v-else class="btn text-white" style="background-color:#a85a38;" to="/login">
               Log in
             </router-link>
           </div>
