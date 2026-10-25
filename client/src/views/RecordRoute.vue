@@ -1,20 +1,17 @@
 <script setup>
-import { ref, computed, onMounted, watch} from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { distance, length, lineString, simplify } from '@turf/turf'
+import { length, lineString, simplify } from '@turf/turf'
 import WalkMap from '../components/WalkMap.vue'
 import { useGeoTracker } from '../utils/useGeoTracker.js'
+import { useHomeCheck, HOME_RADIUS_M } from '../utils/useHomeCheck.js'
 import { currentUser, fetchUser } from '../services/auth.js'
 import { walkRoutesApi } from '../services/walkRouteApi.js'
-
-// Must match HOME_RADIUS_M in server/src/controllers/walkRouteController.js
-const HOME_RADIUS_M = 75
 
 const { position, path, accuracy, error, start, startRecording, stopRecording } = useGeoTracker()
 
 // Which stage the page is at: 'loading' -> 'ready' -> 'recording' -> 'naming' -> 'saved'
 const step = ref('loading');
-const hasLeftHome = ref(false);
 const routeName = ref('');
 const saving = ref(false);
 const saveError = ref('');
@@ -30,18 +27,8 @@ const loadError = ref('')
 // The owner's home as [lng, lat], from the postal code on their profile
 const home = computed(() => currentUser.value?.ownerProfile?.address?.location?.coordinates ?? null)
 
-// How far the owner is from home right now, in metres (null until the first GPS reading)
-// depends on position.value, recalculates on every GPS reading
-const metresFromHome = computed(() => {
-  if (!position.value || !home.value) return null
-  return Math.round(distance(position.value, home.value, { units: 'meters' }))
-})
-const nearHome = computed(() => metresFromHome.value !== null && metresFromHome.value <= HOME_RADIUS_M)
-
-// once out of home radius after recording starts, hasLeftHome is set to true
-watch(nearHome, (near) => {
-  if(step.value === 'recording' && !near) hasLeftHome.value = true
-})
+// How far from home, whether they're near home, and whether they've left home since recording started
+const { metresFromHome, nearHome, hasLeftHome, resetLeftHome } = useHomeCheck(position, home)
 
 // Length of what's been recorded so far, in metres
 const recordedM = computed(() =>
@@ -70,7 +57,7 @@ onMounted(async () => {
 })
 
 function beginRecording() {
-  hasLeftHome.value = false;
+  resetLeftHome()
   startRecording()
   step.value = 'recording'
 }
@@ -83,7 +70,7 @@ function finishRecording() {
 // Throws the current recording away and goes back to the start
 // used by buttons Cancel, Discard and Record another route(after saving)
 function reset() {
-  hasLeftHome.value = false;
+  resetLeftHome()
   stopRecording()
   path.value = []
   routeName.value = existingRoute.value?.name ?? ''   // re-recording keeps the old name

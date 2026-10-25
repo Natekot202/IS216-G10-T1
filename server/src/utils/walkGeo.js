@@ -3,7 +3,7 @@ import { distance, length, lineString } from '@turf/turf'
 // Shared rules and distance helpers for walk routes (owner) and walks (sitter).
 
 // How close to the owner's home a route or walk must start and end.
-// Must match HOME_RADIUS_M in client/src/views/RecordRoute.vue and MyRoutes.vue
+// Must match HOME_RADIUS_M in client/src/utils/useHomeCheck.js
 export const HOME_RADIUS_M = 75
 
 // Stops someone sending a huge path (the client simplifies paths before sending)
