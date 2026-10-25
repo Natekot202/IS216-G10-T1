@@ -21,7 +21,7 @@ export const getMyBookings = async (req, res) => {
   const bookings = await Booking.find(filter)
     .populate('ownerId', 'username email')
     .populate('sitterId', 'username email')
-    .populate('petIds', 'name species')
+    .populate('petIds', 'name species photo')
     .sort({ startDate: 1 })
 
   res.json(bookings)

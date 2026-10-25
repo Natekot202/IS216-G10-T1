@@ -7,6 +7,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { bookingsApi } from '../services/bookingApi.js'
 import { currentUser, fetchUser } from '../services/auth.js'
 import BookingTable from '../components/BookingTable.vue'
+import BookingTabs from '../components/BookingTabs.vue'
 
 const TABS = [
   { key: 'pending', label: 'Pending', statuses: ['pending'] },
@@ -32,6 +33,9 @@ function bookingsFor(tabKey) {
 }
 
 const visibleBookings = computed(() => bookingsFor(activeTab.value))
+
+// the tab list with each tab's count, handed to BookingTabs
+const tabsWithCounts = computed(() => TABS.map((t) => ({ key: t.key, label: t.label, count: bookingsFor(t.key).length })))
 
 function selectTab(key) {
   activeTab.value = key
@@ -93,19 +97,7 @@ onMounted(loadBookings)
     <div v-if="message" class="alert alert-success">{{ message }}</div>
     <div v-if="actionError" class="alert alert-warning">{{ actionError }}</div>
 
-    <ul class="nav nav-underline mb-4 flex-nowrap overflow-auto">
-      <li v-for="tab in TABS" :key="tab.key" class="nav-item">
-        <button
-          type="button"
-          class="nav-link text-nowrap"
-          :class="{ active: activeTab === tab.key }"
-          @click="selectTab(tab.key)"
-        >
-          {{ tab.label }}
-          <span class="badge rounded-pill tab-count ms-1">{{ bookingsFor(tab.key).length }}</span>
-        </button>
-      </li>
-    </ul>
+    <BookingTabs :tabs="tabsWithCounts" :active-tab="activeTab" @select="selectTab" />
 
     <div v-if="!visibleBookings.length" class="text-center text-muted py-5">
       <p class="mb-3">No bookings here yet 🐾</p>
@@ -118,18 +110,6 @@ onMounted(loadBookings)
 </template>
 
 <style scoped>
-.nav-underline .nav-link {
-  color: #6c757d;
-}
-.nav-underline .nav-link.active {
-  color: #2b2420;
-  font-weight: 700;
-  border-bottom-color: #c44f1c;
-}
-.tab-count {
-  background: #f1ece6;
-  color: #2b2420;
-}
 .main-btn {
   background-color: #c44f1c;
 }

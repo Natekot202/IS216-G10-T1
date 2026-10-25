@@ -1,7 +1,20 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { bookingsApi } from '../services/bookingApi.js'
 import BookingTable from '../components/BookingTable.vue'
+import BookingTabs from '../components/BookingTabs.vue'
+
+// /sitter/requests: every booking made with this sitter, sorted into Pending / Upcoming / Past tabs
+// (same tabs as the owner's My Bookings)
+const TABS = [
+  { key: 'pending', label: 'Pending', statuses: ['pending'] },
+  { key: 'upcoming', label: 'Upcoming', statuses: ['accepted', 'paid', 'in-progress'] },
+  { key: 'past', label: 'Past', statuses: ['completed', 'declined', 'cancelled'] }
+]
+
+const route = useRoute()
+const router = useRouter()
 
 const bookings = ref([])
 const loading = ref(true)
@@ -9,6 +22,7 @@ const error = ref('')
 const message = ref('')
 const actionError = ref('') // why accepting / declining a request failed (the lists stay visible)
 const busyId = ref(null)
+const activeTab = ref(TABS.some((t) => t.key === route.query.tab) ? route.query.tab : 'pending')
 
 // Small popup about Google Calendar after accepting a request: { type: 'success' | 'warning', text }
 const toast = ref(null)
@@ -26,14 +40,27 @@ function showToast(googleSync) {
   toastTimer = setTimeout(() => (toast.value = null), 4000) // hide after 4 seconds
 }
 
-const newRequests = computed(() => bookings.value.filter((b) => b.status === 'pending'))
-const responded = computed(() => bookings.value.filter((b) => b.status !== 'pending'))
+function bookingsFor(tabKey) {
+  const tab = TABS.find((t) => t.key === tabKey)
+  const list = bookings.value.filter((b) => tab.statuses.includes(b.status))
+  return tabKey === 'past' ? [...list].reverse() : list
+}
+
+const visibleBookings = computed(() => bookingsFor(activeTab.value))
+
+// the tab list with each tab's count, handed to BookingTabs
+const tabsWithCounts = computed(() => TABS.map((t) => ({ key: t.key, label: t.label, count: bookingsFor(t.key).length })))
+
+function selectTab(key) {
+  activeTab.value = key
+  router.replace({ query: { tab: key } })
+}
 
 async function loadRequests() {
   loading.value = true
   error.value = ''
   try {
-    bookings.value = await bookingsApi.getMine('pending,accepted,declined,cancelled')
+    bookings.value = await bookingsApi.getMine()
   } catch (err) {
     error.value = err.response?.data?.message || 'Could not load booking requests.'
   } finally {
@@ -59,7 +86,7 @@ async function respond(id, status) {
   }
 }
 
-// A sitter can cancel a booking they already accepted (shown under Responded)
+// A sitter can cancel a booking they already accepted (shown under Upcoming)
 async function cancelBooking(id) {
   if (!window.confirm('Cancel this booking? The owner will see it as cancelled and can book another sitter. This cannot be undone.')) return
   busyId.value = id
@@ -98,21 +125,20 @@ onMounted(loadRequests)
 
   <div v-if="loading" class="text-muted">Loading requests…</div>
 
-   <template v-else-if="!error">
-    <h5 class="mb-3">New requests ({{ newRequests.length }})</h5>
-    <p v-if="!newRequests.length" class="text-muted mb-5">No new requests right now 🐾</p>
+  <template v-else-if="!error">
+    <BookingTabs :tabs="tabsWithCounts" :active-tab="activeTab" @select="selectTab" />
+
+    <p v-if="!visibleBookings.length" class="text-center text-muted py-5">
+      {{ activeTab === 'pending' ? 'No new requests right now 🐾' : 'Nothing here yet.' }}
+    </p>
     <BookingTable
       v-else
-      class="mb-5"
-      :bookings="newRequests"
+      :bookings="visibleBookings"
       viewer="sitter"
       :busy-id="busyId"
       @accept="respond($event, 'accepted')"
       @decline="respond($event, 'declined')"
+      @cancel="cancelBooking"
     />
-
-    <h5 class="mb-3">Responded ({{ responded.length }})</h5>
-    <p v-if="!responded.length" class="text-muted">Nothing here yet.</p>
-    <BookingTable v-else :bookings="responded" viewer="sitter" :busy-id="busyId" @cancel="cancelBooking" />
   </template>
 </template>
