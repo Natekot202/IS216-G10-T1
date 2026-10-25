@@ -18,6 +18,7 @@ import RecordRoute from '../views/RecordRoute.vue'
 import MyRoutes from '../views/MyRoutes.vue'
 import SitterWalk from '../views/SitterWalk.vue'
 import SitterWalkStart from '../views/SitterWalkStart.vue'
+import OwnerNotifications from '../views/OwnerNotifications.vue'
 
 const routes = [
 { path: '/', name: 'welcome', component: RolePicker, meta: { hideElem: true } }, // landing page 
@@ -40,6 +41,7 @@ const routes = [
 { path: '/owner/routes/:id/record', name: 'rerecord-route', component: RecordRoute, meta: { role: 'owner' } },
 { path: '/sitter/walks/new', name: 'sitter-walk-start', component: SitterWalkStart, meta: { role: 'sitter' } }, // TEMP until booking integration
 { path: '/sitter/walks/:id', name: 'sitter-walk', component: SitterWalk, meta: { role: 'sitter' } },
+{ path: '/owner/notifications', name: 'owner-notifications', component: OwnerNotifications, meta: { role: 'owner' } },
 ]
 
 // connects a url path to the vue page which shd be displayed, tgt with the components it needs 

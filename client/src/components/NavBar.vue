@@ -3,6 +3,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter  } from 'vue-router'
 import { currentUser, logout } from "../services/auth.js";
+import { unreadCount, startCheckingUnread, stopCheckingUnread } from '../utils/useNotificationBadge.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -37,7 +38,14 @@ onMounted(() => {
   window.addEventListener('resize', onResize)
 })
 
+// Unread notifications badge: owners only, checked every 10 seconds while logged in
+watch(() => currentUser.value?.role, (role) => {
+  if (role === 'owner') startCheckingUnread()
+  else stopCheckingUnread()
+}, { immediate: true })
+
 onBeforeUnmount(() => {
+  stopCheckingUnread()
   window.removeEventListener('keydown', onKey)
   window.removeEventListener('resize', onResize)
   document.body.style.overflow = ''
@@ -79,6 +87,13 @@ async function handleLogout() {
               </li>
               <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
                 <router-link class="nav-link" to="/owner/routes">My Routes</router-link>
+              </li>
+              <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
+                <router-link class="nav-link d-flex align-items-center gap-1" to="/owner/notifications"
+                             :aria-label="unreadCount ? `Notifications, ${unreadCount} unread` : 'Notifications'">
+                  Notifications
+                  <span v-if="unreadCount" class="badge rounded-pill bg-danger">{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
+                </router-link>
               </li>
               <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
                 <router-link class="nav-link" to="/sitter/calendar">My Calendar</router-link>
