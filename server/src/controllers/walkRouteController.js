@@ -1,11 +1,8 @@
-import { distance, length, lineString } from '@turf/turf'
 import WalkRoute from '../models/walkRouteModel.js'
 import User from '../models/UserModel.js'
+import { HOME_RADIUS_M, MAX_POINTS, isValidPoint, metresBetween, pathLength } from '../utils/walkGeo.js'
 
-const HOME_RADIUS_M = 75     // how close to home a route must start and end
-const MAX_POINTS = 2000      // stops someone sending a huge path
-
-// The logged-in owner's home as [lng, lat], or null if they haven't set a postal code
+// The logged-in owner's home as [lng, lat], or null if they haven't set their address
 async function getHome(userId) {
   const user = await User.findById(userId).select('+ownerProfile.address')
   return user?.ownerProfile?.address?.location?.coordinates ?? null
@@ -16,19 +13,15 @@ function checkPath(coords, home) {
   if (!Array.isArray(coords) || coords.length < 2) return 'A route needs at least 2 points.'
   if (coords.length > MAX_POINTS) return 'This route has too many points.'
 
-  const allValid = coords.every((c) => Array.isArray(c) && c.length === 2 && c.every(Number.isFinite))
-  if (!allValid) return 'The route contains invalid points.'
+  if (!coords.every(isValidPoint)) return 'The route contains invalid points.'
 
-  if (!home) return 'Add your postal code in Edit Profile before recording a route.'
-  const nearHome = (c) => distance(c, home, { units: 'meters' }) <= HOME_RADIUS_M
+  if (!home) return 'Add your address in Edit Profile before recording a route.'
+  const nearHome = (c) => metresBetween(c, home) <= HOME_RADIUS_M
   if (!nearHome(coords[0])) return 'A route must start at your home.'
   if (!nearHome(coords.at(-1))) return 'A route must end at your home.'
 
   return null
 }
-
-// Total length of a path in metres, rounded
-const pathLength = (coords) => Math.round(length(lineString(coords), { units: 'meters' }))
 
 // GET /api/walk-routes -> all of the logged-in owner's routes, newest first
 export async function getMyWalkRoutes(req, res) {
