@@ -49,11 +49,11 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
   const range = bookingRange({ startDate: start, endDate: end, startTime, endTime }) // exact start and end moments
   if (range.start <= Date.now()) return res.status(400).json({ message: 'The start time has already passed.' })
 
-  // 2. The sitter exists and has a daily rate
+  // 2. The sitter exists and has an hourly rate
   const sitter = await User.findById(sitterId)
   if (!sitter || sitter.role !== 'sitter') return res.status(404).json({ message: 'Sitter not found.' })
-  const ratePerDay = sitter.sitterProfile?.petsittingRates
-  if (!ratePerDay) return res.status(400).json({ message: 'This sitter has not set a daily rate yet.' })
+  const ratePerHour = sitter.sitterProfile?.petsittingRates
+  if (!ratePerHour) return res.status(400).json({ message: 'This sitter has not set an hourly rate yet.' })
 
   // 3. The pets belong to this owner
   const pets = await Pet.find({ _id: { $in: petIds }, owner: ownerId })
@@ -104,7 +104,8 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     items.push({ category: t.category, title, dailyFrequency: t.dailyFrequency, petIds: taskPets })
   }
 
-  // 7. Create the booking
+ // 7. Create the booking. Price = hourly rate × hours booked (start date+time to end date+time).
+  const hours = (range.end - range.start) / (60 * 60 * 1000)
   const booking = await Booking.create({
     ownerId,
     sitterId,
@@ -114,7 +115,7 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     endDate: end,
     endTime,
     notes,
-    totalPrice: ratePerDay * days.length,
+    totalPrice: Math.round(ratePerHour * hours * 100) / 100, // rounded to cents
     status: 'pending'
   })
 
@@ -128,7 +129,7 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     endDate: toSgtDateString(booking.endDate),
     endTime: booking.endTime,
     days: days.length,
-    totalPrice: booking.totalPrice,
+    hours,
     status: booking.status,
     tasks: items.length
   })

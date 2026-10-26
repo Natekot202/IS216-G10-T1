@@ -40,7 +40,7 @@ function canCancel(booking) {
 // for sitters, returns true if request is accepted ; can only cancel accepted requests 
 
 function showRoute(booking) {
-  return ['accepted', 'paid', 'in-progress'].includes(booking.status)
+  return ['accepted', 'in-progress'].includes(booking.status)
 }
 
 function showTripLink(booking) {
@@ -95,15 +95,10 @@ function showTripLink(booking) {
                   <button class="btn btn-sm btn-outline-danger" :disabled="busyId === b._id" @click="$emit('decline', b._id)">Decline</button>
                 </template>
                 <router-link
-                  v-if="viewer === 'owner' && b.status === 'accepted'"
-                  class="btn btn-sm text-white pay-btn"
+                  v-if="viewer === 'owner' && b.status === 'completed'"
+                  class="btn btn-sm btn-brand"
                   :to="`/bookings/${b._id}/pay`"
                 >Pay now</router-link>
-                <router-link
-                  v-if="viewer === 'owner' && b.status === 'completed'"
-                  class="btn btn-sm btn-outline-secondary"
-                  :to="`/bookings/${b._id}/review`"
-                >Leave review</router-link>
                 <button
                   v-if="canCancel(b)" 
                   type="button"
@@ -202,8 +197,5 @@ function showTripLink(booking) {
 }
 .details-row td {
   background: #fffaf6;
-}
-.pay-btn {
-  background-color: #c44f1c;
 }
 </style>

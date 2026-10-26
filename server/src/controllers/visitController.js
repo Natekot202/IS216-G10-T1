@@ -6,7 +6,7 @@ import { sgtMidnight, toSgtDateString } from '../models/Availability.js'
 import { uploadImage, deleteImage } from '../config/cloudinary.js'
 import User from '../models/UserModel.js'
 
-const STARTABLE = ['paid', 'in-progress']   
+const STARTABLE = ['accepted', 'in-progress'] // owners pay at the end, so sessions start from 'accepted' 
 
 // to ensure only valid bookings can be started
 function startBlockReason(booking, todaysVisits, today) {
@@ -51,7 +51,7 @@ export async function getTodaySessions(req, res) {
     [field]: req.session.userId,
     startDate: { $lte: dayStart },
     endDate: { $gte: dayStart },
-    status: { $in: ['paid', 'in-progress', 'completed'] }
+    status: { $in: ['accepted', 'in-progress', 'completed', 'paid'] }
   })
     .populate('ownerId', 'username profilePicture')
     .populate('sitterId', 'username profilePicture')

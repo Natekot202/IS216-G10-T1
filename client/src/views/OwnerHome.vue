@@ -38,9 +38,9 @@ watch(showMapModal, open => {
 
 //rangebar values
 const minLimit = ref(0)
-const maxLimit = ref(100)
+const maxLimit = ref(200)
 const minValue = ref(0)
-const maxValue = ref(100)
+const maxValue = ref(200)
 
 //search rating
 const userRating = ref(0) //initial rating value

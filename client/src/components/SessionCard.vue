@@ -52,7 +52,7 @@ const photoError = computed(() => slots.map((s) => s.error).find(Boolean) || '')
 
 const isActive = computed(() => visit.value?.status === 'active')
 const isCompleted = computed(() => visit.value?.status === 'completed')
-const canStart = computed(() => !visit.value && ['paid', 'in-progress'].includes(status.value))
+const canStart = computed(() => !visit.value && ['accepted', 'in-progress'].includes(status.value))
 const other = computed(() => (props.isSitter ? props.session.booking.owner : props.session.booking.sitter))
 
 function fmt(d) {
@@ -153,7 +153,7 @@ const mapsUrl = computed(() =>
 )
 
 watch(status, async (s) => {
-  if (s === 'completed' && !reviewLoaded.value) {
+  if (['completed', 'paid'].includes(s) && !reviewLoaded.value) {
     try {
       review.value = await reviewsApi.getForBooking(props.session.booking._id)
     } catch (err) {

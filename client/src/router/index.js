@@ -16,6 +16,8 @@ import Session from '../views/Session.vue'
 import BookingDetail from '../views/BookingDetail.vue'
 import RecordRoute from '../views/RecordRoute.vue'
 import MyRoutes from '../views/MyRoutes.vue'
+import PaymentGateway from '../views/PaymentGateway.vue'
+import Transactions from '../views/Transactions.vue'
 
 const routes = [
 { path: '/', name: 'welcome', component: RolePicker, meta: { hideElem: true } }, // landing page 
@@ -28,6 +30,8 @@ const routes = [
 { path: '/users/:id', name: 'user', component: ProfileView },
 { path: '/session', name: 'session', component: Session, meta: { auth: true } },
 { path: '/sitter/requests', name: 'sitter-requests', component: BookingRequests, meta: { role: 'sitter' } },
+{ path: '/sitter/transactions', name: 'sitter-transactions', component: Transactions, meta: { role: 'sitter' } },
+{ path: '/bookings/:id/pay', name: 'pay', component: PaymentGateway, meta: { role: 'owner' } },
 { path: '/owner/bookings', name: 'owner-bookings', component: MyBookings, meta: { role: 'owner' } },
 { path: '/owner/bookings/group/:groupId', name: 'owner-booking-group', component: GroupBookings, meta: { role: 'owner' } },
 { path: '/sitter/calendar', name: 'sitter-calendar', component: SitterCalendar, meta: { role: 'sitter' } },
