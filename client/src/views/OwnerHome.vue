@@ -355,147 +355,155 @@ onMounted(()=>{
         <div class="col-lg-4 order-lg-last order-first">
           <!-- map  -->
           <Map :profiles="searchResults" :origin="origin" :userLocation="userLocation"></Map>
-          <div class="border p-3 shadow" style="border-radius: 10px; background-color: white;">
-            <p class="text-secondary">Filters</p>
-            <!-- location filter  -->
-            <locationQuery 
-              v-model:location-query="locationQuery" 
-              :location-suggestions="locationSuggestions" 
-              @enterLocation="onLocationInput"
-              @selectLocation="selectLocation">
-            </locationQuery>
-            <!-- distance filter -->
-            <label for="distance" class="form-label fw-medium">Distance</label>
-            <input id="distance" type="range" class="form-range" min="1" :max="maxDistanceLimit" step="1"
-                  v-model.number="maxDistanceKm" :disabled="!referencePoint">
-            <small class="text-secondary d-block mb-3">
-              <template v-if="!referencePoint">Allow location access or search a location to use this filter</template>
-              <template v-else>
-                {{ maxDistanceKm >= maxDistanceLimit ? 'Any distance' : `Within ${maxDistanceKm} km` }}
-                of {{ origin ? origin.label : 'your location' }}
-              </template>
-            </small>
-            <!-- availability date filter -->
-            <label class="form-label fw-medium">Available dates</label>
-            <div class="position-relative mb-1">
-              <button type="button" class="form-control text-start d-flex justify-content-between align-items-center" aria-haspopup="dialog" :aria-expanded="showDatePicker" @click="toggleDatePicker">
-                <span>{{ dateRangeLabel }}</span><span aria-hidden="true">▦</span>
-              </button>
-              <!-- show date calandar to pick date  -->
-              <div v-if="showDatePicker" class="availability-picker shadow bg-white border rounded p-3" role="dialog" aria-label="Choose available date range">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Previous month" @click="changeCalendarMonth(-1)">‹</button>
-                  <strong>{{ calendarTitle }}</strong>
-                  <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Next month" @click="changeCalendarMonth(1)">›</button>
-                </div>
-                <div class="availability-calendar">
-                  <span v-for="weekday in ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']" :key="weekday" class="weekday">{{ weekday }}</span>
-                  <template v-for="(week, weekIndex) in calendarWeeks" :key="weekIndex">
-                    <span v-for="(date, dayIndex) in week" :key="date?.key || `blank-${weekIndex}-${dayIndex}`" class="day-cell"
-                    :class="{
-                      'range-cell': isInSelectedRange(date?.key),
-                      'range-start': date && draftFrom && draftTo && draftFrom !== draftTo && date.key === draftFrom,
-                      'range-end': date && draftFrom && draftTo && draftFrom !== draftTo && date.key === draftTo
-                    }">
-                      <button v-if="date" type="button" class="calendar-day" :class="{ endpoint: date.key === draftFrom || date.key === draftTo }" :disabled="date.key < todayKey" @click="pickAvailabilityDate(date.key)">{{ date.day }}</button>
-                    </span>
+
+          <div class="offcanvas-lg offcanvas-bottom sticky-lg-top largeTop" 
+              style="border-radius: 10px; background-color: white; height:70vh;"
+              tabindex="-1" 
+              id="offcanvasBottom">
+            
+            <div class="offcanvas-body d-lg-block border rounded p-3 shadow">
+                <!-- location filter  -->
+                <locationQuery
+                  v-model:location-query="locationQuery"
+                  :location-suggestions="locationSuggestions"
+                  @enterLocation="onLocationInput"
+                  @selectLocation="selectLocation">
+                </locationQuery>
+                <!-- distance filter -->
+                <label for="distance" class="form-label fw-medium">Distance</label>
+                <input id="distance" type="range" class="form-range" min="1" :max="maxDistanceLimit" step="1"
+                      v-model.number="maxDistanceKm" :disabled="!referencePoint">
+                <small class="text-secondary d-block mb-2">
+                  <template v-if="!referencePoint">Allow location access or search a location to use this filter</template>
+                  <template v-else>
+                    {{ maxDistanceKm >= maxDistanceLimit ? 'Any distance' : `Within ${maxDistanceKm} km` }}
+                    of {{ origin ? origin.label : 'your location' }}
                   </template>
-                </div>
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                  <button type="button" class="btn btn-outline-secondary btn-sm" @click="clearAvailabilityDates">Clear days</button>
-        
-                  <button type="button" class="btn btn-primary btn-sm apply-days" :disabled="!draftFrom || !draftTo" @click="confirmAvailabilityDates">Confirm dates</button>
-                </div>
-              </div>
-            </div>
-            <small class="text-secondary d-block mb-3">Choose a consecutive date range. Sitters must be marked available on every selected day.</small>
-            <!-- price filter  -->
-            <label for="price" class="form-label fw-medium">Price</label>
-            <div class="col-12">
-              <div class="range-slider-container">
-                <!-- Visual track background -->
-                <div class="slider-track" :style="trackStyle"></div>
-                  <input
-                    type="range"
-                    :min="minLimit"
-                    :max="maxLimit"
-                    step="5"
-                    v-model.number="minValue"
-                    @input="validateMin"
-                    class="slider slider-min"
-                  />
-                  <input
-                    type="range"
-                    :min="minLimit"
-                    :max="maxLimit"
-                    step="5"
-                    v-model.number="maxValue"
-                    @input="validateMax"
-                    class="slider slider-max"
-                  />
-                </div>
-              <div class="row">
-                <div class="col-5">
-                  <div class="d-flex gap-2">
-                    <p>Min:</p>
-                    <input type="number" :min="minLimit" :max="maxLimit" step="5" v-model.number="minValue" class="form-control" @input="validateMin">
+                </small>
+                <!-- availability date filter -->
+                <label class="form-label fw-medium">Available dates</label>
+                <div class="position-relative mb-1">
+                  <button type="button" class="form-control text-start d-flex justify-content-between align-items-center" aria-haspopup="dialog" :aria-expanded="showDatePicker" @click="toggleDatePicker">
+                    <span>{{ dateRangeLabel }}</span><span aria-hidden="true">▦</span>
+                  </button>
+                  <!-- show date calandar to pick date  -->
+                  <div v-if="showDatePicker" class="availability-picker shadow bg-white border rounded p-3" role="dialog" aria-label="Choose available date range">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Previous month" @click="changeCalendarMonth(-1)">‹</button>
+                      <strong>{{ calendarTitle }}</strong>
+                      <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Next month" @click="changeCalendarMonth(1)">›</button>
+                    </div>
+                    <div class="availability-calendar">
+                      <span v-for="weekday in ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']" :key="weekday" class="weekday">{{ weekday }}</span>
+                      <template v-for="(week, weekIndex) in calendarWeeks" :key="weekIndex">
+                        <span v-for="(date, dayIndex) in week" :key="date?.key || `blank-${weekIndex}-${dayIndex}`" class="day-cell"
+                        :class="{
+                          'range-cell': isInSelectedRange(date?.key),
+                          'range-start': date && draftFrom && draftTo && draftFrom !== draftTo && date.key === draftFrom,
+                          'range-end': date && draftFrom && draftTo && draftFrom !== draftTo && date.key === draftTo
+                        }">
+                          <button v-if="date" type="button" class="calendar-day" :class="{ endpoint: date.key === draftFrom || date.key === draftTo }" :disabled="date.key < todayKey" @click="pickAvailabilityDate(date.key)">{{ date.day }}</button>
+                        </span>
+                      </template>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                      <button type="button" class="btn btn-outline-secondary btn-sm" @click="clearAvailabilityDates">Clear days</button>
+                      <button type="button" class="btn btn-primary btn-sm apply-days" :disabled="!draftFrom || !draftTo" @click="confirmAvailabilityDates">Confirm dates</button>
+                    </div>
                   </div>
                 </div>
-                <div class="col-5 mb-3">
-                  <div class="d-flex gap-2">
-                    <p>Max:</p>
-                    <input type="number" :min="minLimit" :max="maxLimit" step="5" v-model.number="maxValue" class="form-control" @input="validateMax">
+                <small class="text-secondary d-block mb-2">Choose a consecutive date range</small>
+                <!-- price filter  -->
+                <label for="price" class="form-label fw-medium">Price</label>
+                <div class="col-12">
+                  <div class="range-slider-container">
+                    <!-- Visual track background -->
+                    <div class="slider-track" :style="trackStyle"></div>
+                      <input
+                        type="range"
+                        :min="minLimit"
+                        :max="maxLimit"
+                        step="5"
+                        v-model.number="minValue"
+                        @input="validateMin"
+                        class="slider slider-min"
+                      />
+                      <input
+                        type="range"
+                        :min="minLimit"
+                        :max="maxLimit"
+                        step="5"
+                        v-model.number="maxValue"
+                        @input="validateMax"
+                        class="slider slider-max"
+                      />
+                    </div>
+                  <div class="row">
+                    <div class="col-5">
+                      <div class="d-flex gap-2">
+                        <p>Min:</p>
+                        <input type="number" :min="minLimit" :max="maxLimit" step="5" v-model.number="minValue" class="form-control" @input="validateMin">
+                      </div>
+                    </div>
+                    <div class="col-5 mb-3">
+                      <div class="d-flex gap-2">
+                        <p>Max:</p>
+                        <input type="number" :min="minLimit" :max="maxLimit" step="5" v-model.number="maxValue" class="form-control" @input="validateMax">
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            <!-- additional filters  -->
-            <button class="btn btn-link" 
-              type="button" 
-              data-bs-toggle="collapse" 
-              data-bs-target="#collapseExample" 
-              aria-expanded="false" 
-              aria-controls="collapseExample"
-            >
-            Additional filters
-            </button>
-
-            <div class="collapse" id="collapseExample">
-              <label class="form-label fw-semibold">Pet services:</label>
-              <ul>
-                <div class="form-check">
-                  <input type="checkbox" v-model="selectedPets" class="form-check-input" value="dog">
-                  <p>Dogs</p>
-                  <input type="checkbox" v-model="selectedPets" class="form-check-input" value="cat">
-                  <p>Cats</p>
-                  <input type="checkbox" v-model="selectedPets" class="form-check-input" value="bird">
-                  <p>Bird</p>
-                  <input type="checkbox" v-model="selectedPets" class="form-check-input" value="rabbit">
-                  <p>Rabbits</p>
-                  <input type="checkbox" v-model="selectedPets" class="form-check-input" value="hamster">
-                  <p>Hamster</p>
+                <!-- additional filters  -->
+                <button class="btn btn-link"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#collapseExample"
+                  aria-expanded="false"
+                  aria-controls="collapseExample"
+                >
+                Additional filters
+                </button>
+                <div class="collapse" id="collapseExample">
+                  <label class="form-label fw-semibold">Pet services:</label>
+                  <ul>
+                    <div class="form-check">
+                      <input type="checkbox" v-model="selectedPets" class="form-check-input" value="dog">
+                      <p>Dogs</p>
+                      <input type="checkbox" v-model="selectedPets" class="form-check-input" value="cat">
+                      <p>Cats</p>
+                      <input type="checkbox" v-model="selectedPets" class="form-check-input" value="bird">
+                      <p>Bird</p>
+                      <input type="checkbox" v-model="selectedPets" class="form-check-input" value="rabbit">
+                      <p>Rabbits</p>
+                      <input type="checkbox" v-model="selectedPets" class="form-check-input" value="hamster">
+                      <p>Hamster</p>
+                    </div>
+                
+                    <div class="d-flex gap-2">
+                      <label for="others" class="font-label">Others:</label>
+                      <div class="col-5"><input type="text" v-model="otherPets" id="others"class="form-control"></div>
+                    </div>
+                  </ul>
+                  <label class="fw-semibold">Rating:</label>
+                  <StarRating v-model="userRating" :maxStars="5"></StarRating>
                 </div>
+                <button class="btn border border-warning rounded col-12 fw-semibold bg-light mt-2 " @click="clearFilters">Clear filters</button>
               
-                <div class="d-flex gap-2">
-                  <label for="others" class="font-label">Others:</label>
-                  <div class="col-5"><input type="text" v-model="otherPets" id="others"class="form-control"></div>
-                </div>
-              </ul>
-              <label class="fw-semibold">Rating:</label>
-              <StarRating v-model="userRating" :maxStars="5"></StarRating>
+            
             </div>
-            <button class="btn border border-warning rounded col-12 fw-semibold bg-light mt-3" @click="clearFilters">Clear filters</button>
+          
           </div>
+
         </div>
         
         <!-- search body  -->
         <div class="col-lg-8 order-first">
           <!-- search bar  -->
-          <div class="col-12 mb-3">
+          <div class="col-12 mb-2">
             <input type="text" v-model="searchKey" placeholder="Search by sitter name" class="form-control">
           </div>
 
+          <button class="btn border-warning col-6 d-lg-none mb-2 bg-white fw-medium" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasBottom">⫶☰ Show Filters</button>
           
           <div class="row">
             <div class="col-md-6  mb-2" v-for="sitter in searchResults">
@@ -633,5 +641,12 @@ onMounted(()=>{
   background: #fda501;
   color: #3d2417;
   font-weight: 700;
+}
+
+/* apply sticky position only when lg */
+@media (min-width: 992px) {
+  .largeTop {
+    top:7vh;
+  }
 }
 </style>

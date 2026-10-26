@@ -6,7 +6,7 @@ import CareChecklist, { CATEGORIES } from '../models/CareChecklist.js'
 import Pet from '../models/petModel.js'
 import User from '../models/UserModel.js'
 import { requireOwner, requireLogin } from '../middleware/authMiddleware.js'
-import { bookingRange, findClash, describeBooking, toMinutes, START_TIME_RE, END_TIME_RE } from '../utils/bookingTimes.js'
+import { bookingRange, findClash, describeBooking, toMinutes, slotsOf, slotsCover, START_TIME_RE, END_TIME_RE } from '../utils/bookingTimes.js'
 import asyncHandler from '../middleware/asyncHandler.js'
 
 const router = Router()
@@ -58,13 +58,21 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
   const pets = await Pet.find({ _id: { $in: petIds }, owner: ownerId })
   if (pets.length !== petIds.length) return res.status(400).json({ message: 'You can only book for your own pets.' })
 
-  // 4. The sitter is available on every day
+  // 4. The sitter is available on every day, and for the hours asked for on each day
   const days = daysBetween(start, end)
-  const available = await Availability.find({ sitterId, date: { $gte: start, $lte: end }, status: 'available' })
-  const availableDays = available.map((a) => toSgtDateString(a.date))
-  const missing = days.filter((d) => !availableDays.includes(d))
+  const saved = await Availability.find({ sitterId, date: { $gte: start, $lte: end } })
+  const byDay = Object.fromEntries(saved.map((a) => [toSgtDateString(a.date), a]))
+  const missing = days.filter((d) => byDay[d]?.status !== 'available')
   if (missing.length) {
     return res.status(409).json({ message: `The sitter is not available on ${missing.join(', ')}.` })
+  }
+  const wrongHours = days.filter((d) => {
+    const startMinutes = d === startDate ? toMinutes(startTime) : 0 // the first day starts at the start time, the last day ends at the end time
+    const endMinutes = d === endDate ? toMinutes(endTime) : 24 * 60
+    return !slotsCover(slotsOf(byDay[d]), startMinutes, endMinutes)
+  })
+  if (wrongHours.length) {
+    return res.status(409).json({ message: `The sitter is not available at those times on ${wrongHours.join(', ')}.` })
   }
 
   // 5. No clash with the sitter's accepted / paid / in-progress bookings, checked by exact time.

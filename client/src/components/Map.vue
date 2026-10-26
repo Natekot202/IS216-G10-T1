@@ -75,6 +75,13 @@ onBeforeUnmount(() => map.value?.remove())
 </script>
 
 <template>
-    <div ref="mapContainer" style="height:300px" class="border rounded mb-2"></div>
+    <div ref="mapContainer"  class="border rounded mb-2 fullScreenMap"></div>
 
 </template>
+
+<style scoped>
+  .fullScreenMap {
+    height:200px;
+  }
+
+</style>

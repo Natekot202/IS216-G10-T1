@@ -18,6 +18,22 @@ export function toMinutes(time) {
   return h * 60 + m
 }
 
+// Every half-hour start of a day: [0, 30, 60 ... 1410]
+export const ALL_SLOTS = Array.from({ length: 48 }, (_, i) => i * 30)
+
+// The half-hours a sitter is free on one Availability document.
+// No `slots` saved = the whole day if available (old documents), nothing if blocked.
+export function slotsOf(day) {
+  if (day.status !== 'available') return []
+  return Array.isArray(day.slots) ? day.slots : ALL_SLOTS
+}
+
+// Is every half-hour from `startMinutes` up to `endMinutes` (minutes after midnight, `endMinutes` may be 1440) in `slots`?
+export function slotsCover(slots, startMinutes, endMinutes) {
+  for (let m = startMinutes; m < endMinutes; m += 30) if (!slots.includes(m)) return false
+  return true
+}
+
 // The exact start and end of a booking, in milliseconds.
 // startDate / endDate are stored as midnight Singapore time. A booking with no times counts as all-day.
 export function bookingRange(booking) {

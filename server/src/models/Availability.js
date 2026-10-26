@@ -19,6 +19,14 @@ const availabilitySchema = new mongoose.Schema(
       type: String,
       enum: ['available', 'blocked'],
       required: true
+    },
+    // The half-hours of this day the sitter is free, as minutes after midnight: 540 = 9:00, 570 = 9:30 ... 1410 = 23:30.
+    // Not set = the whole day (how days were saved before hours existed), so old documents still work.
+    // `status` is kept in step: any slots = 'available', none = 'blocked'.
+    // slots = [540,570,600, etc....]
+    slots: {
+      type: [Number],
+      default: undefined
     }
   },
   { timestamps: true }
