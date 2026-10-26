@@ -7,8 +7,32 @@ import ReviewForm from '../components/ReviewForm.vue'
 const props = defineProps({
   session: { type: Object, required: true },    
   today: { type: String, required: true },    
-  isSitter: { type: Boolean, default: false }
+  isSitter: { type: Boolean, default: false },
+  index: { type: Number, default: 0 }
 })
+
+const ACCENTS = [
+  { main: '#c47756', tint: '#f6e3d6' },     
+  { main: '#6f8f5a', tint: '#e6eedd' }, 
+  { main: '#5f84a2', tint: '#e1ebf3' },    
+  { main: '#8e6b8f', tint: '#eee3ef' }      
+]
+const accent = computed(() => ACCENTS[props.index % ACCENTS.length])
+const STATUS_LABELS = { accepted: 'Accepted', paid: 'Paid', 'in-progress': 'In progress', completed: 'Completed' }
+const statusLabel = computed(() => STATUS_LABELS[status.value] ?? status.value)
+
+const initial = computed(() => (other.value?.username || '?').trim().charAt(0).toUpperCase())
+
+
+const timeRange = computed(() => {
+  const b = props.session.booking
+  return b.startDate === b.endDate && b.startTime && b.endTime ? `${b.startTime} to ${b.endTime}` : ''
+})
+
+const totalTicks = computed(() => props.session.items.reduce((sum, it) => sum + it.dailyFrequency, 0))
+const doneTicks = computed(() =>
+  props.session.items.reduce((sum, it) => sum + Math.min(countFor(it), it.dailyFrequency), 0)
+)
 
 const visit = ref(props.session.visit)
 const status = ref(props.session.booking.status)
@@ -120,6 +144,14 @@ const reviewStars = computed(() =>
   review.value ? '★'.repeat(review.value.rating) + '☆'.repeat(5 - review.value.rating) : ''
 )
 
+// getting address into google maps
+const address = computed(() => props.session.ownerAddress)
+const mapsUrl = computed(() =>
+  address.value
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${address.value.line1} Singapore ${address.value.postalCode}`)}`
+    : ''
+)
+
 watch(status, async (s) => {
   if (s === 'completed' && !reviewLoaded.value) {
     try {
@@ -135,156 +167,412 @@ watch(status, async (s) => {
 </script>
 
 <template>
-  <div class="row g-3">
-    <div class="col-12 col-lg-4 order-lg-last">
-      <div class="border rounded-3 p-3 mb-3">
-        <div class="d-flex justify-content-between align-items-start">
-          <div v-if="other">
-            <router-link :to="`/users/${other._id}`" class="fw-bold text-decoration-none">
-              {{ other.username }}
-            </router-link>
-            <span class="text-muted"> ({{ isSitter ? 'owner' : 'sitter' }})</span>
-          </div>
-          <span class="badge rounded-pill bg-light text-dark border">{{ status }}</span>
-        </div>
-        <p class="text-muted small my-2">{{ dateRange }}</p>
-        <span v-for="p in session.booking.pets" :key="p._id"
-              class="badge rounded-pill bg-light text-dark border me-1">{{ p.name }}</span>
-      </div>
-
-      <!-- go live -->
-      <div class="border rounded-3 p-3">
-        <h6 class="text-uppercase text-muted small">Live session</h6>
-
-        <template v-if="!visit">
-          <template v-if="isSitter">
-            <p class="small text-muted">
-              Starting a session shares your live location with the owner, including the walking route (if any), until you end it.
-            </p>
-            <button type="button" class="btn w-100 text-white" style="background-color:#c47756;"
-                    :disabled="!canStart || starting" @click="startSession">
-              <span v-if="starting" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-              {{ starting ? 'Starting…' : 'Start Session (Go Live)' }}
-            </button>
-          </template>
-          <p v-else class="small text-muted mb-0">The sitter hasn't started today's session yet.</p>
-        </template>
-
-        <template v-else-if="isActive">
-          <p class="text-success fw-bold mb-1">● Session in progress</p>
-          <p class="small text-muted mb-0">Started at {{ formatTime(visit.startedAt) }}</p>
-        </template>
-
-        <p v-else class="text-muted mb-0">Today's session is complete.</p>
-      </div>
-    </div>
-
-    <div class="col-12 col-lg-8">
-      <div v-if="actionError" class="alert alert-warning">{{ actionError }}</div>
-
-      <!-- care checklist -->
-      <div class="border rounded-3 p-3 mb-3">
-        <h6 class="text-uppercase text-muted small">Care checklist (set by owner)</h6>
-        <p v-if="!session.items.length" class="text-muted mb-0">No care checklist was added to this booking.</p>
-        <div v-for="item in session.items" :key="item._id" class="d-flex align-items-center border-bottom py-2">
-          <div class="d-flex gap-1 me-3">
-            <input v-for="n in item.dailyFrequency" :key="n" type="checkbox" class="form-check-input mt-0 task-check"
-                   :checked="n <= countFor(item)"
-                   :disabled="!isSitter || !isActive || savingTask"
-                   @change="tick(item, n, $event)" />
-          </div>
-          <span :class="{ 'text-decoration-line-through text-muted': countFor(item) >= item.dailyFrequency }">
-            {{ item.title }}
-          </span>
-          <small v-if="item.dailyFrequency > 1" class="ms-auto text-muted">
-            {{ countFor(item) }}/{{ item.dailyFrequency }}
-          </small>
+  <article class="sc" :style="{ '--bk': accent.main, '--bk-tint': accent.tint }">
+    <header class="sc-head">
+      <div class="sc-who">
+        <span class="sc-avatar" aria-hidden="true">
+          <img v-if="other?.profilePicture?.url" :src="other.profilePicture.url" alt="" />
+          <template v-else>{{ initial }}</template>
+        </span>
+        <div class="sc-who__text">
+          <router-link v-if="other" :to="`/users/${other._id}`" class="sc-name">{{ other.username }}</router-link>
+          <span class="sc-role">{{ isSitter ? 'Owner' : 'Sitter' }}</span>
         </div>
       </div>
 
-      <!-- completion report -->
-      <div class="border rounded-3 p-3">
-        <h6 class="text-uppercase text-muted small">Completion report</h6>
+      <div class="sc-meta">
+        <span class="sc-when">{{ dateRange }}<template v-if="timeRange">, {{ timeRange }}</template></span>
+        <span class="sc-pets">
+          <span v-for="p in session.booking.pets" :key="p._id" class="sc-pet">{{ p.name }}</span>
+        </span>
+      </div>
 
-        <template v-if="isCompleted">
-          <p class="text-break" style="white-space: pre-line">{{ visit.report.notes }}</p>
-          <div class="d-flex flex-wrap gap-2">
-            <img v-for="p in visit.report.photos" :key="p.url" :src="p.url" alt="Report photo"
-                 class="rounded" style="width: 120px; height: 120px; object-fit: cover;" />
-          </div>
-        </template>
+      <span class="sc-status" :class="`sc-status--${status}`">{{ statusLabel }}</span>
+    </header>
 
-        <form v-else-if="isSitter" @submit.prevent="submitReport">
-          <fieldset :disabled="!isActive || ending">
-            <label :for="`notes-${session.booking._id}`" class="form-label small">Notes for owner</label>
-            <textarea :id="`notes-${session.booking._id}`" v-model="notes" class="form-control mb-3" rows="4"
-                      maxlength="2000" placeholder="What did you do this visit?"></textarea>
+    <div class="sc-body">
+      <div class="row g-3">
+        <div class="col-12 col-lg-4 order-lg-last">
+          <section class="sc-card" :class="{ 'sc-card--live': isActive }">
+            <h4 class="sc-title">Live session</h4>
 
-            <div class="row g-2 mb-2">
-              <div v-for="(slot, i) in slots" :key="i" class="col-4">
-                <label class="photo-slot">
-                  <img v-if="slot.preview" :src="slot.preview" alt="Report photo" class="photo-slot__img" />
-                  <span v-else>+ photo</span>
-                  <input :ref="(el) => (slot.input = el)" type="file" accept="image/jpeg,image/png,image/webp"
-                         class="d-none" @change="slot.onPick" />
-                  <button v-if="slot.preview" type="button" class="btn-close photo-slot__remove bg-white p-1"
-                          aria-label="Remove photo" @click.prevent="slot.clear()"></button>
-                </label>
+            <template v-if="!visit">
+              <template v-if="isSitter">
+                <p class="sc-hint">
+                  Starting a session shares your live location with the owner, including the walking route (if any), until you end it.
+                </p>
+                <button type="button" class="sc-btn" :disabled="!canStart || starting" @click="startSession">
+                  <span v-if="starting" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                  {{ starting ? 'Starting…' : 'Start session (go live)' }}
+                </button>
+              </template>
+              <p v-else class="sc-hint mb-0">The sitter hasn't started today's session yet.</p>
+            </template>
+
+            <template v-else-if="isActive">
+              <p class="sc-live"><span class="sc-live__dot" aria-hidden="true"></span>Session in progress</p>
+              <p class="sc-hint mb-0">Started at {{ formatTime(visit.startedAt) }}</p>
+            </template>
+
+            <p v-else class="sc-hint mb-0">Today's session is complete.</p>
+          </section>
+
+          <section v-if="session.ownerAddress !== undefined && ['paid', 'in-progress'].includes(status)" class="sc-card">
+            <h4 class="sc-title">Where to go</h4>
+
+            <template v-if="address">
+              <address class="sc-address">
+                <strong>{{ address.line1 }}</strong>
+                <span v-if="address.unit">{{ address.unit }}</span>
+                <span v-if="address.postalCode">Singapore {{ address.postalCode }}</span>
+              </address>
+              <a :href="mapsUrl" target="_blank" rel="noopener" class="sc-link">Open in Google Maps</a>
+              <p class="sc-hint mt-2 mb-0">Shared with you because this booking is confirmed. <br> Do <strong style="color:red;">not</strong> share this with anyone else.</p>
+            </template>
+
+            <p v-else class="sc-hint mb-0">The owner hasn't added an address yet.</p>
+          </section>
+
+          <section v-if="session.booking.notes" class="sc-card">
+            <h4 class="sc-title">{{ isSitter ? 'Notes from the owner' : 'Your notes for the sitter' }}</h4>
+            <p class="sc-notes">{{ session.booking.notes }}</p>
+          </section>
+
+        </div>
+
+        <div class="col-12 col-lg-8">
+          <div v-if="actionError" class="alert alert-warning">{{ actionError }}</div>
+
+          <!-- care checklist -->
+          <section class="sc-card">
+            <div class="sc-card__head">
+              <h4 class="sc-title">Care checklist</h4>
+              <span v-if="totalTicks" class="sc-count">{{ doneTicks }} of {{ totalTicks }} done</span>
+            </div>
+            <div v-if="totalTicks" class="sc-progress" role="progressbar" aria-label="Checklist progress"
+                 aria-valuemin="0" :aria-valuemax="totalTicks" :aria-valuenow="doneTicks">
+              <span :style="{ width: `${(doneTicks / totalTicks) * 100}%` }"></span>
+            </div>
+
+            <p v-if="!session.items.length" class="sc-hint mb-0">No care checklist was added to this booking.</p>
+            <div v-else class="sc-tasks">
+              <div v-for="item in session.items" :key="item._id" class="sc-task">
+                <div class="d-flex gap-1">
+                  <input v-for="n in item.dailyFrequency" :key="n" type="checkbox"
+                         class="form-check-input mt-0 task-check"
+                         :checked="n <= countFor(item)"
+                         :disabled="!isSitter || !isActive || savingTask"
+                         @change="tick(item, n, $event)" />
+                </div>
+                <span class="sc-task__title"
+                      :class="{ 'sc-task__title--done': countFor(item) >= item.dailyFrequency }">{{ item.title }}</span>
+                <small v-if="item.dailyFrequency > 1" class="ms-auto text-muted">
+                  {{ countFor(item) }}/{{ item.dailyFrequency }}
+                </small>
               </div>
             </div>
-            <div v-if="photoError" class="alert alert-warning py-1">{{ photoError }}</div>
+          </section>
 
-            <button type="submit" class="btn w-100 text-white" style="background-color:#c47756;">
-              <span v-if="ending" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-              {{ ending ? 'Submitting…' : 'Submit report & end session' }}
-            </button>
-          </fieldset>
-          <p v-if="!isActive" class="small text-muted mt-2 mb-0">Start the session to fill in the report.</p>
-        </form>
+          <!-- completion report -->
+          <section class="sc-card">
+            <h4 class="sc-title">Visit report</h4>
 
-        <p v-else class="text-muted mb-0">The sitter's report will appear here once the visit ends.</p>
-      </div>
+            <template v-if="isCompleted">
+              <p class="text-break" style="white-space: pre-line">{{ visit.report.notes }}</p>
+              <div class="d-flex flex-wrap gap-2">
+                <img v-for="p in visit.report.photos" :key="p.url" :src="p.url" alt="Report photo"
+                     class="rounded" style="width: 120px; height: 120px; object-fit: cover;" />
+              </div>
+            </template>
 
-      <div v-if="!isSitter && status === 'completed' && reviewLoaded" class="border rounded-3 p-3 mt-3">
-        <h6 class="text-uppercase text-muted small">Review your sitter (optional)</h6>
+            <form v-else-if="isSitter" @submit.prevent="submitReport">
+              <fieldset :disabled="!isActive || ending">
+                <label :for="`notes-${session.booking._id}`" class="form-label small">Notes for the owner</label>
+                <textarea :id="`notes-${session.booking._id}`" v-model="notes" class="form-control mb-3" rows="4"
+                          maxlength="2000" placeholder="What did you do this visit?"></textarea>
 
-        <template v-if="review">
-          <div class="fs-5" style="color:#c44f1c;">{{ reviewStars }}</div>
-          <p v-if="review.comment" class="mb-1 text-break">{{ review.comment }}</p>
-          <p class="small text-muted mb-0">Thanks, your review has been posted.</p>
-        </template>
+                <div class="row g-2 mb-2">
+                  <div v-for="(slot, i) in slots" :key="i" class="col-4">
+                    <label class="photo-slot">
+                      <img v-if="slot.preview" :src="slot.preview" alt="Report photo" class="photo-slot__img" />
+                      <span v-else>+ photo</span>
+                      <input :ref="(el) => (slot.input = el)" type="file" accept="image/jpeg,image/png,image/webp"
+                             class="d-none" @change="slot.onPick" />
+                      <button v-if="slot.preview" type="button" class="btn-close photo-slot__remove bg-white p-1"
+                              aria-label="Remove photo" @click.prevent="slot.clear()"></button>
+                    </label>
+                  </div>
+                </div>
+                <div v-if="photoError" class="alert alert-warning py-1">{{ photoError }}</div>
 
-        <ReviewForm v-else :booking-id="session.booking._id" @saved="review = $event" />
-      </div>
+                <button type="submit" class="sc-btn">
+                  <span v-if="ending" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                  {{ ending ? 'Submitting…' : 'Submit report and end session' }}
+                </button>
+              </fieldset>
+              <p v-if="!isActive" class="sc-hint mt-2 mb-0">Start the session to fill in the report.</p>
+            </form>
 
-      <div v-if="isSitter && status === 'completed' && reviewLoaded" class="border rounded-3 p-3 mt-3">
-        <h6 class="text-uppercase text-muted small">Owner's review</h6>
+            <p v-else class="sc-hint mb-0">The sitter's report will appear here once the visit ends.</p>
+          </section>
 
-        <template v-if="review">
-          <div class="fs-5" style="color:#c44f1c;">{{ reviewStars }}</div>
-          <p v-if="review.comment" class="mb-0 text-break">{{ review.comment }}</p>
-        </template>
+          <!-- owner: optional review -->
+          <section v-if="!isSitter && status === 'completed' && reviewLoaded" class="sc-card">
+            <h4 class="sc-title">Review your sitter (optional)</h4>
 
-        <p v-else class="text-muted mb-0">The owner hasn't reviewed you yet.</p>
+            <template v-if="review">
+              <div class="fs-5" style="color:#FFD700;">{{ reviewStars }}</div>
+              <p v-if="review.comment" class="mb-1 text-break">{{ review.comment }}</p>
+              <p class="sc-hint mb-0">Thanks, your review has been posted.</p>
+            </template>
+
+            <ReviewForm v-else :booking-id="session.booking._id" @saved="review = $event" />
+          </section>
+
+          <!-- sitter: the owner's review -->
+          <section v-if="isSitter && status === 'completed' && reviewLoaded" class="sc-card">
+            <h4 class="sc-title">Owner's review</h4>
+
+            <template v-if="review">
+              <div class="fs-5" style="color:#FFD700;">{{ reviewStars }}</div>
+              <p v-if="review.comment" class="mb-0 text-break">{{ review.comment }}</p>
+            </template>
+
+            <p v-else class="sc-hint mb-0">The owner hasn't reviewed you yet.</p>
+          </section>
+        </div>
       </div>
     </div>
-  </div>
+  </article>
 </template>
 
 <style scoped>
+.sc {
+  overflow: hidden;
+  border: 1px solid rgba(43, 36, 32, 0.12);
+  border-radius: 20px;
+  background: var(--bk-tint);
+  box-shadow: 0 10px 24px rgba(120, 70, 40, 0.14);
+}
+
+.sc-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  padding: 1rem 1.25rem;
+  background: #2b2420;
+  color: #fff;
+  border-bottom: 4px solid var(--bk);        
+}
+.sc-who {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+.sc-avatar {
+  flex: none;
+  width: 2.6rem;
+  height: 2.6rem;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--bk);
+  color: #fff;
+  font-weight: 700;
+}
+.sc-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sc-who__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+.sc-name {
+  color: #fff;
+  font-family: var(--font-heading, 'Trirong', Georgia, serif);
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.sc-name:hover {
+  text-decoration: underline;
+}
+.sc-role {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+.sc-meta {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.sc-when {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+.sc-pets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.sc-pet {
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 0.8rem;
+}
+.sc-status {
+  margin-left: auto;
+  padding: 0.25rem 0.85rem;
+  border-radius: 999px;
+  background: #fff;
+  color: #2b2420;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.sc-status--in-progress {
+  background: #e3946f;
+}
+.sc-status--completed {
+  background: #cfe0c0;
+  color: #2b3d22;
+}
+
+.sc-body {
+  padding: 1.1rem 1.25rem 1.25rem;
+}
+
+.sc-card {
+  padding: 1.1rem 1.2rem;
+  border: 1px solid rgba(43, 36, 32, 0.08);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(120, 70, 40, 0.08);
+}
+.sc-card + .sc-card {
+  margin-top: 1rem;
+}
+.sc-card--live {
+  box-shadow: 0 0 0 2px #4f8a3a, 0 4px 12px rgba(120, 70, 40, 0.08);
+}
+.sc-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.sc-title {
+  margin: 0 0 0.6rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2b2420;
+}
+.sc-hint {
+  font-size: 0.9rem;
+  color: #5c524b;
+}
+.sc-count {
+  font-size: 0.85rem;
+  color: #5c524b;
+}
+
+.sc-btn {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border: 0;
+  border-radius: 10px;
+  background: #a85a38;
+  color: #fff;
+  font-weight: 700;
+  transition: background 0.2s;
+}
+.sc-btn:hover:not(:disabled) {
+  background: #8f4a2c;
+}
+.sc-btn:disabled {
+  opacity: 0.55;
+}
+
+.sc-live {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.25rem;
+  font-weight: 700;
+  color: #3f5a33;
+}
+.sc-live__dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: #4f8a3a;
+  animation: sc-pulse 1.6s ease-out infinite;
+}
+@keyframes sc-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(79, 138, 58, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 0.6rem rgba(79, 138, 58, 0);
+  }
+}
+
+/* checklist */
+.sc-progress {
+  height: 0.4rem;
+  margin-bottom: 0.6rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #efe3d6;
+}
+.sc-progress span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--bk);
+  transition: width 0.4s ease;
+}
+.sc-task {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0;
+}
+.sc-task + .sc-task {
+  border-top: 1px solid #f0e3d4;
+}
+.sc-task__title--done {
+  color: #5c524b;
+  text-decoration: line-through;
+}
+
+/* report photos */
 .photo-slot {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   aspect-ratio: 1;
-  border: 2px dashed #ccc;
-  border-radius: 8px;
-  background: #f4f4f4;
-  color: #666;
+  overflow: hidden;
+  border: 2px dashed #c9a98f;
+  border-radius: 10px;
+  background: #f8eee3;
+  color: #5c524b;
   font-size: 0.85rem;
   cursor: pointer;
-  overflow: hidden;
+}
+.photo-slot:hover {
+  border-color: #c47756;
 }
 .photo-slot__img {
   width: 100%;
@@ -301,29 +589,54 @@ fieldset:disabled .photo-slot {
   cursor: not-allowed;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .sc-live__dot {
+    animation: none;
+  }
+  .sc-progress span {
+    transition: none;
+  }
+}
+
 .form-check-input.task-check {
   width: 1.2rem;
   height: 1.2rem;
-  border: 2px solid #2b2420;       
+  border: 2px solid #2b2420;
   background-color: #fff;
   cursor: pointer;
 }
-
 .form-check-input.task-check:checked {
-  background-color: #c47756;      
+  background-color: #c47756;
   border-color: #c47756;
 }
-
 .form-check-input.task-check:focus {
   border-color: #c44f1c;
   box-shadow: 0 0 0 0.2rem rgba(196, 79, 28, 0.25);
 }
-
 .form-check-input.task-check:disabled {
   opacity: 0.7;
   cursor: not-allowed;
 }
 .form-check-input.task-check:disabled:checked {
-  opacity: 1;                     
+  opacity: 1;
+}
+.sc-address {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin: 0 0 0.6rem;
+  font-style: normal;          
+  color: #2b2420;
+  overflow-wrap: anywhere;
+}
+.sc-link {
+  color: #a85a38;
+  font-weight: 700;
+}
+.sc-notes {
+  margin: 0;
+  color: #2b2420;
+  white-space: pre-line;    
+  overflow-wrap: anywhere;
 }
 </style>

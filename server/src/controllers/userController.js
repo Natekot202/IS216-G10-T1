@@ -51,8 +51,8 @@ export async function getUserReviews(req, res) {
     return res.status(404).json({ message: 'User not found' })
   }
   const reviews = await Review.find({ sitter: req.params.id })
-    .populate('owner', 'username')
-    .sort({ createdAt: -1 })
+    .populate('owner', 'username profilePicture')
+    .sort({ _id: -1 })
   res.json(reviews)
 }
 

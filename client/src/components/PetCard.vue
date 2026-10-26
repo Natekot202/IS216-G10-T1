@@ -139,7 +139,6 @@ const age = computed(() => (props.pet.ageMonths != null ? `${formatAge(props.pet
 }
 .pc__name {
   margin: 0;
-  font-family: 'Trirong', Georgia, serif;
   font-size: 1.2rem;
   font-weight: 700;
   line-height: 1.2;

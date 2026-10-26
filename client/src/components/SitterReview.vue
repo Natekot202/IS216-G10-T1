@@ -6,14 +6,14 @@ const props = defineProps({
   sitterId: { type: String, default: '' }
 })
 
-const max_shown = 4
+const MAX_SHOWN = 4
 const reviews = ref([])
 const loading = ref(true)
 const error = ref('')
 const showAll = ref(false)
 
 const total = computed(() => reviews.value.length || 1)
-const collapsible = computed(() => filtered.value.length > max_shown + 2)
+const collapsible = computed(() => filtered.value.length > MAX_SHOWN)
 
 // filters
 const ratingFilter = ref(0)         
@@ -53,6 +53,10 @@ const shownReviews = computed(() =>
 const filtersActive = computed(
   () => ratingFilter.value !== 0 || commentsOnly.value || sortBy.value !== 'newest'
 )
+
+function initial(name) {
+  return name ? name.trim().charAt(0).toUpperCase() : '?'
+}
 
 function clearFilters() {
   ratingFilter.value = 0
@@ -108,8 +112,14 @@ watch(ratingFilter, (r) => {
 
 <template>
   <section class="sr">
-    <div class="sr-head border-bottom">
-      <h4 class="sr-title">Reviews<span v-if="!loading"> ({{ reviews.length }})</span></h4>
+    <div class="sr-head">
+      <div class="sr-head__left">
+        <h4 class="sr-title">Reviews<span v-if="!loading"> ({{ reviews.length }})</span></h4>
+        <button v-if="collapsible" type="button" class="sr-toggle" :aria-expanded="showAll"
+                @click="showAll = !showAll">
+          {{ showAll ? 'Show fewer' : `Show all ${filtered.length}` }}
+        </button>
+      </div>
       <div v-if="reviews.length > 1" class="sr-sort">
         <label for="reviewSort" class="visually-hidden">Sort reviews</label>
         <select id="reviewSort" v-model="sortBy" class="form-select form-select-sm">
@@ -130,6 +140,7 @@ watch(ratingFilter, (r) => {
     <p v-else-if="!reviews.length" class="text-muted">No reviews yet.</p>
 
     <div v-else class="sr-layout">
+
       <aside class="sr-breakdown" aria-label="Filter by rating">
         <button v-for="n in [5, 4, 3, 2, 1]" :key="n" type="button" class="sr-bar"
                 :class="{ 'sr-bar--on': ratingFilter === n }"
@@ -162,13 +173,16 @@ watch(ratingFilter, (r) => {
           </header>
           <p v-if="r.comment" class="sr-comment">{{ r.comment }}</p>
           <footer class="sr-by">
-            <span>{{ r.owner?.username || 'Anonymous' }}</span>
+            <span class="sr-avatar" aria-hidden="true">
+              <img v-if="r.owner?.profilePicture?.url" :src="r.owner.profilePicture.url" alt="" loading="lazy" />
+              <template v-else>{{ initial(r.owner?.username) }}</template>
+            </span>
+            <router-link v-if="r.owner?._id" :to="`/users/${r.owner._id}`" class="sr-by__link">
+              {{ r.owner.username }}
+            </router-link>
+            <span v-else>Anonymous</span>
           </footer>
         </article>
-
-        <button v-if="collapsible" type="button" class="sr-more" :aria-expanded="showAll" @click="showAll = !showAll">
-          {{ showAll ? 'Show fewer reviews' : `Show all ${filtered.length} reviews` }}
-        </button>
       </div>
     </div>
   </section>
@@ -183,9 +197,32 @@ watch(ratingFilter, (r) => {
   margin-bottom: 1rem;
   padding-bottom: 0.6rem;
 }
+.sr-head__left {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.9rem;
+}
+.sr-toggle {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #a85a38;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+.sr-toggle:hover {
+  color: #8f4a2c;
+}
+.sr-toggle:focus-visible {
+  outline: 2px solid #c44f1c;
+  outline-offset: 2px;
+}
 .sr-title {
   margin: 0;
-  font-family: 'fredoka', sans-serif;
   font-size: 1.5rem;
   font-weight: 500;
   color: #2b2420;
@@ -270,7 +307,7 @@ watch(ratingFilter, (r) => {
   border-radius: 999px;
   background: transparent;
   color: #a85a38;
-  font-weight: 600;
+  font-weight: 400;
 }
 .sr-more:hover {
   background: rgba(196, 119, 86, 0.14);
@@ -296,7 +333,7 @@ watch(ratingFilter, (r) => {
   gap: 0.5rem;
 }
 .sr-stars {
-  color: #c44f1c;
+  color: #FFD700;
   letter-spacing: 0.05em;
 }
 .sr-date {
@@ -319,14 +356,34 @@ watch(ratingFilter, (r) => {
   color: #5c524b;
 }
 .sr-avatar {
-  width: 1.5rem;
-  height: 1.5rem;
+  flex: none;
+  width: 1.8rem;
+  height: 1.8rem;
   display: grid;
   place-items: center;
+  overflow: hidden;
   border-radius: 50%;
   background: #a85a38;
   color: #fff;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 700;
+}
+.sr-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sr-by__link {
+  color: inherit;
+  text-decoration: none;
+}
+.sr-by__link:hover {
+  color: #a85a38;
+  text-decoration: underline;
+}
+.sr-by__link:focus-visible {
+  outline: 2px solid #c44f1c;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 </style>

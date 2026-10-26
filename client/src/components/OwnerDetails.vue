@@ -317,9 +317,8 @@ async function deletePet(id) {
 }
 .od-heading {
   margin: 0;
-  font-family: 'fredoka', sans-serif;
   font-size: 1.5rem;
-  font-weight: 500;
+  font-weight: 600;
   color: #2b2420;
   letter-spacing: -0.01em;
 }
@@ -352,7 +351,6 @@ async function deletePet(id) {
 }
 .od-form__title {
   margin: 0 0 1rem;
-  font-family: 'Trirong', Georgia, serif;
   font-size: 1.15rem;
   font-weight: 700;
   color: #2b2420;

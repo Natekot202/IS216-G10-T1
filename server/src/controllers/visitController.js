@@ -4,6 +4,7 @@ import CareChecklist from '../models/CareChecklist.js'
 import VisitSession from '../models/VisitSession.js'
 import { sgtMidnight, toSgtDateString } from '../models/Availability.js'
 import { uploadImage, deleteImage } from '../config/cloudinary.js'
+import User from '../models/UserModel.js'
 
 const STARTABLE = ['paid', 'in-progress']   
 
@@ -64,22 +65,47 @@ export async function getTodaySessions(req, res) {
   const visitByBooking = new Map(visits.map((v) => [String(v.booking), v]))
   const itemsByBooking = new Map(checklists.map((c) => [String(c.bookingId), c.items]))
 
+  const isSitterViewer = req.session.role === 'sitter'
+  const confirmed = (b) => ['paid', 'in-progress'].includes(b.status)
+
+  const addressByOwner = new Map()
+  if (isSitterViewer) {
+    const ownerIds = [...new Set(bookings.filter(confirmed).map((b) => String(b.ownerId._id)))]
+    if (ownerIds.length > 0) {
+      const owners = await User.find({ _id: { $in: ownerIds } }).select('+ownerProfile.address -password')
+      owners.forEach((o) => {
+        const a = o.ownerProfile?.address
+        if (a?.line1) {
+          addressByOwner.set(String(o._id), { line1: a.line1, unit: a.unit || '', postalCode: a.postalCode || '' })
+        }
+      })
+    }
+  }
+
   const sessions = bookings
-    .map((b) => ({
-      booking: {
-        _id: b._id,
-        status: b.status,
-        startDate: toSgtDateString(b.startDate),
-        startTime: b.startTime,
-        endDate: toSgtDateString(b.endDate),
-        endTime: b.endTime,
-        owner: b.ownerId,
-        sitter: b.sitterId,
-        pets: b.petIds
-      },
-      items: itemsByBooking.get(String(b._id)) ?? [],
-      visit: visitByBooking.get(String(b._id)) ?? null
-    }))
+    .map((b) => {
+      const session = {
+        booking: {
+          _id: b._id,
+          status: b.status,
+          startDate: toSgtDateString(b.startDate),
+          startTime: b.startTime,
+          endDate: toSgtDateString(b.endDate),
+          endTime: b.endTime,
+          owner: b.ownerId,
+          sitter: b.sitterId,
+          pets: b.petIds,
+          notes: b.notes || ''
+        },
+        items: itemsByBooking.get(String(b._id)) ?? [],
+        visit: visitByBooking.get(String(b._id)) ?? null
+      }
+      // only a booking's sitter gets the address, and only once it is confirmed
+      if (isSitterViewer && confirmed(b)) {
+        session.ownerAddress = addressByOwner.get(String(b.ownerId._id)) ?? null
+      }
+      return session
+    })
     .filter((s) => s.booking.status !== 'completed' || s.visit)
     .sort((a, b) => (a.booking.startTime || '00:00').localeCompare(b.booking.startTime || '00:00'))
 
