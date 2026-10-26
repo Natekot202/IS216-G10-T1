@@ -141,6 +141,33 @@ export async function syncBookingToGoogle(booking) {
   }
 }
 
+// Removes one booking's event from its sitter's Google Calendar (used when a booking is cancelled).
+// Like syncBookingToGoogle it NEVER throws: it returns { removed, reason } so a Google problem can't block the cancel.
+export async function removeBookingFromGoogle(booking) {
+  try {
+    const event = await CalendarEvent.findOne({ bookingId: booking._id, status: 'synced' })
+    if (!event) return { removed: false, reason: 'not-synced' } // it was never added to Google, so there is nothing to remove
+
+    const link = await GoogleCalendarLink.findOne({ sitterId: booking.sitterId })
+    if (!link || link.needsReconnect) return { removed: false, reason: 'not-connected' }
+
+    const auth = createOAuthClient()
+    auth.setCredentials({ refresh_token: link.refreshToken })
+    const calendar = google.calendar({ version: 'v3', auth })
+    try {
+      await calendar.events.delete({ calendarId: 'primary', eventId: event.googleEventId }, { timeout: 8000 })
+    } catch (err) {
+      if (err.code !== 404 && err.status !== 404 && err.code !== 410 && err.status !== 410) throw err // 404 / 410 = already gone, which is fine
+    }
+
+    await CalendarEvent.deleteOne({ _id: event._id })
+    return { removed: true }
+  } catch (err) {
+    console.error('Google Calendar remove failed:', err.message)
+    return { removed: false, reason: String(err.message).includes('invalid_grant') ? 'needs-reconnect' : 'error' }
+  }
+}
+
 // This sitter's accepted / paid / in-progress bookings that haven't ended yet.
 async function upcomingBookings(sitterId) {
   const today = sgtMidnight(toSgtDateString(new Date()))

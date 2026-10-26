@@ -11,10 +11,29 @@ const route = useRoute()
 const bookings = ref([])
 const loading = ref(true)
 const error = ref('')
+const message = ref('')
+const actionError = ref('') // why cancelling failed (the list stays visible)
+const busyId = ref(null)
 
 // every booking in a trip has the same pets and dates, so the first one is enough for the header
 const first = computed(() => bookings.value[0])
 const chosen = computed(() => chosenBooking(bookings.value))
+
+async function cancelBooking(id) {
+  if (!window.confirm('Cancel this request? The sitter will see it as cancelled. This cannot be undone.')) return
+  busyId.value = id
+  message.value = ''
+  actionError.value = ''
+  try {
+    const updated = await bookingsApi.cancel(id)
+    bookings.value.find((b) => b._id === id).status = updated.status
+    message.value = 'Request cancelled.'
+  } catch (err) {
+    actionError.value = err.response?.data?.message || 'Could not cancel the request.'
+  } finally {
+    busyId.value = null
+  }
+}
 
 onMounted(async () => {
   try {
@@ -52,7 +71,10 @@ onMounted(async () => {
       You chose <strong>{{ sitterName(chosen) }}</strong> for this trip.
     </div>
 
-    <BookingTable :bookings="bookings" viewer="owner" :show-trip="false" />
+    <div v-if="message" class="alert alert-success">{{ message }}</div>
+    <div v-if="actionError" class="alert alert-warning">{{ actionError }}</div>
+
+    <BookingTable :bookings="bookings" viewer="owner" :show-trip="false" :busy-id="busyId" @cancel="cancelBooking" />
   </template>
 </template>
 

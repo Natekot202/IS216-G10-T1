@@ -2,15 +2,14 @@
 import { ref, computed, onMounted } from 'vue'
 import defaultAvatar from '../assets/img/tempProfile.jpg'
 import { useRoute } from 'vue-router'
-import axios from 'axios'
 import { formatTime } from '../utils/bookingHelpers.js'
 import { toDateString, prettyDate } from '../utils/bookingTimeHelpers.js'
+import { checkBookingRequest, buildBookingPayload } from '../utils/bookingRequestRules.js'
+import { bookingsApi } from '../services/bookingApi.js'
+import { availabilityApi } from '../services/availabilityApi.js'
+import { usersApi, petsApi } from '../services/api.js'
 import BookingDatePicker from '../components/BookingDatePicker.vue'
 import CareChecklistEditor from '../components/CareChecklistEditor.vue'
-
-// Same setup as services/bookingApi.js: Vite forwards /api to the server, and
-// withCredentials sends the login cookie.
-const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api', withCredentials: true })
 
 const route = useRoute()
 const sitterId = route.query.sitterId // from the URL: /bookings/new?sitterId=...
@@ -71,46 +70,26 @@ const selectedPetList = computed(() => pets.value.filter((p) => selectedPets.val
 
 async function sendRequest() {
   error.value = ''
-  // Quick checks before calling the server (the server checks these again)
-  if (selectedPets.value.length === 0) return (error.value = 'Select at least one pet.')
-  if (!when.value.startDate || !when.value.endDate) return (error.value = 'Choose a start and end date.')
-  if (when.value.endDate < when.value.startDate) return (error.value = 'End date must be on or after the start date.')
-  if (!when.value.startTime || !when.value.endTime) return (error.value = 'Choose a start time and an end time.')
-  if (clash.value) return (error.value = 'The sitter is already booked during this time. Please choose different times.')
-  if (unavailableDays.value.length) {
-    return (error.value = `The sitter is not available on ${unavailableDays.value.map(prettyDate).join(', ')}.`)
-  }
-
-  if (tasks.value.some((t) => !t.title.trim())) {
-    return (error.value = 'Give every care task a description, or remove it.')
-  }
-  if (tasks.value.some((t) => !Number.isInteger(t.dailyFrequency) || t.dailyFrequency < 1 || t.dailyFrequency > 10)) {
-    return (error.value = 'Times a day must be a whole number from 1 to 10.')
-  }
-  // .some returns true/false for the condition 
+  // Quick checks before calling the server (the server checks these again). The rules are in utils/bookingRequestRules.js
+  const message = checkBookingRequest({
+    selectedPets: selectedPets.value,
+    when: when.value,
+    tasks: tasks.value,
+    clash: clash.value,
+    unavailableDays: unavailableDays.value
+  })
+  if (message) return (error.value = message)
 
   sending.value = true
   try {
-    const res = await api.post('/bookings', {
-      sitterId,
-      petIds: selectedPets.value,
-      startDate: when.value.startDate,
-      startTime: when.value.startTime,
-      endDate: when.value.endDate,
-      endTime: when.value.endTime,
-      notes: notes.value,
-      tasks: tasks.value.map((t) => {
-        // keep only pets that are still selected; if none are left, the task is for all selected pets
-        const chosen = t.petIds.filter((id) => selectedPets.value.includes(id))
-        return {
-          category: t.category,
-          title: t.title.trim(),
-          dailyFrequency: t.dailyFrequency,
-          petIds: chosen.length ? chosen : selectedPets.value
-        }
+    booking.value = await bookingsApi.create(
+      buildBookingPayload(sitterId, {
+        selectedPets: selectedPets.value,
+        when: when.value,
+        tasks: tasks.value,
+        notes: notes.value
       })
-    })
-    booking.value = res.data
+    )
   } catch (err) {
     error.value = err.response?.data?.message || 'Could not send the booking request.'
   } finally {
@@ -122,15 +101,15 @@ onMounted(async () => {
   if (!sitterId) return (loadError.value = 'No sitter selected. Pick a sitter from Search Sitters first.')
   try {
     const [s, p, a, b] = await Promise.all([
-      api.get(`/users/${sitterId}`), // sitter's public profile (name, rate)
-      api.get('/pets'), // my pets
-      api.get(`/availability/${sitterId}`), // sitter's available days
-      api.get(`/availability/${sitterId}/busy`) // times the sitter is already booked
+      usersApi.getById(sitterId), // sitter's public profile (name, rate)
+      petsApi.getAll(), // my pets
+      availabilityApi.getForSitter(sitterId), // sitter's available days
+      availabilityApi.getBusy(sitterId) // times the sitter is already booked
     ])
-    sitter.value = s.data
-    pets.value = p.data
-    a.data.forEach((day) => (availability.value[day.date] = { status: day.status, slots: day.slots }))
-    busy.value = b.data.map((x) => ({ start: new Date(x.start).getTime(), end: new Date(x.end).getTime() })) 
+    sitter.value = s
+    pets.value = p
+    a.forEach((day) => (availability.value[day.date] = { status: day.status, slots: day.slots }))
+    busy.value = b.map((x) => ({ start: new Date(x.start).getTime(), end: new Date(x.end).getTime() })) 
     // uses .getTime() to convert timestamp_str into milliseconds since 1970 so that u can easily compare start-time and end-time 
   } catch (err) {
     loadError.value = err.response?.data?.message || 'Could not load this sitter.'

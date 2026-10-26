@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { currentUser } from '../services/auth.js'
 import { usersApi } from '../services/api.js'
@@ -10,33 +10,14 @@ import { useLocationSearch } from '../utils/useLocationSearch.js'
 
 const router = useRouter()
 
-const pet_types = ["Dog", "Cat", "Bird", "Rabbit", "Hamster"];
+const pet_types = ["Dog", "Cat", "Bird", "Rabbit", "Hamster", "Other"];
 const services = ["Feeding", "Dog walking", "Cat walking", "Feeding Medication"]
 
 const isOwner = computed(() => currentUser.value?.role === 'owner')
 const isSitter = computed(() => currentUser.value?.role === 'sitter')
 
 const { file: picFile, preview, error: picError, input: fileInput, onPick, clear: clearSelection } = usePhotoPicker()
-const uploading = ref(false)
 const removing = ref(false)
-
-async function uploadPicture() {
-  if (!picFile.value) {
-    return
-  }
-  uploading.value = true
-  picError.value = ''
-  try {
-    const data = new FormData()
-    data.append('photo', picFile.value)
-    currentUser.value = await usersApi.updatePicture(data)
-    clearSelection()
-  } catch (err) {
-    picError.value = err.response?.data?.message || 'Could not upload picture.'
-  } finally {
-    uploading.value = false
-  }
-}
 
 async function removePicture() {
   if (!confirm('Remove your profile picture?')) {
@@ -120,6 +101,64 @@ function onPlacePick(s) {
   }
 }
 
+// sitter gallery
+const MAX_GALLERY = 5
+const ALLOWED = ['image/jpeg', 'image/png', 'image/webp']
+const MAX_BYTES = 2 * 1024 * 1024
+
+const savedGallery = computed(() => currentUser.value?.sitterProfile?.gallery ?? [])
+const pending = ref([])                 
+const galleryError = ref('')
+const removingId = ref(null)
+let nextId = 0
+
+const slotsLeft = computed(() => MAX_GALLERY - savedGallery.value.length - pending.value.length)
+
+function onGalleryPick(e) {
+  galleryError.value = ''
+  const files = Array.from(e.target.files ?? [])
+  e.target.value = ''                    
+  for (const file of files) {
+    if (!ALLOWED.includes(file.type)) {
+      galleryError.value = 'Please choose JPG, PNG or WebP images.'
+      continue
+    }
+    if (file.size > MAX_BYTES) {
+      galleryError.value = 'Each image must be under 2 MB.'
+      continue
+    }
+    if (slotsLeft.value <= 0) {
+      galleryError.value = `You can have up to ${MAX_GALLERY} photos.`
+      break
+    }
+    pending.value.push({ id: nextId++, file, url: URL.createObjectURL(file) })
+  }
+}
+
+function clearPending(item) {
+  URL.revokeObjectURL(item.url)
+  pending.value = pending.value.filter((p) => p.id !== item.id)
+}
+
+async function deleteSaved(photo) {
+  if (!confirm('Delete this photo?')) {
+    return
+  }
+  removingId.value = photo._id
+  galleryError.value = ''
+  try {
+    currentUser.value = await usersApi.removeGalleryPhoto(photo._id)
+  } catch (err) {
+    galleryError.value = err.response?.data?.message || 'Could not delete the photo.'
+  } finally {
+    removingId.value = null
+  }
+}
+
+onBeforeUnmount(() => {
+  pending.value.forEach((p) => URL.revokeObjectURL(p.url))
+})
+
 watch(currentUser, (user) => {
   if (user && !filled) {
     fillForm(user)
@@ -133,6 +172,8 @@ const saving = ref(false)
 async function save() {
   error.value = ''
   saving.value = true
+  let detailsSaved = false
+
   try {
     const payload = { username: form.value.username, bio: form.value.bio }
     if (place.value) {
@@ -151,11 +192,29 @@ async function save() {
       payload.sitterProfile = { ...form.value.sitterProfile }
     }
 
-    const updated = await usersApi.updateMe(payload)
-    currentUser.value = updated
+    currentUser.value = await usersApi.updateMe(payload)
+    detailsSaved = true
+
+    if (picFile.value) {
+      const data = new FormData()
+      data.append('photo', picFile.value)
+      currentUser.value = await usersApi.updatePicture(data)
+    }
+    if (pending.value.length > 0) {
+      const data = new FormData()
+      pending.value.forEach((p) => data.append('photos', p.file))     
+      currentUser.value = await usersApi.addGallery(data)
+      pending.value.forEach((p) => URL.revokeObjectURL(p.url))
+      pending.value = []
+    }
     router.push('/profile')
   } catch (err) {
-    error.value = err.response?.data?.message || 'Could not save changes.'
+    const message = err.response?.data?.message
+    if (detailsSaved) {
+      error.value = `Your details were saved, but your photos could not be updated${message ? `: ${message}` : '.'}`
+    } else {
+      error.value = message || 'Could not save changes.'
+    }
   } finally {
     saving.value = false
   }
@@ -163,120 +222,378 @@ async function save() {
 </script>
 
 <template>
-  <div v-if="currentUser" class="mx-auto mt-4 mb-5 px-2" style="max-width: 1000px">
-    <h3 class="border-bottom pb-2 mb-3">Edit Details</h3>
-
-    <div v-if="error" class="alert alert-warning">{{ error }}</div>
+  <div v-if="currentUser" class="mx-auto mt-4 mb-4 px-2" style="max-width: 1100px">
+    <h3 class="border-bottom pb-2 mb-4">Edit profile</h3>
 
     <form @submit.prevent="save">
       <div class="row g-4">
-        <div class="col-12 col-md-6">
-          <div class="mb-4">
-            <img :src="preview || currentUser?.profilePicture?.url || defaultAvatar" alt="Profile picture"
-                class="rounded mb-2" style="width: 220px; height: 220px; object-fit: cover;" />
-            <div v-if="picError" class="alert alert-warning py-1">{{ picError }}</div>
-            <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp"
-            class="form-control mb-2" @change="onPick" />
-            <button type="button" class="btn btn-sm text-white me-2" style="background-color:#c47756;"
-                    :disabled="!picFile || uploading" @click="uploadPicture">
-                    <span v-if="uploading" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
-                    {{ uploading ? 'Uploading…' : 'Upload picture' }}
-            </button>
-            <!-- to remove a chosen file -->
-            <button v-if="picFile" type="button" class="btn btn-sm btn-outline-secondary me-2"
-                    @click="clearSelection">
-              Clear selection
-            </button>
-            <button v-if="currentUser?.profilePicture?.url && !picFile" type="button"
-                    class="btn btn-sm btn-outline-danger" :disabled="removing" @click="removePicture">
+        <!-- side column: private -->
+        <div class="col-12 col-lg-4 order-lg-last" :class="{ 'order-last': isOwner }">
+          <section class="ef-card ef-card--private">
+            <h4 class="ef-card__title">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8" />
+                <path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+              Private
+            </h4>
+            <p class="ef-card__hint">
+              {{ isSitter ? 'Owners only see your service area, never your address.' : 'Private. Shared only with a sitter once they confirm your booking.' }}
+            </p>
+
+            <div class="form-label">{{ isSitter ? 'Home address' : 'Address' }}</div>
+            <LocationQuery
+              label=""
+              v-model:location-query="locationQuery"
+              :location-suggestions="locationSuggestions"
+              @enterLocation="onLocationInput"
+              @selectLocation="onPlacePick" />
+            <div v-if="locationQuery.trim() && locationQuery !== place?.label" class="form-text text-danger">
+              Pick an address from the list.
+            </div>
+
+            <template v-if="isOwner">
+              <label class="form-label mt-3" for="unit">Unit number</label>
+              <input id="unit" v-model="unit" class="form-control" placeholder="#05-123" maxlength="20" />
+            </template>
+          </section>
+        </div>
+
+        <!-- main column -->
+        <div class="col-12 col-lg-8">
+
+          <section class="ef-card">
+            <h4 class="ef-card__title">Your profile</h4>
+            <p class="ef-card__hint">This is what other people see.</p>
+
+            <div class="ef-who">
+              <div>
+                <div class="ef-avatar">
+                  <img :src="preview || currentUser?.profilePicture?.url || defaultAvatar" alt="Profile picture" />
+                  <label class="ef-avatar__change">
+                    Change
+                    <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp"
+                           class="visually-hidden" @change="onPick" />
+                  </label>
+                </div>
+
+                <div class="ef-avatar__actions">
+                  <button v-if="picFile" type="button" class="btn btn-link btn-sm p-0" @click="clearSelection">
+                    Clear selection
+                  </button>
+                  <button v-if="currentUser?.profilePicture?.url && !picFile" type="button"
+                          class="btn btn-link btn-sm p-0 text-danger" :disabled="removing" @click="removePicture">
                     <span v-if="removing" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
                     {{ removing ? 'Removing…' : 'Remove picture' }}
-            </button>
+                  </button>
+                </div>
+                <div v-if="picError" class="alert alert-warning py-1 mt-2">{{ picError }}</div>
+              </div>
+
+              <div class="ef-who__fields">
+                <label class="form-label" for="username">Username</label>
+                <input id="username" v-model="form.username" class="form-control mb-3" required />
+
+                <label class="form-label" for="bio">Bio</label>
+                <textarea id="bio" v-model="form.bio" class="form-control" rows="4" maxlength="500"
+                          placeholder="Tell us more about yourself!"></textarea>
+                <div class="text-muted small text-end">{{ form.bio.length }}/500</div>
+              </div>
             </div>
-          <!-- <form @submit.prevent="save"> -->
-            <!-- both roles -->
-            <label class="form-label">Username</label>
-            <input v-model="form.username" class="form-control mb-3" required />
+          </section>
 
-            <label class="form-label">Bio</label>
-            <textarea v-model="form.bio" class="form-control" rows="4" maxlength="500"
-                      placeholder="Tell us more about yourself!"></textarea>
-            <div class="text-muted small text-end mb-3">{{ form.bio.length }}/500</div>
-          </div>
+          <section v-if="isSitter" class="ef-card">
+            <h4 class="ef-card__title">Sitter details</h4>
+            <p class="ef-card__hint">Owners use these to find and compare sitters.</p>
 
-          <div class="col-12 col-md-6">
-      <!-- owners only -->
-            <template v-if="isOwner">
-              <label class="form-label">Address</label>
-              <LocationQuery
-                label=""
-                v-model:location-query="locationQuery"
-                :location-suggestions="locationSuggestions"
-                @enterLocation="onLocationInput"
-                @selectLocation="onPlacePick" />
-              <div v-if="locationQuery.trim() && locationQuery !== place?.label" class="form-text text-danger">
-                Pick an address from the list.
-              </div>
-
-              <label class="form-label mt-3" for="unit">Unit number (optional)</label>
-              <input id="unit" v-model="unit" class="form-control mb-1" placeholder="#05-123" maxlength="20" />
-              <div class="form-text mb-3">Private. It isn't shown on your public profile.</div>
-            </template>
-
-            <!-- sitters only -->
-            <template v-if="isSitter">
-              <!-- <h5 class="border-bottom pb-1 mt-4 mb-3">Sitter details</h5> -->
-
-              <label class="form-label">Rate (per hour)</label>
-              <div class="input-group mb-3">
-                <span class="input-group-text">S$</span>
-                <input v-model="form.sitterProfile.petsittingRates" type="number" min="0" step="0.5" class="form-control" />
-              </div>
-
-              <label class="form-label">Sitting since</label>
-              <input v-model="form.sitterProfile.experienceStart" type="month" class="form-control mb-1" />
-              <div class="form-text mb-3">Your years of experience are worked out from this.</div>
-
-              <label class="form-label">Find your area</label>
-              <LocationQuery
-                label=""
-                v-model:location-query="locationQuery"
-                :location-suggestions="locationSuggestions"
-                @enterLocation="onLocationInput"
-                @selectLocation="onPlacePick" />
-              <div class="form-text mb-3">Search your address or postal code. Owners only see the street name, never your address.</div>
-
-              <label class="form-label">Service area</label>
-              <input v-model="form.sitterProfile.serviceArea" class="form-control mb-3" placeholder="e.g. Orchard Street 21" />
-
-              <div class="mb-3">
-                <div class="form-label">I look after</div>
-                <div v-for="t in pet_types" :key="t" class="form-check form-check-inline">
-                  <input class="form-check-input" type="checkbox" :id="`pt-${t}`"
-                        :value="t" v-model="form.sitterProfile.petTypes" />
-                  <label class="form-check-label" :for="`pt-${t}`">{{ t }}</label>
+            <div class="row g-3 mb-3">
+              <div class="col-12 col-sm-6">
+                <label class="form-label" for="rate">Rate (per hour)</label>
+                <div class="input-group">
+                  <span class="input-group-text">S$</span>
+                  <input id="rate" v-model="form.sitterProfile.petsittingRates" type="number" min="0" step="0.5"
+                         class="form-control" />
                 </div>
               </div>
-
-              <div class="mb-4">
-                <div class="form-label">Services</div>
-                <div v-for="s in services" :key="s" class="form-check">
-                  <input class="form-check-input" type="checkbox" :id="`sv-${s}`"
-                        :value="s" v-model="form.sitterProfile.services" />
-                  <label class="form-check-label" :for="`sv-${s}`">{{ s }}</label>
-                </div>
+              <div class="col-12 col-sm-6">
+                <label class="form-label" for="since">Sitting since</label>
+                <input id="since" v-model="form.sitterProfile.experienceStart" type="month" class="form-control" />
               </div>
-            </template>
-          </div>
-        </div>
+              <div class="col-12">
+                <label class="form-label" for="area">Service area</label>
+                <input id="area" v-model="form.sitterProfile.serviceArea" class="form-control"
+                       placeholder="e.g. Tampines" />
+                <div class="form-text">Shown to owners. It's filled in from your home address, and you can change it.</div>
+              </div>
+            </div>
 
-        <div class="mt-4">
-          <button type="submit" class="btn text-white" style="background-color:#c47756;" :disabled="saving">
-            {{ saving ? 'Saving…' : 'Save' }}
-          </button>
-          <router-link class="btn btn-link" to="/profile">Cancel</router-link>
+            <div id="petsLabel" class="form-label">I look after</div>
+            <div class="ef-chips mb-3" role="group" aria-labelledby="petsLabel">
+              <label v-for="t in pet_types" :key="t" class="ef-chip">
+                <input type="checkbox" :value="t" v-model="form.sitterProfile.petTypes" />
+                <span>{{ t }}</span>
+              </label>
+            </div>
+
+            <div id="servicesLabel" class="form-label">Services</div>
+            <div class="ef-chips" role="group" aria-labelledby="servicesLabel">
+              <label v-for="s in services" :key="s" class="ef-chip">
+                <input type="checkbox" :value="s" v-model="form.sitterProfile.services" />
+                <span>{{ s }}</span>
+              </label>
+            </div>
+          </section>
+
+          <section v-if="isSitter" class="ef-card">
+            <h4 class="ef-card__title">Your photos</h4>
+            <p class="ef-card__hint">Add up to 5 photos. Owners will see them on your profile.</p>
+
+            <div class="eg-grid">
+              <div v-for="photo in savedGallery" :key="photo._id" class="eg-tile">
+                <img :src="photo.url" alt="One of your photos" />
+                <button type="button" class="btn-close eg-x bg-white p-1" aria-label="Delete photo"
+                        :disabled="removingId === photo._id" @click="deleteSaved(photo)"></button>
+              </div>
+
+              <div v-for="item in pending" :key="item.id" class="eg-tile">
+                <img :src="item.url" alt="A new photo that is not saved yet" />
+                <button type="button" class="btn-close eg-x bg-white p-1" aria-label="Clear selection"
+                        @click="clearPending(item)"></button>
+              </div>
+
+              <label v-if="slotsLeft > 0" class="eg-tile eg-add">
+                <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                </svg>
+                <span>Add photos</span>
+                <input type="file" multiple accept="image/jpeg,image/png,image/webp" class="visually-hidden"
+                       @change="onGalleryPick" />
+              </label>
+            </div>
+
+            <div v-if="galleryError" class="alert alert-warning py-1 mt-2">{{ galleryError }}</div>
+            <p v-if="pending.length" class="form-text mb-0">New photos are saved when you press Save.</p>
+          </section>
         </div>
-      </form>
+      </div>
+
+      <div class="ef-bar">
+        <p v-if="error" class="ef-bar__error" role="alert">{{ error }}</p>
+        <router-link class="btn btn-outline-secondary" to="/profile">Cancel</router-link>
+        <button type="submit" class="btn ef-save" :disabled="saving || removing">
+          <span v-if="saving" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+          {{ saving ? 'Saving…' : 'Save changes' }}
+        </button>
+      </div>
+    </form>
   </div>
   <p v-else class="container mt-4">Loading…</p>
 </template>
+
+<style scoped>
+
+.eg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+.eg-tile {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #f4e4d3;
+}
+.eg-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.eg-x {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+}
+.eg-badge {
+  position: absolute;
+  left: 0.4rem;
+  bottom: 0.4rem;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(43, 36, 32, 0.85);
+  color: #fff;
+  font-size: 0.7rem;
+}
+.eg-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  border: 2px dashed #c9a98f;
+  background: #f8eee3;
+  color: #5c524b;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.eg-add:hover {
+  border-color: #c47756;
+  background: #f4e4d3;
+}
+.eg-add:focus-within {
+  outline: 2px solid #c44f1c;
+  outline-offset: 2px;
+}
+
+.ef-card {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem 1.35rem;
+  border: 1px solid #e6d3c0;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);
+}
+.ef-card__title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.2rem;
+  font-family: 'Trirong', serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #2b2420;
+}
+.ef-card__hint {
+  margin: 0 0 1.1rem;
+  font-size: 0.9rem;
+  color: #5c524b;
+}
+.ef-card--private {
+  background: #fbf1e6;
+}
+
+.ef-who {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+@media (max-width: 575.98px) {
+  .ef-who {
+    grid-template-columns: 1fr;
+  }
+}
+.ef-avatar {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #f4e4d3;
+}
+.ef-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ef-avatar__change {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.35rem 0;
+  background: rgba(43, 36, 32, 0.72);
+  color: #fff;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ef-avatar__change:hover {
+  background: rgba(43, 36, 32, 0.88);
+}
+.ef-avatar:focus-within {
+  outline: 2px solid #c44f1c;
+  outline-offset: 2px;
+}
+.ef-avatar__actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.ef-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.ef-chip {
+  position: relative;
+  margin: 0;
+}
+.ef-chip input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  cursor: pointer;
+}
+.ef-chip span {
+  display: inline-block;
+  padding: 0.30em 0.8rem;
+  border: 1px solid #d9c3ad;
+  border-radius: 999px;
+  background: #fff;
+  color: #2b2420;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.ef-chip input:hover + span {
+  border-color: #c47756;
+}
+.ef-chip input:checked + span {
+  background: #a85a38;
+  border-color: #a85a38;
+  color: #fff;
+}
+.ef-chip input:checked + span::before {
+  content: '✓ ';
+}
+.ef-chip input:focus-visible + span {
+  outline: 2px solid #c44f1c;
+  outline-offset: 2px;
+}
+
+.ef-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  padding: 0.8rem 0;
+  border-top: 1px solid #e6d3c0;
+  background: rgba(255, 250, 245, 0.94);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.ef-bar__error {
+  margin: 0 auto 0 0;
+  color: #b3261e;
+  font-size: 0.9rem;
+}
+.ef-save {
+  padding: 0.5rem 1.5rem;
+  border: 0;
+  background: #a85a38;
+  color: #fff;
+  font-weight: 600;
+}
+.ef-save:hover:not(:disabled) {
+  background: #8f4a2c;
+  color: #fff;
+}
+</style>

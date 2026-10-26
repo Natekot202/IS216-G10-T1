@@ -4,7 +4,13 @@ import Pet from '../models/petModel.js'
 import Review from '../models/reviewModel.js'
 import { uploadImage, deleteImage } from '../config/cloudinary.js'
 
-const PUBLIC_FIELDS = 'username bio profilePicture role sitterProfile createdAt'
+const PUBLIC_FIELDS =
+  'username bio profilePicture role createdAt ' +
+  'sitterProfile.petsittingRates sitterProfile.experienceStart sitterProfile.petTypes ' +
+  'sitterProfile.services sitterProfile.serviceArea sitterProfile.ratingAvg sitterProfile.ratingCount ' +
+  'sitterProfile.gallery'
+
+const MAX_GALLERY = 5
 
 export async function getAllUsers(req, res){
    try {
@@ -200,5 +206,54 @@ export async function removeMyPicture(req, res) {
     { new: true }
   ).select('-password +ownerProfile.address')
 
+  res.json(user)
+}
+
+export async function addGalleryPhotos(req, res) {
+  const files = req.files ?? []
+  if (files.length === 0) {
+    return res.status(400).json({ message: 'Please choose at least one photo.' })
+  }
+
+  const user = await User.findById(req.session.userId).select('+ownerProfile.address +sitterProfile.address')
+  const saved = user.sitterProfile.gallery.length
+  if (saved + files.length > MAX_GALLERY) {
+    return res.status(400).json({ message: `You can have up to ${MAX_GALLERY} photos, and you already have ${saved}.` })
+  }
+
+  const uploaded = []
+  try {
+    for (const file of files) {
+      const r = await uploadImage(file.buffer, {
+        folder: 'petsociety/gallery',
+        transformation: [{ width: 1400, height: 1400, crop: 'limit' }]
+      })
+      uploaded.push({ url: r.secure_url, publicId: r.public_id })
+    }
+    user.sitterProfile.gallery.push(...uploaded)
+    await user.save()
+  } catch (err) {
+    for (const p of uploaded) {
+      await deleteImage(p.publicId)       
+    }
+    throw err
+  }
+  res.json(user)
+}
+
+export async function removeGalleryPhoto(req, res) {
+  if (!mongoose.isValidObjectId(req.params.photoId)) {
+    return res.status(404).json({ message: 'Photo not found.' })
+  }
+  const user = await User.findById(req.session.userId).select('+ownerProfile.address +sitterProfile.address')
+  const photo = user.sitterProfile.gallery.id(req.params.photoId)
+  if (!photo) {
+    return res.status(404).json({ message: 'Photo not found.' })
+  }
+
+  const publicId = photo.publicId
+  user.sitterProfile.gallery.pull(photo._id)
+  await user.save()
+  await deleteImage(publicId)           
   res.json(user)
 }

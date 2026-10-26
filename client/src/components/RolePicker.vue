@@ -1,5 +1,7 @@
 <script setup>
 import { useRouter } from "vue-router";
+import FeatureCarousel from '../components/FeatureCarousel.vue'
+
 const router = useRouter();
 
 </script>
@@ -9,36 +11,31 @@ const router = useRouter();
         <div class="landing-bg" aria-hidden="true"></div>
         <div class="row g-4 g-lg-5 align-items-center w-100 mx-0">
             <div class="col-12 col-lg-6 text-center text-lg-start">
-                <h1 class="landing-title">Welcome to PetSociety</h1>
-                <p class="fs-5 text-muted mb-4">Trusted sitters for the pets you love.</p>
+                <div class="landing-copy">
+                    <h1 class="landing-title">Trusted sitters for the pets you love</h1>
+                    <p class="landing-lead">Find a sitter in Singapore, book the days you need, and follow every visit.</p>
 
-                <h2 class="h5 fw-semibold mb-3">Are you new here?</h2>
-                <div class="row g-3 mb-4">
-                    <div class="col-12 col-sm-6 col-lg-12 col-xl-6">
-                        <button class="btn role-btn w-100 py-3 fs-5 text-nowrap" @click="router.push('/browse')">
-                        🐶 I'm an owner
+                    <div class="role-grid">
+                        <button type="button" class="role-card role-card--primary" @click="router.push('/browse')">
+                            <span class="role-card__title">Find a sitter</span>
+                            <span class="role-card__sub">For pet owners</span>
+                        </button>
+                        <button type="button" class="role-card"
+                                @click="router.push({ path: '/register', query: { role: 'sitter' } })">
+                            <span class="role-card__title">Become a sitter</span>
+                            <span class="role-card__sub">Set your rates and get booked</span>
                         </button>
                     </div>
-                    <div class="col-12 col-sm-6 col-lg-12 col-xl-6">
-                        <button class="btn role-btn w-100 py-3 fs-5 text-nowrap" @click="router.push({ path: '/register', query: { role: 'sitter' } })">
-                        🧑 I'm a sitter
-                        </button>
-                    </div>
-                </div>
 
-                <div class="d-flex align-items-center gap-3 text-muted small mb-3">
-                    <hr class="flex-grow-1 m-0"> or <hr class="flex-grow-1 m-0">
-                </div>
-
-                <div class="login-box d-flex flex-column flex-sm-row align-items-center justify-content-between gap-2 p-3">
-                    <span class="fw-bold fs-6">Already have an account?</span>
-                    <router-link to="/login" class="btn text-white px-4 fw-semibold" style="background-color:#c47756;">Log in</router-link>
+                    <p class="landing-login">
+                        Already have an account?
+                        <router-link to="/login">Log in</router-link>
+                    </p>
                 </div>
             </div>
-
-            <!-- <div class="col-12 col-lg-6 text-center">
-                <img src="../assets/img/landingPage.jpg" class="img-fluid rounded-4" alt="A dog and a cat">
-            </div> -->
+            <div class="col-12 col-lg-6">
+                <FeatureCarousel/>
+            </div>
         </div>
     </div>
 </template>
@@ -47,27 +44,85 @@ const router = useRouter();
 .landing {
     min-height: 85vh;
 }
-.login-box {
-    background: rgba(255, 250, 245, 0.65);
-    border: 1px solid rgba(196, 119, 86, 0.25);
-    border-radius: 12px;
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    
+.landing-bg {
+  background:
+    linear-gradient(90deg, rgba(88, 80, 76, 0.9) 0%, rgba(122, 113, 108, 0.62) 55%, rgba(43, 36, 32, 0.25) 100%),
+    url('../assets/img/landingPageMain.webp') center / cover no-repeat;
 }
-.role-btn {
+
+.landing-copy {
+  max-width: 34rem;
+  margin-inline: auto;
+}
+@media (min-width: 992px) {
+  .landing-copy {
+    margin-inline: 0;
+  }
+}
+
+.landing-lead {
+  margin: 0.9rem 0 1.75rem;
+  font-size: 1.15rem;
+  color: white;
+}
+
+.landing > .row,
+.landing .row > [class*='col-'] {
+  min-width: 0;
+}
+
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+.role-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 1rem 1.15rem;
+  text-align: inherit;
   border: 1px solid #2b2420;
-  color: #2b2420;
+  border-radius: 12px;
   background: rgba(255, 250, 245, 0.6);
+  color: #2b2420;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   transition: background 0.2s, border-color 0.2s;
 }
-
-.role-btn:hover {
-  background: rgba(196, 119, 86, 0.28);
+.role-card:hover {
+  background: rgb(228, 222, 222);
   border-color: #c47756;
-  color: #2b2420;
+}
+.role-card--primary {
+  background: #a85a38;
+  border-color: #a85a38;
+  color: #fff;
+}
+.role-card--primary:hover {
+  background: #914e32;
+  border-color: #8f4a2c;
+}
+.role-card:focus-visible {
+  outline: 2px solid #c44f1c;
+  outline-offset: 2px;
+}
+.role-card__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.role-card__sub {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.landing-login {
+  margin: 1.25rem 0 0;
+  color: white;
+}
+.landing-login a {
+  color: white;
+  font-weight: 700;
 }
 
 </style>

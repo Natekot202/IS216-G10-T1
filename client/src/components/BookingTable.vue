@@ -13,7 +13,7 @@ const props = defineProps({
   showTrip: { type: Boolean, default: true } // hide the trip link on the trip page itself
 })
 
-defineEmits(['accept', 'decline'])
+defineEmits(['accept', 'decline', 'cancel'])
 
 // only one details row open at a time
 const openId = ref(null)
@@ -31,6 +31,13 @@ function petNames(booking) {
   const names = (booking.petIds || []).map((p) => p?.name).filter(Boolean)
   return names.length ? names.join(', ') : 'No pets listed'
 }
+
+function canCancel(booking) {
+  if (props.viewer === 'owner') return ['pending', 'accepted'].includes(booking.status)
+  return booking.status === 'accepted'
+}
+// for owners, returns true if request is pending/accepted ; can cancel for either of the two statuses 
+// for sitters, returns true if request is accepted ; can only cancel accepted requests 
 
 function showRoute(booking) {
   return ['accepted', 'paid', 'in-progress'].includes(booking.status)
@@ -57,7 +64,7 @@ function showTripLink(booking) {
       <tbody>
         <template v-for="b in bookings" :key="b._id">
           <!-- main row -->
-          <tr :class="{ 'opacity-75': b.status === 'declined' }">
+          <tr :class="{ 'opacity-75': b.status === 'declined' || b.status === 'cancelled' }">
             <td>
               <div class="d-flex align-items-center gap-2">
                 <span class="avatar">{{ otherPerson(b).charAt(0).toUpperCase() }}</span>
@@ -78,7 +85,11 @@ function showTripLink(booking) {
             <td class="d-none d-md-table-cell">{{ formatPrice(b.totalPrice) }}</td>
             <td><StatusPill :status="b.status" /></td>
             <td class="text-end">
-              <div class="d-flex flex-wrap justify-content-end align-items-center gap-2">
+              <!-- sitters get their buttons stacked top to bottom, all the same width (Accept, Decline, View details); owners keep them in a row -->
+              <div
+                class="d-flex gap-2"
+                :class="viewer === 'sitter' ? 'flex-column align-items-stretch actions-stack' : 'flex-wrap justify-content-end align-items-center'"
+              >
                 <template v-if="viewer === 'sitter' && b.status === 'pending'">
                   <button class="btn btn-sm btn-success" :disabled="busyId === b._id" @click="$emit('accept', b._id)">Accept</button>
                   <button class="btn btn-sm btn-outline-danger" :disabled="busyId === b._id" @click="$emit('decline', b._id)">Decline</button>
@@ -94,6 +105,24 @@ function showTripLink(booking) {
                   :to="`/bookings/${b._id}/review`"
                 >Leave review</router-link>
                 <button
+                  v-if="canCancel(b)" 
+                  type="button"
+                  class="btn btn-sm btn-outline-danger"
+                  :disabled="busyId === b._id"
+                  @click="$emit('cancel', b._id)"
+                >Cancel</button>
+                <!-- button only exists if they're owners ; emits the cancel event with the payload of booking_id -->
+                <!-- sitters open the Booking Detail page, owners open the details row below -->
+                <router-link
+                  v-if="viewer === 'sitter'"
+                  class="btn btn-sm btn-outline-secondary text-nowrap"
+                  :to="`/bookings/${b._id}`"
+                >View details</router-link>
+                <!-- 
+                on clicking the button, router-link component directs to that link in the router index.js, which directs it to bookingdetail.vue page 
+                -->
+                <button
+                  v-else
                   type="button"
                   class="btn btn-sm btn-link details-link text-nowrap"
                   :aria-expanded="openId === b._id"
@@ -161,6 +190,10 @@ function showTripLink(booking) {
   color: #2f6f62;
   font-weight: 600;
   text-decoration: none;
+}
+.actions-stack {
+  width: 132px; /* every stacked button is this wide */
+  margin-left: auto; /* keeps the stack on the right of the Actions column */
 }
 .details-link {
   color: #2b2420;

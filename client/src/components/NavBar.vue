@@ -74,25 +74,28 @@ async function handleLogout() {
               <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
                 <router-link class="nav-link" to="/owner/bookings">My Bookings</router-link>
               </li>
+              <li v-if="!hideElem && currentUser" class="nav-item">
+                <router-link class="nav-link" to="/session">Session</router-link>
+              </li>
+              <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
+                <router-link class="nav-link" to="/owner/routes">My Routes</router-link>
+              </li>
               <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
                 <router-link class="nav-link" to="/sitter/calendar">My Calendar</router-link>
               </li>
               <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
                 <router-link class="nav-link" to="/sitter/requests">Booking Requests</router-link>
               </li>
-              <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
-                <router-link class="nav-link" to="/sitter/reviews">Reviews & Ratings</router-link>
-              </li>
               <li v-if="currentUser && !hideElem" class="nav-item">
                 <router-link class="nav-link" to="/profile"> My Profile</router-link>
               </li>
           </ul>
           <div class="nav-account ms-lg-3">
-            <button v-if="currentUser" class="btn text-white" style="background-color:#c44f1c;"
+            <button v-if="currentUser" class="btn text-white" style="background-color:#a85a38;"
                     @click="handleLogout">
               Log out
             </button>
-            <router-link v-else class="btn text-white" style="background-color:#c44f1c;" to="/login">
+            <router-link v-else class="btn text-white" style="background-color:#a85a38;" to="/login">
               Log in
             </router-link>
           </div>

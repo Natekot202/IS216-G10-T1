@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import Review from '../models/Review.js'
+import Review from '../models/reviewModel.js'
 import User from '../models/UserModel.js'
 
 export async function recalcSitterRating(sitterId) {
