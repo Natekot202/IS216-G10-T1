@@ -156,9 +156,9 @@ router.get('/:id/care-tasks', requireLogin, asyncHandler(async (req, res) => {
 router.get('/:id', requireLogin, asyncHandler(async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Booking not found.' })
   const booking = await Booking.findById(req.params.id)
-    .populate('ownerId', 'username email')
-    .populate('sitterId', 'username email')
-    .populate('petIds', 'name species')
+    .populate('ownerId', 'username email profilePicture') // the picture is for the owner card on the Booking Detail page
+    .populate('sitterId', 'username email profilePicture sitterProfile.ratingAvg sitterProfile.ratingCount') // + the stars for the sitter card
+    .populate('petIds', 'name species breed photo') // + the pets' pictures and breed
   if (!booking) return res.status(404).json({ message: 'Booking not found.' })
 
   const me = String(req.session.userId)
