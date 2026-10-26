@@ -48,8 +48,18 @@ const chosenDays = computed(() => {
   return days
 })
 
-// Price preview: daily rate × number of days
-const totalPrice = computed(() => rate.value * chosenDays.value.length)
+// Hours booked: from start date + start time to end date + end time ('24:00' = end of the day)
+const chosenHours = computed(() => {
+  const { startDate, startTime, endDate, endTime } = when.value
+  if (!startDate || !endDate || !startTime || !endTime) return 0
+  const toMinutes = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5))
+  const dayGap = Math.round((new Date(endDate + 'T00:00:00') - new Date(startDate + 'T00:00:00')) / 86400000)
+  const minutes = dayGap * 24 * 60 + toMinutes(endTime) - toMinutes(startTime)
+  return minutes > 0 ? minutes / 60 : 0
+})
+
+// Price preview: hourly rate × number of hours (rounded to cents)
+const totalPrice = computed(() => Math.round(rate.value * chosenHours.value * 100) / 100)
 
 // Chosen days the sitter hasn't marked as available
 const unavailableDays = computed(() => chosenDays.value.filter((d) => availability.value[d]?.status !== 'available'))
@@ -146,7 +156,7 @@ onMounted(async () => {
             <img class="avatar rounded-circle img-fluid" :src="sitter.profilePicture?.url || defaultAvatar">
             <div>
               <div class="fw-semibold">{{ sitter.username }}</div>
-              <div class="small text-muted">${{ rate }}/day</div>
+              <div class="small text-muted">${{ rate }}/hr</div>
             </div>
           </div>
 
@@ -186,8 +196,8 @@ onMounted(async () => {
             2. within bookingdatepicker, it builds the object called change, and returns it to the parent, which the parent recieves as the when object 
           -->
 
-          <p v-if="chosenDays.length" class="small mb-4">
-            {{ chosenDays.length }} day{{ chosenDays.length === 1 ? '' : 's' }} × ${{ rate }} = <strong>${{ totalPrice }}</strong>
+          <p v-if="chosenHours" class="small mb-4">
+            {{ chosenHours }} hour{{ chosenHours === 1 ? '' : 's' }} × ${{ rate }}/hr = <strong>${{ totalPrice }}</strong>
           </p>
 
           <!-- Notes -->
@@ -208,14 +218,14 @@ onMounted(async () => {
       <div class="card shadow-sm">
         <div class="card-body">
           <h3 class="h6 text-uppercase text-muted fw-bold mb-3">Price Preview</h3>
-          <div class="d-flex justify-content-between small"><span>Daily rate</span><span>${{ rate }}</span></div>
-          <div class="d-flex justify-content-between small"><span>Days</span><span>{{ chosenDays.length || '–' }}</span></div>
+          <div class="d-flex justify-content-between small"><span>Hourly rate</span><span>${{ rate }}/hr</span></div>
+          <div class="d-flex justify-content-between small"><span>Hours</span><span>{{ chosenHours || '–' }}</span></div>
           <div v-if="when.startTime && when.endTime" class="d-flex justify-content-between small">
             <span>Time</span><span>{{ formatTime(when.startTime) }} – {{ formatTime(when.endTime) }}</span>
           </div>
           <hr />
           <div class="d-flex justify-content-between fw-bold"><span>Total</span><span>${{ totalPrice }}</span></div>
-          <p class="small text-muted mt-2 mb-0">Charged per calendar day.</p>
+          <p class="small text-muted mt-2 mb-0">Charged per hour. You pay after the sitter has completed the booking.</p>
           <div v-if="clash" class="alert alert-danger small py-2 mt-3 mb-0">
             The sitter is already booked during this time. Please choose different times.
           </div>

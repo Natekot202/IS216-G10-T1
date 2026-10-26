@@ -66,8 +66,8 @@ onBeforeUnmount(() => clearInterval(timer))
     </div>
 
     <div v-else>
-      <SessionCard v-for="s in data.sessions" :key="s.booking._id" :session="s"
-                   :today="data.today" :is-sitter="isSitter" class="mb-4 pb-4 border-bottom" />
+      <SessionCard v-for="(s, i) in data.sessions" :key="s.booking._id" :session="s"
+                  :today="data.today" :is-sitter="isSitter" :index="i" class="mb-4" />
     </div>
   </div>
 </template>

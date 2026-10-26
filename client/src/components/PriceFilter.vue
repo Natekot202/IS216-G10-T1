@@ -29,7 +29,7 @@ const trackStyle = computed(() => {
 
 <template>
   <div>
-    <label class="form-label fw-medium">Price</label>
+    <label class="form-label fw-medium">Price (per hour)</label>
     <div class="range-slider-container">
       <div class="slider-track" :style="trackStyle"></div>
       <input type="range" class="slider slider-min" :min="minLimit" :max="maxLimit" step="5" :value="min" @input="onMin">

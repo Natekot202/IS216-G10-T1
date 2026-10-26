@@ -35,7 +35,7 @@ const isNewSitter = computed(() => {
             
             <span v-for="pet in sitter.sitterProfile.petTypes" class="btn btn-warning me-3 mb-2 text-dark fw-medium">{{ pet }}</span>
             <p v-if="sitter.bio?.trim()" class="fw-medium">Bio: {{ sitter.bio }}</p>
-            <p>${{sitter.sitterProfile.petsittingRates}}/day</p>
+            <p>${{sitter.sitterProfile.petsittingRates}}/hr</p>
             <slot></slot>
         </div>
     </div>

@@ -18,7 +18,7 @@ export async function createReview(req, res) {
   if (!booking) {
     return res.status(404).json({ message: 'Booking not found.' })
   }
-  if (booking.status !== 'completed') {
+  if (!['completed', 'paid'].includes(booking.status)) {
     return res.status(400).json({ message: 'You can only review a completed booking.' })
   }
 

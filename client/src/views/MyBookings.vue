@@ -11,8 +11,9 @@ import BookingTabs from '../components/BookingTabs.vue'
 
 const TABS = [
   { key: 'pending', label: 'Pending', statuses: ['pending'] },
-  { key: 'upcoming', label: 'Upcoming', statuses: ['accepted', 'paid', 'in-progress'] },
-  { key: 'past', label: 'Past', statuses: ['completed', 'declined', 'cancelled'] }
+  { key: 'upcoming', label: 'Upcoming', statuses: ['accepted', 'in-progress'] },
+  { key: 'to-pay', label: 'To pay', statuses: ['completed'] },
+  { key: 'past', label: 'Past', statuses: ['paid', 'declined', 'cancelled'] }
 ]
 
 const route = useRoute()

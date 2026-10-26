@@ -16,6 +16,7 @@ import googleCalendarRoutes from './src/routes/googleCalendar.js'
 import visitRoutes from './src/routes/visitRoutes.js'
 import reviewRoutes from './src/routes/reviewRoutes.js'
 import walkRouteRoutes from './src/routes/walkRoutes.js'
+import paymentRoutes from './src/routes/paymentRoute.js'
 import mongoose from 'mongoose'
 
 if (!process.env.SESSION_SECRET){
@@ -61,6 +62,7 @@ app.use('/api/visits', visitRoutes)
 app.use('/api/reviews', reviewRoutes)
 app.use('/api/google', googleCalendarRoutes)
 app.use('/api/walk-routes', walkRouteRoutes)
+app.use('/api/payments', paymentRoutes)
 
 // Fallback 404 for unmatched API routes
 app.use('/api', (req, res) => {

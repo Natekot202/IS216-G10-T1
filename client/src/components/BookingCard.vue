@@ -21,7 +21,7 @@ const petNames = computed(() =>
   (props.booking.petIds || []).map((p) => p?.name).filter(Boolean).join(', ')
 )
 
-const showRoute = computed(() => ['accepted', 'paid', 'in-progress'].includes(props.booking.status))
+const showRoute = computed(() => ['accepted', 'in-progress'].includes(props.booking.status))
 </script>
 
 <template>
@@ -48,14 +48,7 @@ const showRoute = computed(() => ['accepted', 'paid', 'in-progress'].includes(pr
       </template>
       <router-link class="btn btn-sm btn-outline-secondary" :to="`/bookings/${booking._id}`">Booking page</router-link>
       <router-link v-if="showRoute" class="btn btn-sm btn-outline-secondary" :to="`/bookings/${booking._id}/route`">Walk route</router-link>
-      <router-link v-if="viewer === 'owner' && booking.status === 'accepted'" class="btn btn-sm text-white pay-btn" :to="`/bookings/${booking._id}/pay`">Pay now</router-link>
-      <router-link v-if="viewer === 'owner' && booking.status === 'completed'" class="btn btn-sm btn-outline-secondary" :to="`/bookings/${booking._id}/review`">Leave review</router-link>
+      <router-link v-if="viewer === 'owner' && booking.status === 'completed'" class="btn btn-sm btn-brand" :to="`/bookings/${booking._id}/pay`">Pay now</router-link>
     </div>
   </div>
 </template>
-
-<style scoped>
-.pay-btn {
-  background-color: #c44f1c;
-}
-</style>
