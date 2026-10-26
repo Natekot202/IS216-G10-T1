@@ -16,14 +16,14 @@ const isNewSitter = computed(() => {
     
     <div class="card">
         <div class="card-body">
-            <div class="d-flex gap-2">
+            <div class="d-flex justify-content-start gap-2">
                 <img :src="sitter.profilePicture?.url || defaultAvatar"
-                    class="rounded-circle img-fluid"
-                    style="width: 50px; height: 50px; object-fit: cover; border:1px solid grey"
+                    class="border rounded img-fluid"
+                    style="width: 80px; height: 80px; object-fit: cover; border:1px solid grey"
                     alt="Circular Profile">
-                <div class="d-flex flex-column ms-1 mb-3">
+                <div class="d-flex flex-column ms-2 mb-3">
                     <div class="d-flex align-items-center gap-2">
-                        <h5 class="card-title mb-0">{{ sitter.username }}</h5>
+                        <h5 class="card-title mb-0 fw-bolder">{{ sitter.username }}</h5>
                         <span v-if="isNewSitter" class="badge rounded-pill text-bg-success">New sitter</span>
                     </div>
                     <ShowStarRating :modelValue="Math.floor(sitter.sitterProfile.ratingAvg)" :maxStars="5" class="mb-2"> ({{ sitter.sitterProfile.ratingCount }})</ShowStarRating>
@@ -31,11 +31,11 @@ const isNewSitter = computed(() => {
                         ~ {{ sitter.distanceKm.toFixed(1) }} km away
                     </small>
                 </div>
+                <div class="ms-auto fw-semibold" style="color:brown">${{sitter.sitterProfile.petsittingRates}}/hr</div>
             </div>
             
-            <span v-for="pet in sitter.sitterProfile.petTypes" class="btn btn-warning me-3 mb-2 text-dark fw-medium">{{ pet }}</span>
-            <p v-if="sitter.bio?.trim()" class="fw-medium">Bio: {{ sitter.bio }}</p>
-            <p>${{sitter.sitterProfile.petsittingRates}}/hr</p>
+            <span v-for="pet in sitter.sitterProfile.petTypes" class="btn me-3 mb-2 text-white fw-medium" style="background-color: #B55B2F;">{{ pet }}</span>
+            <p v-show="sitter.bio?.trim()" class="fw-medium">"{{ sitter.bio }}"</p>
             <slot></slot>
         </div>
     </div>

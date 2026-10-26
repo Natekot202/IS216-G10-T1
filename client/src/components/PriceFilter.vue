@@ -23,23 +23,30 @@ const trackStyle = computed(() => {
   const range = props.maxLimit - props.minLimit
   const a = ((props.min - props.minLimit) / range) * 100
   const b = ((props.max - props.minLimit) / range) * 100
-  return { background: `linear-gradient(to right, #ddd ${a}%, #42b983 ${a}%, #42b983 ${b}%, #ddd ${b}%)` }
+  return { background: `linear-gradient(to right, #ddd ${a}%, #C4552D ${a}%, #C4552D ${b}%, #ddd ${b}%)` }
 })
 </script>
 
 <template>
   <div>
-    <label class="form-label fw-medium">Price (per hour)</label>
+    <label class="form-label fw-bold">Price (per hour)</label>
     <div class="range-slider-container">
       <div class="slider-track" :style="trackStyle"></div>
       <input type="range" class="slider slider-min" :min="minLimit" :max="maxLimit" step="5" :value="min" @input="onMin">
       <input type="range" class="slider slider-max" :min="minLimit" :max="maxLimit" step="5" :value="max" @input="onMax">
     </div>
-    <div class="row">
-      <div class="col-5"><div class="d-flex gap-2"><p>Min:</p>
-        <input type="number" class="form-control" :min="minLimit" :max="maxLimit" step="5" :value="min" @input="onMin"></div></div>
-      <div class="col-5 mb-3"><div class="d-flex gap-2"><p>Max:</p>
-        <input type="number" class="form-control" :min="minLimit" :max="maxLimit" step="5" :value="max" @input="onMax"></div></div>
+    
+    <div class="row g-2 mb-3">
+      <div class="col-6">
+        <label class="form-label small text-secondary mb-1" for="price-min">Min</label>
+        <input id="price-min" type="number" class="form-control" :min="minLimit" :max="maxLimit" step="5"
+              :value="min" @input="onMin">
+      </div>
+      <div class="col-6">
+        <label class="form-label small text-secondary mb-1" for="price-max">Max</label>
+        <input id="price-max" type="number" class="form-control" :min="minLimit" :max="maxLimit" step="5"
+              :value="max" @input="onMax">
+      </div>
     </div>
   </div>
 </template>
@@ -80,7 +87,7 @@ const trackStyle = computed(() => {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #42b983;
+  background: brown;
   border: 2px solid #fff;
   box-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
@@ -92,7 +99,7 @@ const trackStyle = computed(() => {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #42b983;
+  background: brown;
   border: 2px solid #fff;
   box-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }

@@ -71,8 +71,8 @@ watch([from, to], ([f, t]) => { draftFrom.value = f; draftTo.value = t })
 
 <template>
   <div>
-    <label class="form-label fw-medium">Available dates</label>
-    <div class="position-relative mb-1">
+    <label class="form-label fw-bold">Available dates</label>
+    <div class="position-relative mb-3">
         <!-- paste your existing toggle button + v-if="showDatePicker" popup markup here, unchanged -->
         <button type="button" class="form-control text-start d-flex justify-content-between align-items-center" aria-haspopup="dialog" :aria-expanded="showDatePicker" @click="toggleDatePicker">
             <span>{{ dateRangeLabel }}</span><span aria-hidden="true">▦</span>
@@ -103,7 +103,7 @@ watch([from, to], ([f, t]) => { draftFrom.value = f; draftTo.value = t })
             </div>
         </div>
     </div>
-    <small class="text-secondary d-block mb-2">Choose a consecutive date range</small>
+    
   </div>
 </template>
 
@@ -113,6 +113,7 @@ watch([from, to], ([f, t]) => { draftFrom.value = f; draftTo.value = t })
 .availability-picker {
   width: 300px;
   font-family: Roboto, system-ui, -apple-system, sans-serif;
+  
 }
 
 .availability-calendar {

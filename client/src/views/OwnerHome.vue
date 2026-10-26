@@ -292,7 +292,7 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- main body -->
-      <div class="row gx-3">
+      <div class="row gx-2">
       
         <div class="col-md-4 col-lg-3">
 
@@ -323,22 +323,22 @@ onBeforeUnmount(() => {
 
           <div class="d-flex align-items-center gap-2 mb-2">
             <span class="text-secondary d-none d-md-inline">{{ searchResults.length }} sitters</span>
-            <button type="button" class="btn btn-outline-danger fw-medium flex-fill d-md-none bg-white"
+            <button type="button" class="btn btn-outline-danger fw-semibold flex-fill d-md-none bg-white"
               data-bs-toggle="offcanvas"
               data-bs-target="#offcanvasBottom"
               aria-controls="offcanvasBottom">
               ⫶☰ Filters
             </button>
-            <button type="button" class="btn btn-outline-danger bg-white fw-medium flex-fill flex-md-grow-0 ms-md-auto d-lg-none"
+            <button type="button" class="btn btn-outline-danger bg-white fw-semibold flex-fill flex-md-grow-0 ms-md-auto d-lg-none"
                 @click="showMapModal = true">
               🗺 Show map
             </button>
           </div>
 
           <div class="row">
-            <div class="col-12 mb-2" v-for="sitter in searchResults" :key="sitter._id">
+            <div class="col-12 mb-3" v-for="sitter in searchResults" :key="sitter._id">
               <SitterProfileCard :sitter="sitter">
-                <router-link :to="`/users/${sitter._id}`" class="btn border border-warning rounded col-12 fw-semibold bg-light">View Profile</router-link>
+                <router-link :to="`/users/${sitter._id}`" class="btn border border-warning rounded col-12 fw-semibold bg-light mt-3">View Profile</router-link>
               </SitterProfileCard>
             </div>
           </div>

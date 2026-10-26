@@ -17,7 +17,7 @@ const open = ref(false)
       Additional filters {{ open ? '▴' : '▾' }}
     </button>
     <div v-if="open" id="additionalFilters">
-      <label class="form-label fw-semibold">Pet services:</label>
+      <label class="form-label fw-bold">Pet services:</label>
       <div>
         <div class="form-check form-check-inline" v-for="p in ['dog','cat','bird','rabbit','hamster']" :key="p">
           <input type="checkbox" class="form-check-input" v-model="pets" :value="p" :id="`pet-${p}`">
@@ -28,7 +28,7 @@ const open = ref(false)
         <label for="others">Others:</label>
         <div class="col-5"><input type="text" class="form-control" id="others" v-model="other"></div>
       </div>
-      <label class="fw-semibold">Rating:</label>
+      <label class="fw-bold">Rating:</label>
       <StarRating v-model="rating" :maxStars="5" />
     </div>
   </div>

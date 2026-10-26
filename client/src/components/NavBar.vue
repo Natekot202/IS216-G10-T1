@@ -54,44 +54,47 @@ async function handleLogout() {
 <template>
   <nav class="topbar navbar navbar-expand-lg navbar-dark">
     <div class="container-fluid">
-    <router-link class="navbar-brand" to="/">
-      <span class="brand-emoji">🐾</span> PetSociety
-    </router-link>
+      <router-link class="navbar-brand" to="/">
+        <span class="brand-emoji">🐾</span> PetSociety
+      </router-link>
       <template v-if="!hideElem">
         <button class="navbar-toggler" type="button" aria-label="Open menu"
                 :aria-expanded="open" @click="open = !open">
           <span class="navbar-toggler-icon"></span>
         </button>
 
-        <div v-if="open" class="nav-backdrop" @click="open = false"></div>
+        <div v-if="open" class="nav-backdrop" @click="open = false">
+        </div>
         <div class="nav-menu" :class="{ 'nav-menu--open': open }">
           <button type="button" class="btn-close btn-close-white d-lg-none ms-auto mb-3"
-                  aria-label="Close menu" @click="open = false"></button>
+                  aria-label="Close menu" @click="open = false">
+          </button>
           <ul class="navbar-nav ms-lg-auto align-items-lg-center">
-              <li v-if="!hideElem" class="nav-item">
-                <router-link class="nav-link" :to="searchLink">{{ currentUser?.role === 'sitter' ? 'Home' : 'Search Sitters' }}</router-link>
-              </li>
-              <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
-                <router-link class="nav-link" to="/owner/bookings">My Bookings</router-link>
-              </li>
-              <li v-if="!hideElem && currentUser" class="nav-item">
-                <router-link class="nav-link" to="/session">Session</router-link>
-              </li>
-              <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
-                <router-link class="nav-link" to="/owner/routes">My Routes</router-link>
-              </li>
-              <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
-                <router-link class="nav-link" to="/sitter/calendar">My Calendar</router-link>
-              </li>
-              <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
-                <router-link class="nav-link" to="/sitter/requests">Booking Requests</router-link>
-              </li>
-              <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
-                <router-link class="nav-link" to="/sitter/transactions">Transactions</router-link>
-              </li>
-              <li v-if="currentUser && !hideElem" class="nav-item">
-                <router-link class="nav-link" to="/profile"> My Profile</router-link>
-              </li>
+            
+            <li v-if="!hideElem" class="nav-item">
+              <router-link class="nav-link" :to="searchLink">{{ currentUser?.role === 'sitter' ? 'Home' : '🔍︎ Search Sitters' }}</router-link>
+            </li>
+            <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
+              <router-link class="nav-link" to="/owner/bookings">My Bookings</router-link>
+            </li>
+            <li v-if="!hideElem && currentUser" class="nav-item">
+              <router-link class="nav-link" to="/session">Session</router-link>
+            </li>
+            <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
+              <router-link class="nav-link" to="/owner/routes">My Routes</router-link>
+            </li>
+            <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
+              <router-link class="nav-link" to="/sitter/calendar">My Calendar</router-link>
+            </li>
+            <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
+              <router-link class="nav-link" to="/sitter/requests">Booking Requests</router-link>
+            </li>
+            <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
+              <router-link class="nav-link" to="/sitter/transactions">Transactions</router-link>
+            </li>
+            <li v-if="currentUser && !hideElem" class="nav-item">
+              <router-link class="nav-link" to="/profile"> My Profile</router-link>
+            </li>
           </ul>
           <div class="nav-account ms-lg-3">
             <button v-if="currentUser" class="btn text-white" style="background-color:#a85a38;"
