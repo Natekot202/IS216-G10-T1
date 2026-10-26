@@ -85,7 +85,11 @@ function showTripLink(booking) {
             <td class="d-none d-md-table-cell">{{ formatPrice(b.totalPrice) }}</td>
             <td><StatusPill :status="b.status" /></td>
             <td class="text-end">
-              <div class="d-flex flex-wrap justify-content-end align-items-center gap-2">
+              <!-- sitters get their buttons stacked top to bottom, all the same width (Accept, Decline, View details); owners keep them in a row -->
+              <div
+                class="d-flex gap-2"
+                :class="viewer === 'sitter' ? 'flex-column align-items-stretch actions-stack' : 'flex-wrap justify-content-end align-items-center'"
+              >
                 <template v-if="viewer === 'sitter' && b.status === 'pending'">
                   <button class="btn btn-sm btn-success" :disabled="busyId === b._id" @click="$emit('accept', b._id)">Accept</button>
                   <button class="btn btn-sm btn-outline-danger" :disabled="busyId === b._id" @click="$emit('decline', b._id)">Decline</button>
@@ -111,7 +115,7 @@ function showTripLink(booking) {
                 <!-- sitters open the Booking Detail page, owners open the details row below -->
                 <router-link
                   v-if="viewer === 'sitter'"
-                  class="btn btn-sm btn-link details-link text-nowrap"
+                  class="btn btn-sm btn-outline-secondary text-nowrap"
                   :to="`/bookings/${b._id}`"
                 >View details</router-link>
                 <!-- 
@@ -186,6 +190,10 @@ function showTripLink(booking) {
   color: #2f6f62;
   font-weight: 600;
   text-decoration: none;
+}
+.actions-stack {
+  width: 132px; /* every stacked button is this wide */
+  margin-left: auto; /* keeps the stack on the right of the Actions column */
 }
 .details-link {
   color: #2b2420;
