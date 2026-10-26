@@ -68,7 +68,7 @@ router.put('/me', requireSitter, asyncHandler(async (req, res) => {
 router.get('/me/bookings', requireSitter, asyncHandler(async (req, res) => {
   const bookings = await Booking.find({ sitterId: req.session.userId, status: { $in: BOOKED_STATUSES } })
     .populate('ownerId', 'username') // swap the owner's id for their name
-    .populate('petIds', 'name') // swap the pet ids for their names
+    .populate('petIds', 'name photo') // swap the pet ids for their names and pictures
   res.json(bookings.map((b) => ({
     _id: b._id,
     startDate: toSgtDateString(b.startDate),
@@ -78,6 +78,7 @@ router.get('/me/bookings', requireSitter, asyncHandler(async (req, res) => {
     status: b.status,
     ownerName: b.ownerId?.username || 'Pet owner',
     petNames: b.petIds.map((pet) => pet.name),
+    pets: b.petIds.map((pet) => ({ name: pet.name, photo: pet.photo?.url || '' })), // for the pictures on the calendar's hover card
     notes: b.notes,
     totalPrice: b.totalPrice
   })))
