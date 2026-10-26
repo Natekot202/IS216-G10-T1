@@ -458,7 +458,6 @@ async function save() {
   align-items: center;
   gap: 0.4rem;
   margin: 0 0 0.2rem;
-  font-family: 'Trirong', serif;
   font-size: 1.2rem;
   font-weight: 700;
   color: #2b2420;

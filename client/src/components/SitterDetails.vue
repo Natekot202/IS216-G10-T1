@@ -110,8 +110,8 @@ function formatDate(d) {
               fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
         <circle cx="12" cy="10" r="2.3" fill="currentColor" />
       </svg>
-      <span v-if="hasArea" style="font-family:'Trirong', serif; font-size:1.2rem;">Serves <strong>{{ area }}</strong></span>
-      <span v-else class="text-muted" style="font-family:'Trirong', serif; font-size:1.2rem;">Service area not set</span>
+      <span v-if="hasArea" style="font-size:1.2rem;">Service Area: <strong>{{ area }}</strong></span>
+      <span v-else class="text-muted" style="font-size:1.2rem;">Service area not set</span>
     </p>
 
     <section class="sd-group">
@@ -154,9 +154,12 @@ function formatDate(d) {
 .sd-band {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-radius: 16px;
-  background: #2b2420;
-  box-shadow: 0 10px 24px rgba(43, 36, 32, 0.25);
+  border: 1px solid rgba(196, 119, 86, 0.3);
+  border-top: 4px solid #c47756;           
+  border-radius: 20px;
+  background: #f6e3d6;                   
+  box-shadow: 0 8px 20px rgba(120, 70, 40, 0.14);
+  max-width:900px;
 }
 .sd-stat {
   display: flex;
@@ -164,23 +167,23 @@ function formatDate(d) {
   gap: 0.15rem;
   min-width: 0;
   padding: 1.1rem 1.25rem;
-  font-family: 'Trirong', serif;
   font-size: 18px;
 }
 .sd-stat + .sd-stat {
   border-left: 1px solid rgba(255, 255, 255, 0.14);
 }
 .sd-big {
-  color: #fff;
+  color: black;
+  font-weight:700;
 }
 .sd-big--empty {
-  color: rgba(255, 255, 255, 0.4);
+  color: black;
 }
 .sd-stars {
   color: #e3946f;
 }
 .sd-sub {
-  color: rgba(255, 255, 255, 0.7);
+  color: black;
 }
 
 @media (max-width: 575.98px) {
@@ -211,7 +214,6 @@ function formatDate(d) {
 }
 .sd-heading {
   margin: 0 0 0.6rem;
-  font-family: 'Trirong', serif;
   font-size: 1.2rem;
   font-weight: 700;
   color: #2b2420;

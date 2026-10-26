@@ -29,6 +29,10 @@ export const postSignup = async (req, res) => {
         errors.push("Password must contain at least 1 special character.");
     }
 
+    if (!/[A-Z]/.test(password)) {
+      errors.push('Password must contain at least 1 uppercase letter.')
+    }
+
     const existingUser = await User.getUserByEmail(cleanEmail);
     if (existingUser) {
         errors.push("Email is already registered."); 

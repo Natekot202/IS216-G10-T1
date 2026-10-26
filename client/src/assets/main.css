@@ -1,6 +1,10 @@
+:root {
+  --bs-body-font-family: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
 body {
   background-color: #fff9f4;
-  /* background-color: #f5e9db; */
+  font-family: var(--bs-body-font-family);
+
 }
 
 .navbar-brand {
@@ -143,12 +147,12 @@ body {
 }
 
 .landing-title {
-  font-family: "Fraunces", sans-serif;
+  font-family: 'Open Sans', sans-serif;
+  font-style: italic;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: #221f1e;
   font-size: clamp(1.9rem, 4vw, 3.2rem);
-  text-shadow: 1px 1px rgb(134, 85, 10);
 }
 
 /* checkbox checked */
