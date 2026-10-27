@@ -1,8 +1,7 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-
-import { currentUser } from "../services/auth.js";
+import { currentUser, fetchUser } from "../services/auth.js";
 import ProfileHeader from '../components/ProfileHeader.vue';
 import OwnerDetails from '../components/OwnerDetails.vue'
 import SitterDetails from '../components/SitterDetails.vue'
@@ -36,10 +35,17 @@ async function load() {
   }
 }
 watch([() => route.params.id, currentUser], load, { immediate: true })
+
+onMounted(() => {
+  if (isMine.value) {
+    fetchUser()
+  }
+})
+
 </script>
 
 <template>
-  <div class="container-fluid mt-1 mb-4">
+  <div class="pf">
   
     <!-- to go back (for when viewing another person's profile) -->
     <button v-if="!isMine" type="button" class="pf-back" @click="goBack">
@@ -77,33 +83,3 @@ watch([() => route.params.id, currentUser], load, { immediate: true })
     </template>
   </div>
 </template>
-
-<style scoped>
-.page-title {
-  font-size: 1.9rem;
-  font-weight: 600; 
-  letter-spacing: -0.01em;
-  margin-bottom: 0;
-}
-.pf-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin-bottom: 0.75rem;
-  padding: 0.25rem 0.75rem 0.25rem 0.4rem;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: #5c524b;
-  font-weight: 600;
-  transition: background 0.2s, color 0.2s;
-}
-.pf-back:hover {
-  background: rgba(196, 119, 86, 0.16);
-  color: #2b2420;
-}
-.pf-back:focus-visible {
-  outline: 2px solid #c44f1c;
-  outline-offset: 2px;
-}
-</style>

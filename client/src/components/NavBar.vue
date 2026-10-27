@@ -54,56 +54,56 @@ async function handleLogout() {
 <template>
   <nav class="topbar navbar navbar-expand-lg navbar-dark">
     <div class="container-fluid">
+      <button v-if="!hideElem" class="navbar-toggler" type="button" aria-label="Open menu"
+              :aria-expanded="open" @click="open = !open">
+        <span class="navbar-toggler-icon"></span>
+      </button>
       <router-link class="navbar-brand" to="/">
-        <span class="brand-emoji">🐾</span> PetSociety
+        <!-- <span class="brand-emoji">🐾</span>  -->
+        PetSociety
       </router-link>
       <template v-if="!hideElem">
-        <button class="navbar-toggler" type="button" aria-label="Open menu"
-                :aria-expanded="open" @click="open = !open">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-
         <div v-if="open" class="nav-backdrop" @click="open = false">
         </div>
         <div class="nav-menu" :class="{ 'nav-menu--open': open }">
           <button type="button" class="btn-close btn-close-white d-lg-none ms-auto mb-3"
                   aria-label="Close menu" @click="open = false">
           </button>
-          <ul class="navbar-nav ms-lg-auto align-items-lg-center">
-            
+          <ul class="navbar-nav align-items-lg-center">
             <li v-if="!hideElem" class="nav-item">
-              <router-link class="nav-link" :to="searchLink">{{ currentUser?.role === 'sitter' ? 'Home' : '🔍︎ Search Sitters' }}</router-link>
+              <router-link class="nav-link" :to="searchLink">{{ currentUser?.role === 'sitter' ? '🏠︎ Home' : '🔍︎ Search Sitters' }}</router-link>
             </li>
             <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
-              <router-link class="nav-link" to="/owner/bookings">My Bookings</router-link>
+              <router-link class="nav-link" to="/owner/bookings">🗒 My Bookings</router-link>
             </li>
             <li v-if="!hideElem && currentUser" class="nav-item">
-              <router-link class="nav-link" to="/session">Session</router-link>
+              <router-link class="nav-link" to="/session">𓃠 Session</router-link>
             </li>
             <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
-              <router-link class="nav-link" to="/owner/routes">My Routes</router-link>
+              <router-link class="nav-link" to="/owner/routes">🏞 My Routes</router-link>
             </li>
             <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
-              <router-link class="nav-link" to="/sitter/calendar">My Calendar</router-link>
+              <router-link class="nav-link" to="/sitter/calendar">𝄜 Calendar</router-link>
             </li>
             <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
-              <router-link class="nav-link" to="/sitter/requests">Booking Requests</router-link>
+              <router-link class="nav-link" to="/sitter/requests">✉︎ Booking Requests</router-link>
             </li>
             <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
-              <router-link class="nav-link" to="/sitter/transactions">Transactions</router-link>
-            </li>
-            <li v-if="currentUser && !hideElem" class="nav-item">
-              <router-link class="nav-link" to="/profile"> My Profile</router-link>
+              <router-link class="nav-link" to="/sitter/transactions">⛁ Transactions</router-link>
             </li>
           </ul>
-          <div class="nav-account ms-lg-3">
-            <button v-if="currentUser" class="btn text-white" style="background-color:#a85a38;"
-                    @click="handleLogout">
-              Log out
-            </button>
-            <router-link v-else class="btn text-white" style="background-color:#a85a38;" to="/login">
-              Log in
-            </router-link>
+          <div class="nav-account">
+            <template v-if="currentUser">
+              <router-link to="/profile" class="nav-user" aria-label="Your profile">
+                <span class="nav-user__avatar" aria-hidden="true">
+                  <img v-if="currentUser.profilePicture?.url" :src="currentUser.profilePicture.url" alt="" />
+                  <template v-else>{{ currentUser.username.charAt(0).toUpperCase() }}</template>
+                </span>
+                <span class="nav-user__name">{{ currentUser.username }}</span>
+              </router-link>
+              <button class="btn nav-btn" @click="handleLogout">Log out</button>
+            </template>
+            <router-link v-else class="btn nav-btn" to="/login">Log in</router-link>
           </div>
         </div>
       </template>

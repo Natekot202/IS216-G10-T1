@@ -250,10 +250,14 @@ async function save() {
               @selectLocation="onPlacePick" />
             <div v-if="locationQuery.trim() && locationQuery !== place?.label" class="form-text text-danger">
               Pick an address from the list.
-            </div>
-
+            </div>  
+            <template v-if="isSitter">            
+              <label class="form-label mt-2" for="area">Service area</label>
+              <input id="area" v-model="form.sitterProfile.serviceArea" class="form-control"
+                    placeholder="e.g. Tampines" />
+            </template>
             <template v-if="isOwner">
-              <label class="form-label mt-3" for="unit">Unit number</label>
+              <label class="form-label mt-2" for="unit">Unit number</label>
               <input id="unit" v-model="unit" class="form-control" placeholder="#05-123" maxlength="20" />
             </template>
           </section>
@@ -318,12 +322,6 @@ async function save() {
               <div class="col-12 col-sm-6">
                 <label class="form-label" for="since">Sitting since</label>
                 <input id="since" v-model="form.sitterProfile.experienceStart" type="month" class="form-control" />
-              </div>
-              <div class="col-12">
-                <label class="form-label" for="area">Service area</label>
-                <input id="area" v-model="form.sitterProfile.serviceArea" class="form-control"
-                       placeholder="e.g. Tampines" />
-                <div class="form-text">Shown to owners. It's filled in from your home address, and you can change it.</div>
               </div>
             </div>
 
