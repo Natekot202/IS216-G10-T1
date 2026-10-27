@@ -70,7 +70,8 @@ export async function getTodaySessions(req, res) {
 
   const addressByOwner = new Map()
   if (isSitterViewer) {
-    const ownerIds = [...new Set(bookings.filter(confirmed).map((b) => String(b.ownerId._id)))]
+    // (a booking whose owner account was deleted has no ownerId after populate, so it is skipped instead of crashing)
+    const ownerIds = [...new Set(bookings.filter((b) => confirmed(b) && b.ownerId).map((b) => String(b.ownerId._id)))]
     if (ownerIds.length > 0) {
       const owners = await User.find({ _id: { $in: ownerIds } }).select('+ownerProfile.address -password')
       owners.forEach((o) => {
@@ -102,7 +103,7 @@ export async function getTodaySessions(req, res) {
       }
       // only a booking's sitter gets the address, and only once it is confirmed
       if (isSitterViewer && confirmed(b)) {
-        session.ownerAddress = addressByOwner.get(String(b.ownerId._id)) ?? null
+        session.ownerAddress = addressByOwner.get(String(b.ownerId?._id)) ?? null
       }
       return session
     })
