@@ -104,30 +104,34 @@ function formatDate(d) {
       </div>
     </div>
 
-    <p class="sd-area">
-      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-        <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"
-              fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
-        <circle cx="12" cy="10" r="2.3" fill="currentColor" />
-      </svg>
-      <span v-if="hasArea" style="font-size:1.2rem;">Service Area: <strong>{{ area }}</strong></span>
-      <span v-else class="text-muted" style="font-size:1.2rem;">Service area not set</span>
-    </p>
+    <section class="sd-card">
+      <p class="sd-area">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"
+                fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <circle cx="12" cy="10" r="2.3" fill="currentColor" />
+        </svg>
+        <span v-if="hasArea" style="font-size:1.2rem;">Service Area: <strong>{{ area }}</strong></span>
+        <span v-else class="text-muted" style="font-size:1.2rem;">Service area not set</span>
+      </p>
 
-    <section class="sd-group">
-      <h4 class="sd-heading">Looks after</h4>
-      <ul v-if="sp.petTypes?.length" class="sd-pills">
-        <li v-for="t in sp.petTypes" :key="t">{{ t }}</li>
-      </ul>
-      <p v-else class="text-muted mb-0">None listed yet</p>
-    </section>
+      <div class="sd-groups">
+        <section class="sd-group">
+          <h4 class="sd-heading">Looks after</h4>
+          <ul v-if="sp.petTypes?.length" class="sd-pills">
+            <li v-for="t in sp.petTypes" :key="t">{{ t }}</li>
+          </ul>
+          <p v-else class="text-muted mb-0">None listed yet</p>
+        </section>
 
-    <section class="sd-group">
-      <h4 class="sd-heading">Services</h4>
-      <ul v-if="sp.services?.length" class="sd-pills">
-        <li v-for="s in sp.services" :key="s">{{ s }}</li>
-      </ul>
-      <p v-else class="text-muted mb-0">None listed yet</p>
+        <section class="sd-group">
+          <h4 class="sd-heading">Services</h4>
+          <ul v-if="sp.services?.length" class="sd-pills">
+            <li v-for="s in sp.services" :key="s">{{ s }}</li>
+          </ul>
+          <p v-else class="text-muted mb-0">None listed yet</p>
+        </section>
+      </div>
     </section>
 
     <PhotoCarousel v-if="gallery.length" :photos="gallery" :name="profile.username" class="mb-4" />
@@ -142,7 +146,21 @@ function formatDate(d) {
 </template>
 
 <style scoped>
+.sd-card {
+  margin-top: 1rem;
+  padding: 1.15rem 1.3rem;
+  border: 1px solid rgba(196, 119, 86, 0.3);
+  border-top: 4px solid #c47756;    
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);
+}
+.sd-card .sd-pills li {
+  background: #f4e4d3;
+  border-color: transparent;
+}
 .sd-nudge {
+  margin-top: 1.25rem;
   margin-bottom: 1.25rem;
   padding: 1rem 1.15rem;
   border: 1px dashed #c47756;
@@ -155,37 +173,48 @@ function formatDate(d) {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #c47756;           
+  border-top: 4px solid #c47756;
   border-radius: 20px;
-  background: #f6e3d6;                   
+  background: #f6e3d6;
   box-shadow: 0 8px 20px rgba(120, 70, 40, 0.14);
-  max-width:900px;
 }
 .sd-stat {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  justify-content: center;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 1rem 0.75rem;  
   min-width: 0;
-  padding: 1.1rem 1.25rem;
-  font-size: 18px;
+  text-align: center;
 }
 .sd-stat + .sd-stat {
-  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 1px solid rgba(43, 36, 32, 0.14);
 }
 .sd-big {
-  color: black;
-  font-weight:700;
+  font-size: clamp(1.4rem, 1rem + 0.9vw, 1.8rem);
+  color: #2b2420;
 }
 .sd-big--empty {
-  color: black;
+  color: rgba(43, 36, 32, 0.35);
 }
 .sd-stars {
-  color: #e3946f;
+  color: #c44f1c;
+  font-size: 1rem;
 }
 .sd-sub {
-  color: black;
+  font-size: 1.0rem;
+  color: #5c524b;
 }
-
+.sd-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+.sd-groups .sd-group {
+  margin-top: 0;
+}
 @media (max-width: 575.98px) {
   .sd-band {
     grid-template-columns: 1fr;
@@ -195,13 +224,13 @@ function formatDate(d) {
     border-top: 1px solid rgba(255, 255, 255, 0.14);
   }
 }
-
 .sd-area {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  margin: 1rem 0 0;
-  color: #2b2420;
+  margin: 0 0 1rem;                     
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f0e3d4;  color: #2b2420;
 }
 .sd-area svg {
   flex: 0 0 auto;
@@ -217,6 +246,9 @@ function formatDate(d) {
   font-size: 1.2rem;
   font-weight: 700;
   color: #2b2420;
+}
+.sd-photos {
+  margin-top: 1.5rem;
 }
 .sd-pills {
   display: flex;
