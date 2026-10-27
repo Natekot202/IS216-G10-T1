@@ -4,9 +4,7 @@ import { useRouter } from 'vue-router'
 import WalkMap from '../components/WalkMap.vue'
 import { currentUser, fetchUser } from '../services/auth.js'
 import { walkRoutesApi } from '../services/walkRouteApi.js'
-
-// Must match HOME_RADIUS_M in server/src/controllers/walkRouteController.js
-const HOME_RADIUS_M = 75
+import { HOME_RADIUS_M } from '../utils/useHomeCheck.js'
 
 const router = useRouter()
 

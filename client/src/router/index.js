@@ -16,6 +16,9 @@ import Session from '../views/Session.vue'
 import BookingDetail from '../views/BookingDetail.vue'
 import RecordRoute from '../views/RecordRoute.vue'
 import MyRoutes from '../views/MyRoutes.vue'
+import SitterWalk from '../views/SitterWalk.vue'
+import SitterWalkStart from '../views/SitterWalkStart.vue'
+import OwnerNotifications from '../views/OwnerNotifications.vue'
 import PaymentGateway from '../views/PaymentGateway.vue'
 import Transactions from '../views/Transactions.vue'
 
@@ -35,12 +38,14 @@ const routes = [
 { path: '/owner/bookings', name: 'owner-bookings', component: MyBookings, meta: { role: 'owner' } },
 { path: '/owner/bookings/group/:groupId', name: 'owner-booking-group', component: GroupBookings, meta: { role: 'owner' } },
 { path: '/sitter/calendar', name: 'sitter-calendar', component: SitterCalendar, meta: { role: 'sitter' } },
-{ path: '/bookings/new', name: 'new-booking', component: NewBookingRequest, meta: { role: 'owner' } },
 { path: '/bookings/:id', name: 'booking-detail', component: BookingDetail, meta: { auth: true } },
 { path: '/bookings/new', name: 'new-booking', component: NewBookingRequest, meta: { role: 'owner' } },
 { path: '/owner/routes', name: 'my-routes', component: MyRoutes, meta: { role: 'owner' } },
 { path: '/owner/routes/new', name: 'record-route', component: RecordRoute, meta: { role: 'owner' } },
 { path: '/owner/routes/:id/record', name: 'rerecord-route', component: RecordRoute, meta: { role: 'owner' } },
+{ path: '/sitter/walks/new', name: 'sitter-walk-start', component: SitterWalkStart, meta: { role: 'sitter' } }, // TEMP until booking integration
+{ path: '/sitter/walks/:id', name: 'sitter-walk', component: SitterWalk, meta: { role: 'sitter' } },
+{ path: '/owner/notifications', name: 'owner-notifications', component: OwnerNotifications, meta: { role: 'owner' } },
 ]
 
 // connects a url path to the vue page which shd be displayed, tgt with the components it needs 

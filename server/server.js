@@ -17,6 +17,8 @@ import visitRoutes from './src/routes/visitRoutes.js'
 import reviewRoutes from './src/routes/reviewRoutes.js'
 import walkRouteRoutes from './src/routes/walkRoutes.js'
 import paymentRoutes from './src/routes/paymentRoute.js'
+import walksRoutes from './src/routes/walks.js'
+import notificationRoutes from './src/routes/notifications.js'
 import mongoose from 'mongoose'
 import { recalcAllRatings, watchReviews } from './src/utils/ratingsCalc.js'
 
@@ -64,6 +66,8 @@ app.use('/api/reviews', reviewRoutes)
 app.use('/api/google', googleCalendarRoutes)
 app.use('/api/walk-routes', walkRouteRoutes)
 app.use('/api/payments', paymentRoutes)
+app.use('/api/walks', walksRoutes)
+app.use('/api/notifications', notificationRoutes)
 
 // Fallback 404 for unmatched API routes
 app.use('/api', (req, res) => {
