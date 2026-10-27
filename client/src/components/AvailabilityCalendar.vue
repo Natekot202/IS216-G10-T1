@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { formatTime } from '../utils/bookingHelpers.js'
+import { formatDateRange } from '../utils/bookingHelpers.js'
 import { toDateString, prettyDate } from '../utils/bookingTimeHelpers.js'
 import {
   shortTime,
@@ -228,8 +228,8 @@ function inHighlight(date) {
 
 // ----- The card that appears next to the mouse when it is over a booking -----
 const hovered = ref(null) // { booking, left, top }
-const CARD_W = 236 // width of the card
-const CARD_H = 190 // roughly how tall it is
+const CARD_W = 280 // width of the card
+const CARD_H = 100 // roughly how tall it is
 
 // Puts the card just right of the mouse, or to its left / above if there is no room
 function placeCard(event) {
@@ -254,6 +254,12 @@ function moveCard(event) { // the card follows the mouse while it moves over the
 function hideBooking() {
   hovered.value = null
 }
+// The pets on the hovered booking, each with a picture address (empty if the pet has no picture)
+const hoverPets = computed(() => {
+  const b = hovered.value?.booking
+  if (!b) return []
+  return b.pets || b.petNames.map((name) => ({ name, photo: '' }))
+})
 // changes hovered.value to null so it isnt rendered
 </script>
 
@@ -409,15 +415,26 @@ function hideBooking() {
          calendar (which are animated) can't shift where it appears on the screen. -->
     <Teleport to="body">
     <div v-if="hovered" class="booking-card" :style="{ left: hovered.left + 'px', top: hovered.top + 'px' }">
-      <span class="status-pill">{{ hovered.booking.status }}</span>
-      <strong>{{ hovered.booking.petNames.join(', ') }}</strong>
-      <span>{{ hovered.booking.ownerName }}</span>
-      <span class="text-muted">
-        {{ prettyDate(hovered.booking.startDate) }}<template v-if="hovered.booking.startTime">, {{ formatTime(hovered.booking.startTime) }}</template>
-        – {{ prettyDate(hovered.booking.endDate) }}<template v-if="hovered.booking.endTime">, {{ formatTime(hovered.booking.endTime) }}</template>
-      </span>
-      <span class="text-muted">${{ hovered.booking.totalPrice }}</span>
-      <span v-if="hovered.booking.notes" class="small">Notes: "{{ hovered.booking.notes }}"</span>
+      <div class="bc-top">
+        <!-- the pets' pictures (their first letter if a pet has no picture) -->
+        <span class="bc-pics">
+          <span v-for="(pet, i) in hoverPets" :key="i" class="bc-pic">
+            <img v-if="pet.photo" :src="pet.photo" :alt="pet.name" />
+            <template v-else>{{ pet.name.charAt(0).toUpperCase() }}</template>
+          </span>
+        </span>
+        <div class="bc-main">
+          <strong>{{ hoverPets.map((p) => p.name).join(', ') }}</strong>
+          <span class="bc-when">
+            {{ formatDateRange(hovered.booking.startDate, hovered.booking.endDate, hovered.booking.startTime, hovered.booking.endTime) }}
+          </span>
+        </div>
+        <span class="bc-price">${{ hovered.booking.totalPrice }}</span>
+      </div>
+      <div class="bc-bottom">
+        <span>with {{ hovered.booking.ownerName }}</span>
+        <span class="status-pill">{{ hovered.booking.status }}</span>
+      </div>
     </div>
     </Teleport>
   </div>
@@ -555,32 +572,52 @@ function hideBooking() {
   pointer-events: none;
 }
 
-/* the white card beside a booking */
+/* the white card next to the mouse. It is moved to the page body, so it can't use the colour names above: the colours are written out */
 .booking-card {
   position: fixed;
   z-index: 1080;
-  width: 236px;
+  width: 280px;
   background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  color: #2b2420;
+  border: 1px solid #e4dbd0;
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(43, 36, 32, 0.18);
+  padding: 12px 14px;
+  font-family: 'Nunito', system-ui, sans-serif;
   pointer-events: none; /* so the card never gets in the way of the mouse */
 }
+.bc-top { display: flex; gap: 10px; align-items: center; }
+.bc-pics { display: flex; flex: none; }
+.bc-pic {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  margin-left: -12px;
+  background: #c47756;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 600;
+  overflow: hidden;
+}
+.bc-pic:first-child { margin-left: 0; }
+.bc-pic img { width: 100%; height: 100%; object-fit: cover; }
+.bc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.bc-main strong { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 1rem; }
+.bc-when { color: #766a60; font-size: 0.78rem; }
+.bc-price { color: #3f8a4a; font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 1.05rem; align-self: flex-start; }
+.bc-bottom { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; color: #766a60; font-size: 0.82rem; }
 .status-pill {
-  align-self: flex-start;
-  background: var(--booked);
-  color: var(--booked-ink);
+  background: #dff0e0;
+  color: #24572b;
   font-size: 0.68rem;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 0 6px;
-  border-radius: 3px;
-  margin-bottom: 3px;
+  padding: 1px 8px;
+  border-radius: 999px;
 }
 
 .swatch {

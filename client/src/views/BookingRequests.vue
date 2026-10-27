@@ -9,8 +9,8 @@ import BookingTabs from '../components/BookingTabs.vue'
 // (same tabs as the owner's My Bookings)
 const TABS = [
   { key: 'pending', label: 'Pending', statuses: ['pending'] },
-  { key: 'upcoming', label: 'Upcoming', statuses: ['accepted', 'paid', 'in-progress'] },
-  { key: 'past', label: 'Past', statuses: ['completed', 'declined', 'cancelled'] }
+  { key: 'upcoming', label: 'Upcoming', statuses: ['accepted', 'in-progress'] },
+  { key: 'past', label: 'Past', statuses: ['completed', 'paid', 'declined', 'cancelled'] }
 ]
 
 const route = useRoute()
@@ -77,7 +77,7 @@ async function respond(id, status) {
     const updated = await bookingsApi.updateStatus(id, status)
     const booking = bookings.value.find((b) => b._id === id)
     booking.status = updated.status
-    message.value = status === 'accepted' ? 'Request accepted ✅ The owner can now pay.' : 'Request declined.'
+    message.value = status === 'accepted' ? 'Request accepted ✅ The owner pays after the session is completed.' : 'Request declined.'
     if (status === 'accepted') showToast(updated.googleSync)
   } catch (err) {
     actionError.value = err.response?.data?.message || 'Could not update the booking.'

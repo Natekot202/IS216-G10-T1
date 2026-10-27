@@ -47,7 +47,7 @@ onBeforeUnmount(() => clearInterval(timer))
 </script>
 
 <template>
-  <div class="container mt-1 mb-4">
+  <div class="container-fluid mt-1 mb-4">
     <div class="border-bottom pb-2 mb-3">
       <h3 class="mb-0">Today's sessions</h3>
       <p v-if="data" class="text-muted small mb-0">{{ fmt(data.today) }}</p>
@@ -66,8 +66,8 @@ onBeforeUnmount(() => clearInterval(timer))
     </div>
 
     <div v-else>
-      <SessionCard v-for="s in data.sessions" :key="s.booking._id" :session="s"
-                   :today="data.today" :is-sitter="isSitter" class="mb-4 pb-4 border-bottom" />
+      <SessionCard v-for="(s, i) in data.sessions" :key="s.booking._id" :session="s"
+                  :today="data.today" :is-sitter="isSitter" :index="i" class="mb-4" />
     </div>
   </div>
 </template>

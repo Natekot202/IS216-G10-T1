@@ -30,6 +30,19 @@ watch(() => props.origin, (o) => {
   originMarker = L.marker([o.lat, o.lng]).addTo(map.value).bindPopup(o.label)
 })
 
+watch(() => props.origin, o => showOrigin(o))
+
+function showOrigin(o, animate = true) {
+  originMarker?.remove()
+  originMarker = null
+  if (!o || !map.value) return
+  const to = [o.lat, o.lng]
+  animate ? map.value.flyTo(to, 14) : map.value.setView(to, 14)
+  originMarker = L.marker(to).addTo(map.value).bindPopup(o.label)
+}
+
+// in onMounted, after showUser(props.userLocation):
+showOrigin(props.origin, false)
 // draw markers
 function drawSitters() {
   sitterLayer.clearLayers()
@@ -81,7 +94,8 @@ onBeforeUnmount(() => map.value?.remove())
 
 <style scoped>
   .fullScreenMap {
-    height:200px;
+    height:100%;
+    width: 100%;
   }
 
 </style>

@@ -16,9 +16,11 @@ import googleCalendarRoutes from './src/routes/googleCalendar.js'
 import visitRoutes from './src/routes/visitRoutes.js'
 import reviewRoutes from './src/routes/reviewRoutes.js'
 import walkRouteRoutes from './src/routes/walkRoutes.js'
+import paymentRoutes from './src/routes/paymentRoute.js'
 import walksRoutes from './src/routes/walks.js'
 import notificationRoutes from './src/routes/notifications.js'
 import mongoose from 'mongoose'
+import { recalcAllRatings, watchReviews } from './src/utils/ratingsCalc.js'
 
 if (!process.env.SESSION_SECRET){
   console.error('Session Secret is missing from .env')
@@ -63,6 +65,7 @@ app.use('/api/visits', visitRoutes)
 app.use('/api/reviews', reviewRoutes)
 app.use('/api/google', googleCalendarRoutes)
 app.use('/api/walk-routes', walkRouteRoutes)
+app.use('/api/payments', paymentRoutes)
 app.use('/api/walks', walksRoutes)
 app.use('/api/notifications', notificationRoutes)
 
@@ -76,6 +79,8 @@ app.use(errorHandler)
 async function start() {
   try {
     await connectDB()
+    recalcAllRatings().catch((err) => console.error('Rating recalculation failed', err)) 
+    watchReviews()
     app.listen(PORT, () => {
       console.log(`PetSociety API listening on http://localhost:${PORT}`)
       console.log('Connected to DB ✅:', mongoose.connection.name, 'on', mongoose.connection.host) // checking which collection

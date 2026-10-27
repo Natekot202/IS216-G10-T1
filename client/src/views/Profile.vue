@@ -1,8 +1,7 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
-
-import { currentUser } from "../services/auth.js";
+import { computed, ref, watch, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { currentUser, fetchUser } from "../services/auth.js";
 import ProfileHeader from '../components/ProfileHeader.vue';
 import OwnerDetails from '../components/OwnerDetails.vue'
 import SitterDetails from '../components/SitterDetails.vue'
@@ -11,9 +10,18 @@ import SitterReviews from '../components/SitterReview.vue'
 import ProfileActions from '../components/ProfileActions.vue'
 
 const route = useRoute()
+const router = useRouter()
 const profile = ref(null)
 const error = ref('')
 const isMine = computed(() => !route.params.id || route.params.id === currentUser.value?._id)
+
+function goBack() {
+  if (window.history.state?.back) {
+    router.back()
+  } else {
+    router.push(currentUser.value ? '/home' : '/browse')
+  }
+}
 
 async function load() {
   error.value = ''
@@ -27,10 +35,27 @@ async function load() {
   }
 }
 watch([() => route.params.id, currentUser], load, { immediate: true })
+
+onMounted(() => {
+  if (isMine.value) {
+    fetchUser()
+  }
+})
+
 </script>
 
 <template>
-  <div class="container mt-1 mb-4">
+  <div class="pf">
+  
+    <!-- to go back (for when viewing another person's profile) -->
+    <button v-if="!isMine" type="button" class="pf-back" @click="goBack">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      Back
+    </button>
+
     <div v-if="error" class="alert alert-warning">{{ error }}</div>
 
     <template v-else-if="profile">
@@ -58,13 +83,3 @@ watch([() => route.params.id, currentUser], load, { immediate: true })
     </template>
   </div>
 </template>
-
-<style scoped>
-.page-title {
-  font-family: 'fredoka', sans-serif;
-  font-size: 1.9rem;
-  font-weight: 600; 
-  letter-spacing: -0.01em;
-  margin-bottom: 0;
-}
-</style>

@@ -31,7 +31,7 @@ async function submit() {
   <div class="container" style="max-width: 420px">
     <div class="landing-bg" aria-hidden="true"></div>
 
-    <h1 class="landing-title">Create account</h1>
+    <h1 class="landing-title landing-title--form">Create account</h1>
 
     <div v-if="errors.length" class="alert alert-danger">
       <div v-for="e in errors" :key="e">{{ e }}</div>
@@ -48,7 +48,15 @@ async function submit() {
       <input v-model="form.username" class="form-control mb-3" placeholder="Username" required />
       <input v-model="form.email" type="email" class="form-control mb-3" placeholder="Email" required />
       <input v-model="form.password" type="password" class="form-control mb-3" placeholder="Password" required />
-      <input v-model="form.confirmPassword" type="password" class="form-control mb-3" placeholder="Confirm password" required />
+      <input v-model="form.confirmPassword" type="password" class="form-control mb-2" placeholder="Confirm password" required />
+
+      <p style="color:white; margin-bottom:0;">Password Requirements:</p>
+      <ul style="color:white; margin-bottom:5px;">
+        <li>At least 8 characters</li>
+        <li>At least 1 uppercase letter</li>
+        <li>At least 1 special character (!@#$%^&*)</li>
+      </ul>
+
       <button class="btn w-100 mb-3 text-white" style="background-color:#c47756;">Sign up</button>
     </form>
 

@@ -66,7 +66,8 @@ const age = computed(() => (props.pet.ageMonths != null ? `${formatAge(props.pet
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  border: 1px solid #e6d3c0;
+  border: 1px solid rgba(196, 119, 86, 0.3);
+  border-top: 4px solid #c47756;    
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 4px 12px rgba(120, 70, 40, 0.12);
@@ -139,7 +140,6 @@ const age = computed(() => (props.pet.ageMonths != null ? `${formatAge(props.pet
 }
 .pc__name {
   margin: 0;
-  font-family: 'Trirong', Georgia, serif;
   font-size: 1.2rem;
   font-weight: 700;
   line-height: 1.2;

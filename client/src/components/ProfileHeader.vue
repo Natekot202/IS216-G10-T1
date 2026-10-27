@@ -1,10 +1,27 @@
 <script setup>
 import defaultAvatar from '../assets/img/tempProfile.jpg'
+import { ref, watch } from 'vue'
+import { usersApi } from '../services/api.js'
+import { BADGES } from '../utils/badges.js'
 
 const props = defineProps({
   profile: { type: Object, required: true },
   editable: { type: Boolean, default: false }
 })
+
+const badges = ref([])
+watch(() => props.profile._id, async (id) => {
+  badges.value = []
+  if (!id || props.profile.role !== 'sitter') {
+    return
+  }
+  try {
+    const keys = await usersApi.getBadges(id)
+    badges.value = Array.isArray(keys) ? keys.filter((k) => BADGES[k]) : []
+  } catch (err) {
+    console.warn('Could not load badges', err)
+  }
+}, { immediate: true })
 
 </script>
 
@@ -13,12 +30,23 @@ const props = defineProps({
     <img :src="profile.profilePicture?.url || defaultAvatar" alt="Profile picture" class="ph-photo" />
     <p class="ph-name">{{ profile.username }}</p>
     <p v-if="editable && profile.email" class="ph-email">{{ profile.email }}</p>
-    <h5 v-if="profile.role === 'sitter'" style="font-family: 'Trirong', serif; font-weight:700;">About</h5>
     <p class="ph-bio">{{ profile.bio || 'No bio yet.' }}</p>  
+    <ul v-if="badges.length" class="ph-badges" aria-label="Highlights">
+      <li v-for="b in badges" :key="b" class="ph-badge" :title="BADGES[b].tip">{{ BADGES[b].label }}</li>
+    </ul>
   </div>
 </template>
 
 <style scoped>
+.ph-card {
+  padding: 1.25rem;
+  border: 1px solid rgba(196, 119, 86, 0.3);
+  border-top: 4px solid #c47756;           
+  border-radius: 20px;
+  background: #f6e3d6;                   
+  box-shadow: 0 8px 20px rgba(120, 70, 40, 0.14);
+}
+
 .ph-photo {
   display: block;
   width: 100%;
@@ -30,11 +58,11 @@ const props = defineProps({
 }
 .ph-name {
   margin: 0 0 0.15rem;
-  font-family: 'Trirong', serif;
-  font-size: 1.8rem;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 1.6rem;
   font-weight: 700;
   line-height: 1.15;
-  color: #2b2420;
+  color: black;
 }
 .ph-email {
   margin: 0 0 0.5rem;
@@ -44,8 +72,34 @@ const props = defineProps({
 }
 .ph-bio {
   max-width: 30ch;
-  margin: 0.5rem 0 1rem;
-  color: #2b2420;
+  color: black;
   overflow-wrap: anywhere;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(43, 36, 32, 0.12);
+}
+.ph-badges {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 0.4rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 992px) {
+  .ph-badges {
+    width: fit-content;
+    max-width: 100%;
+  }  
+}
+.ph-badge {
+  padding: 0.2rem 0.7rem;
+  border: 1px solid rgba(196, 119, 86, 0.45);
+  border-radius: 999px;
+  background: #fff;
+  color: #8f4a2c;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 </style>

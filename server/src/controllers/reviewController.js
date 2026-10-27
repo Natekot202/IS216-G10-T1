@@ -21,7 +21,6 @@ export async function createReview(req, res) {
   if (booking.status !== 'completed') {
     return res.status(400).json({ message: 'You can only review a completed booking.' })
   }
-
   try {
     const review = await Review.create({
       booking: booking._id,
@@ -30,7 +29,11 @@ export async function createReview(req, res) {
       rating: stars,
       comment: String(comment ?? '').trim().slice(0, 1000)
     })
-    await recalcSitterRating(booking.sitterId)   
+    try {
+      await recalcSitterRating(booking.sitterId)
+    } catch (err) {
+      console.error('Could not update the sitter rating', err)
+    }
     res.status(201).json(review)
   } catch (err) {
     if (err.code === 11000) {

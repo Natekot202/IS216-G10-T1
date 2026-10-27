@@ -2,8 +2,8 @@
 // ASSUMPTION: GET /api/bookings returns sitterId and petIds already populated
 // (objects with a .name). If not, the fallbacks below show "Sitter" / "Pet".
 
-// Statuses that mean the owner has picked this sitter.
-export const CHOSEN_STATUSES = ['paid', 'in-progress', 'completed']
+// Statuses that mean this sitter got the job (the first sitter in a trip to accept it).
+export const CHOSEN_STATUSES = ['accepted', 'in-progress', 'completed', 'paid']
 
 export function sitterName(booking) {
   return booking.sitterId?.username || booking.sitterId?.name || booking.sitter?.name || 'Sitter'
@@ -68,7 +68,7 @@ export function statusCounts(bookings) {
   return counts
 }
 
-// The booking the owner has paid for (or later), if any.
+// The sitter who got the job for this trip, if any.
 export function chosenBooking(bookings) {
   return bookings.find((b) => CHOSEN_STATUSES.includes(b.status))
 }

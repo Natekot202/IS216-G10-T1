@@ -11,8 +11,9 @@ import BookingTabs from '../components/BookingTabs.vue'
 
 const TABS = [
   { key: 'pending', label: 'Pending', statuses: ['pending'] },
-  { key: 'upcoming', label: 'Upcoming', statuses: ['accepted', 'paid', 'in-progress'] },
-  { key: 'past', label: 'Past', statuses: ['completed', 'declined', 'cancelled'] }
+  { key: 'upcoming', label: 'Upcoming', statuses: ['accepted', 'in-progress'] },
+  { key: 'to-pay', label: 'To pay', statuses: ['completed'] },
+  { key: 'past', label: 'Past', statuses: ['paid', 'declined', 'cancelled'] }
 ]
 
 const route = useRoute()
@@ -101,16 +102,10 @@ onMounted(loadBookings)
 
     <div v-if="!visibleBookings.length" class="text-center text-muted py-5">
       <p class="mb-3">No bookings here yet 🐾</p>
-      <router-link to="/home" class="btn text-white main-btn">Find a sitter</router-link>
+      <router-link to="/home" class="btn btn-brand">Find a sitter</router-link>
     </div>
 
     <BookingTable v-else :bookings="visibleBookings" viewer="owner" :busy-id="busyId" @cancel="cancelBooking" />
     <!-- cancelBooking runs with the childs payload thats passed up  -->
   </template>
 </template>
-
-<style scoped>
-.main-btn {
-  background-color: #c44f1c;
-}
-</style>

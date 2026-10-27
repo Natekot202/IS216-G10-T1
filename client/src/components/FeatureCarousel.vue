@@ -82,7 +82,7 @@ function onTouchEnd(e) {
                 <span class="sitter-main">
                     <strong>Kieran T.</strong>
                     <span class="stars">★★★★★ (12)</span>
-                    <span class="sub">Tampines, 1.2 km away</span>
+                    <span class="sub">1.2 km away</span>
                 </span>
                 <span class="rate">S$18<small>/hr</small></span>
                 </div>
@@ -91,7 +91,7 @@ function onTouchEnd(e) {
                 <span class="sitter-main">
                     <strong>Belle b.</strong>
                     <span class="stars">★★★★☆ (23)</span>
-                    <span class="sub">Bedok, 3.4 km away</span>
+                    <span class="sub">3.4 km away</span>
                 </span>
                 <span class="rate">S$15<small>/hr</small></span>
                 </div>
