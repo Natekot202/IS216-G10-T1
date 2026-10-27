@@ -2,7 +2,9 @@ import mongoose from 'mongoose'
 import User from '../models/UserModel.js'
 import Pet from '../models/petModel.js'
 import Review from '../models/reviewModel.js'
+
 import { uploadImage, deleteImage } from '../config/cloudinary.js'
+import { computeBadges } from '../utils/sitterBadges.js'
 
 const PUBLIC_FIELDS =
   'username bio profilePicture role createdAt ' +
@@ -256,4 +258,17 @@ export async function removeGalleryPhoto(req, res) {
   await user.save()
   await deleteImage(publicId)           
   res.json(user)
+}
+
+export async function getUserBadges(req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return res.status(404).json({ message: 'User not found' })
+  }
+  const user = await User.findById(req.params.id).select(
+    'role sitterProfile.experienceStart sitterProfile.ratingAvg sitterProfile.ratingCount'
+  )
+  if (!user || user.role !== 'sitter') {
+    return res.json([])
+  }
+  res.json(await computeBadges(user))
 }

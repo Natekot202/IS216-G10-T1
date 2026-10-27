@@ -42,7 +42,7 @@ function styleFor(i) {
   const o = offsetOf(i)
   const a = Math.abs(o)
   return {
-    transform: `translateX(${o * 46}%) scale(${1 - a * 0.16})`,
+    transform: `translateX(${o * 52}%) scale(${1 - a * 0.14})`,
     filter: a === 0 ? 'none' : `blur(${a * 2 + 1}px) brightness(0.92)`,
     opacity: a > 2 ? 0 : 1 - a * 0.22,
     zIndex: 10 - a
@@ -68,7 +68,6 @@ function onTouchEnd(e) {
   }
 }
 </script>
-
 <template>
   <section v-if="count" class="pcar" role="region" aria-roledescription="carousel"
            :aria-label="name ? `Photos of ${name}` : 'Photos'"
@@ -82,6 +81,21 @@ function onTouchEnd(e) {
            :alt="i === current ? `Photo ${i + 1} of ${count}${name ? ` of ${name}` : ''}` : ''"
            class="pcar__img" :class="{ 'pcar__img--active': i === current }"
            :style="styleFor(i)" :aria-hidden="i !== current" draggable="false" @click="pick(i)" />
+
+      <template v-if="count > 1">
+        <button type="button" class="pcar__arrow pcar__arrow--prev" aria-label="Previous photo" @click="prev">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2"
+                  stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <button type="button" class="pcar__arrow pcar__arrow--next" aria-label="Next photo" @click="next">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2"
+                  stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </template>
     </div>
 
     <div v-if="count > 1" class="pcar__dots">
@@ -98,38 +112,61 @@ function onTouchEnd(e) {
 
 <style scoped>
 .pcar {
-  --pcar-interval: 10s;
-  width: 100%;
-  max-width: 760px;          
+  --pcar-interval: 4s;
+  --pcar-w: min(60%, 380px);        
+  max-width: 720px;
   margin-inline: auto;
 }
-
 .pcar__stage {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr);     
   place-items: center;
-  height: clamp(220px, 32vw, 320px);
-  padding-block: 0.5rem;
+  aspect-ratio: 16 / 7;               
   overflow: hidden;
-  justify-items: center;
-  align-items: center; 
 }
 .pcar__img {
   grid-area: 1 / 1;
-  height: 100%;
-  max-width: 100%;
-  aspect-ratio: 4 / 3;
+  width: var(--pcar-w);
+  aspect-ratio: 4 / 3;              
+  height: auto;
+  max-height: 100%;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: 16px;
   user-select: none;
   transition: transform 0.6s ease, filter 0.6s ease, opacity 0.6s ease;
-  border: 1px solid #c44f1c;
-  justify-self: center;   
-
 }
-.pcar__img:not(.pcar__img--active) {
+.pcar__arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 20;
+  width: 2.6rem;
+  height: 2.6rem;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.505);
+  color: #2b2420;
+  box-shadow: 0 4px 14px rgba(43, 36, 32, 0.28);
   cursor: pointer;
+  transform: translateY(-50%);
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+.pcar__arrow--prev {
+  left: calc(50% - var(--pcar-w) / 2 - 1.35rem);
+}
+.pcar__arrow--next {
+  right: calc(50% - var(--pcar-w) / 2 - 1.35rem);
+}
+.pcar__arrow:hover {
+  background: #a85a38;
+  color: #fff;
+  transform: translateY(-50%) scale(1.06);
+}
+.pcar__arrow:focus-visible {
+  outline: 2px solid #c44f1c;
+  outline-offset: 2px;
 }
 .pcar__dots {
   display: flex;
@@ -175,12 +212,27 @@ function onTouchEnd(e) {
   }
 }
 
+@media (max-width: 575.98px) {
+  .pcar {
+    --pcar-w: 86%;
+  }
+  .pcar__stage {
+    aspect-ratio: 4 / 3;
+  }
+  .pcar__arrow {
+    width: 2.2rem;
+    height: 2.2rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .pcar__img {
+  .pcar__img,
+  .pcar__arrow,
+  .pcar__bar {
     transition: none;
   }
   .pcar__fill {
-    animation: none;             
+    animation: none;                 
   }
 }
 </style>

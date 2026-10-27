@@ -1,7 +1,8 @@
 import {ref, onBeforeUnmount}  from 'vue'
 import {distance} from '@turf/turf'
 
-const MAX_ACCURACY_M = 30 // skip readings less accurate than this
+const MAX_ACCURACY_M = 30
+ // skip readings less accurate than this
 const MIN_STEP_M = 5 // skip tiny moves (GPS drift while standing still)
 
 // exposes constants and bundles functions

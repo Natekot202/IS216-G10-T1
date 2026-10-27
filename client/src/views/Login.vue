@@ -27,7 +27,7 @@ async function submit() {
   <div class="container" style="max-width: 420px">
   <div class="landing-bg" aria-hidden="true"></div>
 
-    <h1 class="landing-title">Log In</h1>
+    <h1 class="landing-title landing-title--form">Log In</h1>
     <p style="color:white;">We're excited to have you back.</p>
 
     <div v-if="message" class="alert alert-danger">
