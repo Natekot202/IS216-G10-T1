@@ -1,19 +1,27 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import { usersApi } from '../services/api.js'
+import { usePagination } from '../utils/usePagination.js'
+import PaginationBar from './PaginationBar.vue'
 
 const props = defineProps({
-  sitterId: { type: String, default: '' }
+  sitterId: { type: String, default: '' },
+  mode: { type: String, default: 'received' }
 })
 
-const MAX_SHOWN = 4
+// for owner page 
+const isGiven = computed(() => props.mode === 'given')
+function person(r) {
+  return isGiven.value ? r.sitter : r.owner
+}
+
+const PAGE_SIZE = 5
 const reviews = ref([])
 const loading = ref(true)
 const error = ref('')
-const showAll = ref(false)
+const listEl = ref(null)
 
 const total = computed(() => reviews.value.length || 1)
-const collapsible = computed(() => filtered.value.length > MAX_SHOWN)
 
 // filters
 const ratingFilter = ref(0)         
@@ -46,9 +54,11 @@ const filtered = computed(() => {
   return list
 })
 
-const shownReviews = computed(() =>
-  showAll.value || !collapsible.value ? filtered.value : filtered.value.slice(0, MAX_SHOWN)
-)
+const { page, pageItems: pagedReviews, goPage, reset } = usePagination(filtered, {
+  pageSize: PAGE_SIZE,
+  scrollRef: listEl
+})
+watch([ratingFilter, commentsOnly, sortBy], reset)
 
 const filtersActive = computed(
   () => ratingFilter.value !== 0 || commentsOnly.value || sortBy.value !== 'newest'
@@ -83,10 +93,12 @@ function formatDate(d) {
 async function loadReviews(id) {
   loading.value = true
   error.value = ''
-  showAll.value = false
+  page.value = 1
   clearFilters()
   try {
-    const data = await usersApi.getReviews(id)
+    const data = isGiven.value
+      ? await usersApi.getReviewsGiven(id)
+      : await usersApi.getReviews(id)
     reviews.value = Array.isArray(data) ? data : []
   } catch (err) {
     error.value = err.response?.data?.message || 'Could not load reviews.'
@@ -107,19 +119,19 @@ watch(ratingFilter, (r) => {
     sortBy.value = 'newest'
   }
 })
+watch([ratingFilter, commentsOnly, sortBy], () => {
+  page.value = 1
+})
+
 
 </script>
 
 <template>
   <section class="sr">
     <div class="sr-head">
-      <div class="sr-head__left">
-        <h4 class="sr-title">Reviews<span v-if="!loading"> ({{ reviews.length }})</span></h4>
-        <button v-if="collapsible" type="button" class="sr-toggle" :aria-expanded="showAll"
-                @click="showAll = !showAll">
-          {{ showAll ? 'Show fewer' : `Show all ${filtered.length}` }}
-        </button>
-      </div>
+      <h4 class="sr-title">
+        {{ isGiven ? 'Reviews written' : 'Reviews' }}<span v-if="!loading"> ({{ reviews.length }})</span>
+      </h4>
       <div v-if="reviews.length > 1" class="sr-sort">
         <label for="reviewSort" class="visually-hidden">Sort reviews</label>
         <select id="reviewSort" v-model="sortBy" class="form-select form-select-sm">
@@ -137,11 +149,12 @@ watch(ratingFilter, (r) => {
       Loading reviews…
     </div>
 
-    <p v-else-if="!reviews.length" class="text-muted">No reviews yet.</p>
+    <p v-else-if="!reviews.length" class="text-muted">
+      {{ isGiven ? 'No reviews written yet.' : 'No reviews yet.' }}
+    </p>
 
-    <div v-else class="sr-layout">
-
-      <aside class="sr-breakdown" aria-label="Filter by rating">
+    <div v-else class="sr-layout" :class="{ 'sr-layout--solo': mode === 'given' }">
+      <aside v-if="!isGiven" class="sr-breakdown" aria-label="Filter by rating">
         <button v-for="n in [5, 4, 3, 2, 1]" :key="n" type="button" class="sr-bar"
                 :class="{ 'sr-bar--on': ratingFilter === n }"
                 :disabled="!counts[n]" :aria-pressed="ratingFilter === n"
@@ -157,32 +170,58 @@ watch(ratingFilter, (r) => {
           <input id="commentsOnly" v-model="commentsOnly" type="checkbox" class="form-check-input review-check" />
           <label for="commentsOnly" class="form-check-label small">With comments only</label>
         </div>
-        <button v-if="filtersActive" type="button" class="btn btn-link btn-sm p-0 mt-2 text-decoration-none" style="color: #a75836;"
-                @click="clearFilters">
+        <button v-if="filtersActive" type="button" class="btn btn-link btn-sm p-0 mt-2 text-decoration-none"
+                style="color: #a75836;" @click="clearFilters">
           Clear filters
         </button>
       </aside>
 
-      <div class="sr-list">
+      <div ref="listEl" class="sr-list">
         <p v-if="!filtered.length" class="sr-empty text-muted mb-0">No reviews match these filters.</p>
 
-        <article v-for="r in shownReviews" :key="r._id" class="sr-card" :class="{ 'sr-card--low': r.rating <= 2 }">
-          <header class="sr-card__top">
-            <span class="sr-stars" :aria-label="`${r.rating} out of 5`">{{ stars(r.rating) }}</span>
-            <time v-if="r.createdAt" :datetime="r.createdAt" class="sr-date">{{ formatDate(r.createdAt) }}</time>
-          </header>
-          <p v-if="r.comment" class="sr-comment">{{ r.comment }}</p>
-          <footer class="sr-by">
-            <span class="sr-avatar" aria-hidden="true">
-              <img v-if="r.owner?.profilePicture?.url" :src="r.owner.profilePicture.url" alt="" loading="lazy" />
-              <template v-else>{{ initial(r.owner?.username) }}</template>
-            </span>
-            <router-link v-if="r.owner?._id" :to="`/users/${r.owner._id}`" class="sr-by__link">
-              {{ r.owner.username }}
-            </router-link>
-            <span v-else>Anonymous</span>
-          </footer>
-        </article>
+        <template v-else>
+          <div class="data-table-wrap">
+            <table class="sr-table">
+              <thead>
+                <tr>
+                  <th scope="col" class="sr-th--by">{{ isGiven ? 'Sitter' : 'Reviewer' }}</th>
+                  <th scope="col" class="sr-th--rating">Rating</th>
+                  <th scope="col">Review</th>
+                  <th scope="col" class="sr-th--date">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="r in pagedReviews" :key="r._id" class="sr-row" :class="{ 'sr-row--low': r.rating <= 2 }">
+                  <td class="sr-td sr-td--by">
+                    <div class="sr-by">
+                      <span class="sr-avatar" aria-hidden="true">
+                        <img v-if="person(r)?.profilePicture?.url" :src="person(r).profilePicture.url" alt="" loading="lazy" />
+                        <template v-else>{{ initial(person(r)?.username) }}</template>
+                      </span>
+                      <router-link v-if="person(r)?._id" :to="`/users/${person(r)._id}`" class="sr-by__link">
+                        {{ person(r).username }}
+                      </router-link>
+                      <span v-else>Anonymous</span>
+                    </div>
+                  </td>
+                  <td class="sr-td sr-td--rating">
+                    <span class="sr-stars" :aria-label="`${r.rating} out of 5`">{{ stars(r.rating) }}</span>
+                  </td>
+                  <td class="sr-td sr-td--comment">
+                    <span v-if="r.comment">{{ r.comment }}</span>
+                    <span v-else class="sr-none">No comment</span>
+                  </td>
+                  <td class="sr-td sr-td--date">
+                    <time v-if="r.createdAt" :datetime="r.createdAt">{{ formatDate(r.createdAt) }}</time>
+                    <span v-else class="sr-none">–</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <PaginationBar :page="page" :total="filtered.length" :page-size="PAGE_SIZE" @change="goPage" />
+        </template>
       </div>
     </div>
   </section>
@@ -196,37 +235,13 @@ watch(ratingFilter, (r) => {
   gap: 1rem;
   margin-bottom: 1rem;
   padding-bottom: 0.6rem;
-}
-.sr-head__left {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.4rem 0.9rem;
-}
-.sr-toggle {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: #a85a38;
-  font-weight: 600;
-  font-size: 0.95rem;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-  cursor: pointer;
-}
-.sr-toggle:hover {
-  color: #8f4a2c;
-}
-.sr-toggle:focus-visible {
-  outline: 2px solid #c44f1c;
-  outline-offset: 2px;
+  border-bottom: 1px solid #e6d3c0;
 }
 .sr-title {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 500;
+  font-size: 1.35rem;
+  font-weight: 700;
   color: #2b2420;
-  letter-spacing: -0.01em;
 }
 .sr-sort {
   width: auto;
@@ -238,14 +253,22 @@ watch(ratingFilter, (r) => {
   gap: 1.75rem;
   align-items: start;
 }
+.sr-layout--solo {
+  grid-template-columns: minmax(0, 1fr);
+}
 @media (max-width: 767.98px) {
   .sr-layout {
     grid-template-columns: 1fr;
     gap: 1.25rem;
   }
+  .sr-row--low {
+    box-shadow: inset 3px 0 0 #d9826b;
+  }
+  .sr-row--low .sr-td--by {
+    box-shadow: none;
+  }
 }
 
-/* breakdown */
 .sr-bar {
   display: grid;
   grid-template-columns: 2.2rem minmax(0, 1fr) 1.5rem;
@@ -290,75 +313,71 @@ watch(ratingFilter, (r) => {
   color: #5c524b;
 }
 
-/* list */
+/* the table */
 .sr-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 0.85rem;
+  min-width: 0;
 }
-.sr-empty,
-.sr-more {
-  grid-column: 1 / -1;
+.sr-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
 }
-.sr-more {
-  justify-self: start;
-  padding: 0.45rem 1.1rem;
-  border: 1px solid #c47756;
-  border-radius: 999px;
-  background: transparent;
-  color: #a85a38;
-  font-weight: 400;
+.sr-table thead th {
+  padding: 0.7rem 0.5rem;
+  text-align: left;
 }
-.sr-more:hover {
-  background: rgba(196, 119, 86, 0.14);
+.sr-th--by {
+  width: 24%;
+}
+.sr-th--rating {
+  width: 8.5rem;
+}
+.sr-th--date {
+  width: 7.5rem;
 }
 
-.sr-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 1rem 1.1rem;
-  border: 1px solid #e6d3c0;
-  border-radius: 14px;
-  background: #fbf1e6;
+.sr-row {
+  border-top: 1px solid #ede3d8;
 }
-.sr-card--low {
-  background: #fdeeea;
-  border-color: #ecbcb0;
+.sr-row--low {
+  background: #fff8f7;
 }
-.sr-card__top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
+.sr-row--low .sr-td--by {
+  box-shadow: inset 3px 0 0 #d9826b;
 }
-.sr-stars {
-  color: #FFD700;
-  letter-spacing: 0.05em;
-}
-.sr-date {
-  font-size: 0.8rem;
-  color: #5c524b;
-}
-.sr-comment {
-  margin: 0;
+.sr-td {
+  padding: 0.85rem 0.5rem;
+  vertical-align: middle;
   color: #2b2420;
-  line-height: 1.5;
   overflow-wrap: anywhere;
 }
+.sr-td--rating,
+.sr-td--date {
+  white-space: nowrap;
+}
+.sr-td--date {
+  font-size: 0.9rem;
+  color: #5c524b;
+}
+.sr-stars {
+  color: #c44f1c;
+  letter-spacing: 0.05em;
+}
+.sr-none {
+  color: #5c524b;
+  opacity: 0.7;
+}
+
 .sr-by {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-top: auto;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #5c524b;
+  gap: 0.6rem;
+  min-width: 0;
 }
 .sr-avatar {
   flex: none;
-  width: 1.8rem;
-  height: 1.8rem;
+  width: 2rem;
+  height: 2rem;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -375,6 +394,7 @@ watch(ratingFilter, (r) => {
 }
 .sr-by__link {
   color: inherit;
+  font-weight: 600;
   text-decoration: none;
 }
 .sr-by__link:hover {

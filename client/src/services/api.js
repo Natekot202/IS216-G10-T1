@@ -25,6 +25,7 @@ export const usersApi = {
   getById: (id) => api.get(`/users/${id}`).then((r) => r.data),
   getPets: (id) => api.get(`/users/${id}/pets`).then((r) => r.data),
   getReviews: (id) => api.get(`/users/${id}/reviews`).then((r) => r.data),
+  getReviewsGiven: (id) => api.get(`/users/${id}/reviews-given`).then((r) => r.data),
   updateMe: (data) => api.put('/users/me', data).then((res) => res.data),
   updatePicture: (formData) => api.put('/users/me/picture', formData).then((res) => res.data),
   removePicture: () => api.delete('/users/me/picture').then((res) => res.data),

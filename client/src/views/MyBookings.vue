@@ -89,23 +89,25 @@ onMounted(loadBookings)
 </script>
 
 <template>
-  <h2 class="mb-4">My Bookings</h2>
+  <div class="ob">
+    <h2 class="mb-4">My Bookings</h2>
 
-  <div v-if="error" class="alert alert-warning">{{ error }}</div>
-  <div v-else-if="loading" class="text-muted">Loading your bookings…</div>
+    <div v-if="error" class="alert alert-warning">{{ error }}</div>
+    <div v-else-if="loading" class="text-muted">Loading your bookings…</div>
 
-  <template v-else>
-    <div v-if="message" class="alert alert-success">{{ message }}</div>
-    <div v-if="actionError" class="alert alert-warning">{{ actionError }}</div>
+    <template v-else>
+      <div v-if="message" class="alert alert-success">{{ message }}</div>
+      <div v-if="actionError" class="alert alert-warning">{{ actionError }}</div>
 
-    <BookingTabs :tabs="tabsWithCounts" :active-tab="activeTab" @select="selectTab" />
+      <BookingTabs :tabs="tabsWithCounts" :active-tab="activeTab" @select="selectTab" />
 
-    <div v-if="!visibleBookings.length" class="text-center text-muted py-5">
-      <p class="mb-3">No bookings here yet 🐾</p>
-      <router-link to="/home" class="btn btn-brand">Find a sitter</router-link>
-    </div>
+      <div v-if="!visibleBookings.length" class="text-center text-muted py-5">
+        <p class="mb-3">No bookings here yet 🐾</p>
+        <router-link to="/home" class="btn btn-brand">Find a sitter</router-link>
+      </div>
 
-    <BookingTable v-else :bookings="visibleBookings" viewer="owner" :busy-id="busyId" @cancel="cancelBooking" />
-    <!-- cancelBooking runs with the childs payload thats passed up  -->
-  </template>
+      <BookingTable v-else :bookings="visibleBookings" viewer="owner" :busy-id="busyId" @cancel="cancelBooking" />
+      <!-- cancelBooking runs with the childs payload thats passed up  -->
+    </template>
+  </div>
 </template>

@@ -41,9 +41,9 @@ watch(() => props.profile._id, async (id) => {
 .ph-card {
   padding: 1.25rem;
   border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #c47756;           
+  border-top: 4px solid #e6d3c0;             
   border-radius: 20px;
-  background: #f6e3d6;                   
+  background: #fbf1e6;                   
   box-shadow: 0 8px 20px rgba(120, 70, 40, 0.14);
 }
 

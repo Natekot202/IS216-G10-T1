@@ -3,7 +3,7 @@
 // Shows the pets (tap a pet to see its care checklist, look only, nothing can be ticked), the owner's notes,
 // and a card for the person on the other side, with the buttons to accept / decline / cancel.
 import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { bookingsApi } from '../services/bookingApi.js'
 import { currentUser, fetchUser } from '../services/auth.js'
 import StatusPill from '../components/StatusPill.vue'
@@ -11,6 +11,7 @@ import ShowStarRating from '../components/ShowStarRating.vue'
 import { formatDateRange, formatPrice } from '../utils/bookingHelpers.js'
 
 const route = useRoute()
+const router = useRouter()
 const booking = ref(null)
 const tasks = ref([]) // the care tasks the owner added: [{ title, dailyFrequency, petIds, ... }]
 const selectedPetId = ref(null) // the pet whose checklist is shown
@@ -21,7 +22,15 @@ const message = ref('')
 const busy = ref(false)
 
 const isSitter = computed(() => currentUser.value?.role === 'sitter')
-const backLink = computed(() => (isSitter.value ? '/sitter/requests' : '/owner/bookings'))
+
+function goBack() {
+  if (window.history.state?.back) {
+    router.back()
+  } else {
+    router.push(currentUser.value ? '/home' : '/browse')
+  }
+}
+
 const backText = computed(() => (isSitter.value ? 'Back to Booking Requests' : 'Back to My Bookings'))
 
 // the person on the other side of the booking
@@ -100,7 +109,13 @@ onMounted(async () => {
 
 <template>
   <div class="detail-wrap">
-    <router-link :to="backLink" class="text-secondary text-decoration-none">&larr; {{ backText }}</router-link>
+    <button type="button" class="pf-back" @click="goBack">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      {{ backText }}
+    </button>
 
     <div v-if="loading" class="text-muted mt-3">Loading this booking…</div>
     <div v-else-if="error" class="alert alert-warning mt-3">{{ error }}</div>

@@ -1,7 +1,7 @@
 import mongoose from 'mongoose'
 
 export const pet_types = ["Dog", "Cat", "Bird", "Rabbit", "Hamster", "Other"];
-export const services = ["Feeding", "Dog walking", "Cat walking", "Feeding Medication"]
+export const services = ["Feeding", "Grooming", "Dog walking", "Cat walking", "Feeding Medication"]
 
 // location schema
 const pointSchema = new mongoose.Schema(

@@ -273,7 +273,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div class="container-fluid">
+    <div class="oh container-fluid">
       <!-- heading -->
       <div class="d-flex justify-content-start mb-3">
         <div>

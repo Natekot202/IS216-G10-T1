@@ -77,9 +77,8 @@ onMounted(() => {
           <SitterDetails v-else :profile="profile" :editable="isMine" />
         </div>
       </div>
-      <div v-if="profile.role === 'sitter'" class="mt-4">
-        <SitterReviews :sitter-id="profile._id" />
-      </div>
+      <SitterReviews v-if="profile.role === 'sitter'" :sitter-id="profile._id" />
+      <SitterReviews v-else-if="profile.role === 'owner'" :sitter-id="profile._id" mode="given" class="mt-3"/>
     </template>
   </div>
 </template>
