@@ -67,7 +67,7 @@ const age = computed(() => (props.pet.ageMonths != null ? `${formatAge(props.pet
   height: 100%;
   overflow: hidden;
   border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #c47756;    
+  border-top: 4px solid #e6d3c0;    
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 4px 12px rgba(120, 70, 40, 0.12);

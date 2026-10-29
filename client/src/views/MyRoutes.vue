@@ -97,7 +97,7 @@ function reRecord(walkRoute) {
 </script>
 
 <template>
-  <div class="p-3 d-flex flex-column gap-3">
+  <div class="ur p-3 d-flex flex-column gap-3">
     <header class="d-flex flex-wrap align-items-end gap-2">
       <div>
         <h1 class="page-title mb-1">My routes</h1>

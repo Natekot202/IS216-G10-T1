@@ -150,22 +150,22 @@ function formatDate(d) {
   margin-top: 1rem;
   padding: 1.15rem 1.3rem;
   border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #c47756;    
+  border-top: 4px solid #e6d3c0;    
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);
 }
 .sd-card .sd-pills li {
-  background: #f4e4d3;
+  background: #fbf1e6;
   border-color: transparent;
 }
 .sd-nudge {
   margin-top: 1.25rem;
   margin-bottom: 1.25rem;
   padding: 1rem 1.15rem;
-  border: 1px dashed #c47756;
+  border: 1px dashed #e6d3c0;
   border-radius: 12px;
-  background: rgba(196, 119, 86, 0.08);
+  background: #fbf1e6(196, 119, 86, 0.08);
   color: #2b2420;
 }
 
@@ -173,9 +173,9 @@ function formatDate(d) {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #c47756;
+  border-top: 4px solid #e6d3c0;
   border-radius: 20px;
-  background: #f6e3d6;
+  background: #fbf1e6;
   box-shadow: 0 8px 20px rgba(120, 70, 40, 0.14);
 }
 .sd-stat {

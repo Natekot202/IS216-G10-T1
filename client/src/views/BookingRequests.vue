@@ -108,37 +108,39 @@ onMounted(loadRequests)
 </script>
 
 <template>
-  <h2 class="mb-4">Booking Requests</h2>
+  <div class="br">
+    <h2 class="mb-4">Booking Requests</h2>
 
-  <div v-if="error" class="alert alert-warning">{{ error }}</div>
-  <div v-if="message" class="alert alert-success">{{ message }}</div>
-  <div v-if="actionError" class="alert alert-warning">{{ actionError }}</div>
+    <div v-if="error" class="alert alert-warning">{{ error }}</div>
+    <div v-if="message" class="alert alert-success">{{ message }}</div>
+    <div v-if="actionError" class="alert alert-warning">{{ actionError }}</div>
 
-  <div v-if="toast" class="toast-container position-fixed bottom-0 end-0 p-3">
-    <div class="toast show align-items-center border-0" :class="`text-bg-${toast.type}`" role="status">
-      <div class="d-flex">
-        <div class="toast-body">{{ toast.text }}</div>
-        <button type="button" class="btn-close me-2 m-auto" :class="{ 'btn-close-white': toast.type === 'success' }" aria-label="Close" @click="toast = null"></button>
+    <div v-if="toast" class="toast-container position-fixed bottom-0 end-0 p-3">
+      <div class="toast show align-items-center border-0" :class="`text-bg-${toast.type}`" role="status">
+        <div class="d-flex">
+          <div class="toast-body">{{ toast.text }}</div>
+          <button type="button" class="btn-close me-2 m-auto" :class="{ 'btn-close-white': toast.type === 'success' }" aria-label="Close" @click="toast = null"></button>
+        </div>
       </div>
     </div>
+
+    <div v-if="loading" class="text-muted">Loading requests…</div>
+
+    <template v-else-if="!error">
+      <BookingTabs :tabs="tabsWithCounts" :active-tab="activeTab" @select="selectTab" />
+
+      <p v-if="!visibleBookings.length" class="text-center text-muted py-5">
+        {{ activeTab === 'pending' ? 'No new requests right now 🐾' : 'Nothing here yet.' }}
+      </p>
+      <BookingTable
+        v-else
+        :bookings="visibleBookings"
+        viewer="sitter"
+        :busy-id="busyId"
+        @accept="respond($event, 'accepted')"
+        @decline="respond($event, 'declined')"
+        @cancel="cancelBooking"
+      />
+    </template>
   </div>
-
-  <div v-if="loading" class="text-muted">Loading requests…</div>
-
-  <template v-else-if="!error">
-    <BookingTabs :tabs="tabsWithCounts" :active-tab="activeTab" @select="selectTab" />
-
-    <p v-if="!visibleBookings.length" class="text-center text-muted py-5">
-      {{ activeTab === 'pending' ? 'No new requests right now 🐾' : 'Nothing here yet.' }}
-    </p>
-    <BookingTable
-      v-else
-      :bookings="visibleBookings"
-      viewer="sitter"
-      :busy-id="busyId"
-      @accept="respond($event, 'accepted')"
-      @decline="respond($event, 'declined')"
-      @cancel="cancelBooking"
-    />
-  </template>
 </template>

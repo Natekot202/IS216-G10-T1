@@ -1,16 +1,20 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, toRef, watch } from 'vue'
 import StatusPill from './StatusPill.vue'
 import BookingTasks from './BookingTasks.vue'
 import defaultAvatar from '../assets/img/tempProfile.jpg'
 import { formatDateRange, formatPrice } from '../utils/bookingHelpers'
+import { usePagination } from '../utils/usePagination.js'
+import PaginationBar from '../components/PaginationBar.vue'
 
 const props = defineProps({
   
   bookings: { type: Array, required: true },
   viewer: { type: String, default: 'owner' }, // 'owner' or 'sitter'
   busyId: { type: String, default: null }, // booking being accepted/declined right now
-  showTrip: { type: Boolean, default: true } // hide the trip link on the trip page itself
+  showTrip: { type: Boolean, default: true }, // hide the trip link on the trip page itself
+  paginate: { type: Boolean, default: true},
+  pageSize: { type: Number, default: 6 }
 })
 
 defineEmits(['accept', 'decline', 'cancel'])
@@ -20,6 +24,19 @@ const openId = ref(null)
 function toggleDetails(id) {
   openId.value = openId.value === id ? null : id
 }
+
+const tableEl = ref(null)
+
+const { page, pageItems, goPage } = usePagination(toRef(props, 'bookings'), {
+  pageSize: props.pageSize,
+  scrollRef: tableEl
+})
+
+const rows = computed(() => (props.paginate ? pageItems.value : props.bookings))
+
+watch(page, () => {
+  openId.value = null
+})
 
 // the person on the other side of the booking
 function otherPerson(booking) {
@@ -33,9 +50,12 @@ function petNames(booking) {
 }
 
 function canCancel(booking) {
-  if (props.viewer === 'owner') return ['pending', 'accepted'].includes(booking.status)
+  if (props.viewer === 'owner') {
+    return ['pending', 'accepted'].includes(booking.status)
+  }
   return booking.status === 'accepted'
 }
+
 // for owners, returns true if request is pending/accepted ; can cancel for either of the two statuses 
 // for sitters, returns true if request is accepted ; can only cancel accepted requests 
 
@@ -49,7 +69,7 @@ function showTripLink(booking) {
 </script>
 
 <template>
-  <div class="table-responsive booking-table">
+  <div ref="tableEl" class="data-table-wrap">
     <table class="table align-middle mb-0">
       <thead>
         <tr>
@@ -62,7 +82,7 @@ function showTripLink(booking) {
       </thead>
 
       <tbody>
-        <template v-for="b in bookings" :key="b._id">
+        <template v-for="b in rows" :key="b._id">
           <!-- main row -->
           <tr :class="{ 'opacity-75': b.status === 'declined' || b.status === 'cancelled' }">
             <td>
@@ -151,24 +171,11 @@ function showTripLink(booking) {
         </template>
       </tbody>
     </table>
+    <PaginationBar v-if="paginate" :page="page" :total="bookings.length" :page-size="pageSize" @change="goPage" />
   </div>
 </template>
 
 <style scoped>
-.booking-table {
-  background: #fff;
-  border: 1px solid #ede3d8;
-  border-radius: 12px;
-  padding: 0 0.75rem;
-}
-.booking-table th {
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #6c757d;
-  white-space: nowrap;
-}
 .avatar {
   width: 36px;
   height: 36px;

@@ -11,7 +11,7 @@ import { useLocationSearch } from '../utils/useLocationSearch.js'
 const router = useRouter()
 
 const pet_types = ["Dog", "Cat", "Bird", "Rabbit", "Hamster", "Other"];
-const services = ["Feeding", "Dog walking", "Cat walking", "Feeding Medication"]
+const services = ["Feeding", "Grooming", "Dog walking", "Cat walking", "Feeding Medication"]
 
 const isOwner = computed(() => currentUser.value?.role === 'owner')
 const isSitter = computed(() => currentUser.value?.role === 'sitter')

@@ -2,12 +2,13 @@
 // /bookings/:id/pay (owner): pay for a booking AFTER the sitter has completed it.
 // Simulated card payment (VISA / Mastercard). No real money moves.
 import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { bookingsApi } from '../services/bookingApi.js'
 import { paymentsApi } from '../services/paymentApi.js'
 import { petNames, formatDateRange, formatPrice } from '../utils/bookingHelpers.js'
 
 const route = useRoute()
+const router = useRouter()
 
 const booking = ref(null)
 const loading = ref(true)
@@ -17,6 +18,14 @@ const form = ref({ name: '', cardNumber: '', expiry: '', cvc: '' })
 const paying = ref(false)
 const payError = ref('')
 const receipt = ref(null) // the successful payment, once paid
+
+function goBack() {
+  if (window.history.state?.back) {
+    router.back()
+  } else {
+    router.push(currentUser.value ? '/home' : '/browse')
+  }
+}
 
 // Hours booked, from start date + time to end date + time (no times = all day)
 const hours = computed(() => {
@@ -106,96 +115,106 @@ async function pay() {
 </script>
 
 <template>
-  <router-link to="/owner/bookings?tab=to-pay" class="text-secondary text-decoration-none">&larr; Back to My Bookings</router-link>
-  <h2 class="mt-3 mb-4">Payment</h2>
+  <div class="pay">
+    <!-- <router-link to="/owner/bookings?tab=to-pay" class="text-secondary text-decoration-none">&larr; Back to My Bookings</router-link> -->
+    <button type="button" class="pf-back" @click="goBack">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      Back to My Bookings
+    </button>
 
-  <div v-if="loading" class="text-muted">Loading booking…</div>
+    <h2 class="mt-3 mb-4">Payment</h2>
 
-  <div v-else-if="loadError" class="alert alert-warning">{{ loadError }}</div>
+    <div v-if="loading" class="text-muted">Loading booking…</div>
 
-  <!-- Paid -->
-  <div v-else-if="receipt" class="card shadow-sm pay-card text-center p-4 mx-auto success-card">
-    <div class="display-6 mb-2">✅</div>
-    <h4 class="mb-2">Payment successful</h4>
-    <p class="text-muted mb-1">
-      {{ formatPrice(receipt.amount) }} paid with {{ brandLabel(receipt.method) }} •••• {{ receipt.cardLast4 }}
-    </p>
-    <p class="text-muted small mb-4">Thank you! Your sitter has been paid.</p>
-    <router-link to="/owner/bookings?tab=past" class="btn btn-brand">Back to My Bookings</router-link>
-  </div>
+    <div v-else-if="loadError" class="alert alert-warning">{{ loadError }}</div>
 
-  <div v-else class="row g-4">
-    <!-- Booking summary (on the right on laptops, on top on phones) -->
-    <div class="col-12 col-lg-5 order-lg-2">
-      <div class="card shadow-sm pay-card">
-        <div class="card-body">
-          <h3 class="h6 text-uppercase text-muted fw-bold mb-3">Booking summary</h3>
-          <dl class="row small mb-0">
-            <dt class="col-4">Sitter</dt>
-            <dd class="col-8">{{ booking.sitterId?.username }}</dd>
-            <dt class="col-4">Pets</dt>
-            <dd class="col-8">{{ petNames(booking) }}</dd>
-            <dt class="col-4">When</dt>
-            <dd class="col-8">{{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime) }}</dd>
-            <dt class="col-4">Hours</dt>
-            <dd class="col-8">{{ hours }}</dd>
-            <dt class="col-4">Rate</dt>
-            <dd class="col-8">{{ formatPrice(ratePerHour) }}/hr</dd>
-          </dl>
-          <hr />
-          <div class="d-flex justify-content-between fw-bold fs-5">
-            <span>Total</span><span>{{ formatPrice(booking.totalPrice) }}</span>
+    <!-- Paid -->
+    <div v-else-if="receipt" class="card shadow-sm pay-card text-center p-4 mx-auto success-card">
+      <div class="display-6 mb-2">✅</div>
+      <h4 class="mb-2">Payment successful</h4>
+      <p class="text-muted mb-1">
+        {{ formatPrice(receipt.amount) }} paid with {{ brandLabel(receipt.method) }} •••• {{ receipt.cardLast4 }}
+      </p>
+      <p class="text-muted small mb-4">Thank you! Your sitter has been paid.</p>
+      <router-link to="/owner/bookings?tab=past" class="btn btn-brand">Back to My Bookings</router-link>
+    </div>
+
+    <div v-else class="row g-4">
+      <!-- Booking summary (on the right on laptops, on top on phones) -->
+      <div class="col-12 col-lg-5 order-lg-2">
+        <div class="card shadow-sm pay-card">
+          <div class="card-body">
+            <h3 class="h6 text-uppercase text-muted fw-bold mb-3">Booking summary</h3>
+            <dl class="row small mb-0">
+              <dt class="col-4">Sitter</dt>
+              <dd class="col-8">{{ booking.sitterId?.username }}</dd>
+              <dt class="col-4">Pets</dt>
+              <dd class="col-8">{{ petNames(booking) }}</dd>
+              <dt class="col-4">When</dt>
+              <dd class="col-8">{{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime) }}</dd>
+              <dt class="col-4">Hours</dt>
+              <dd class="col-8">{{ hours }}</dd>
+              <dt class="col-4">Rate</dt>
+              <dd class="col-8">{{ formatPrice(ratePerHour) }}/hr</dd>
+            </dl>
+            <hr />
+            <div class="d-flex justify-content-between fw-bold fs-5">
+              <span>Total</span><span>{{ formatPrice(booking.totalPrice) }}</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Card form -->
-    <div class="col-12 col-lg-7 order-lg-1">
-      <div class="card shadow-sm pay-card">
-        <div class="card-body">
-          <h3 class="h6 text-uppercase text-muted fw-bold mb-3">Card details</h3>
-          <div v-if="payError" class="alert alert-danger py-2">{{ payError }}</div>
+      <!-- Card form -->
+      <div class="col-12 col-lg-7 order-lg-1">
+        <div class="card shadow-sm pay-card">
+          <div class="card-body">
+            <h3 class="h6 text-uppercase text-muted fw-bold mb-3">Card details</h3>
+            <div v-if="payError" class="alert alert-danger py-2">{{ payError }}</div>
 
-          <form novalidate @submit.prevent="pay">
-            <label for="card-name" class="form-label">Name on card</label>
-            <input id="card-name" v-model="form.name" class="form-control mb-3" autocomplete="cc-name" placeholder="e.g. Tan Ah Kow" />
+            <form novalidate @submit.prevent="pay">
+              <label for="card-name" class="form-label">Name on card</label>
+              <input id="card-name" v-model="form.name" class="form-control mb-3" autocomplete="cc-name" placeholder="e.g. Tan Ah Kow" />
 
-            <label for="card-number" class="form-label">Card number</label>
-            <div class="input-group mb-3">
-              <input
-                id="card-number"
-                :value="form.cardNumber"
-                class="form-control"
-                inputmode="numeric"
-                autocomplete="cc-number"
-                placeholder="1234 5678 9012 3456"
-                @input="onCardInput"
-              />
-              <span class="input-group-text brand-badge" :class="brand ? `brand-${brand}` : ''">{{ brandLabel(brand) }}</span>
-            </div>
-
-            <div class="row g-3 mb-4">
-              <div class="col-6">
-                <label for="card-expiry" class="form-label">Expiry</label>
-                <input id="card-expiry" :value="form.expiry" class="form-control" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/YY" @input="onExpiryInput" />
+              <label for="card-number" class="form-label">Card number</label>
+              <div class="input-group mb-3">
+                <input
+                  id="card-number"
+                  :value="form.cardNumber"
+                  class="form-control"
+                  inputmode="numeric"
+                  autocomplete="cc-number"
+                  placeholder="1234 5678 9012 3456"
+                  @input="onCardInput"
+                />
+                <span class="input-group-text brand-badge" :class="brand ? `brand-${brand}` : ''">{{ brandLabel(brand) }}</span>
               </div>
-              <div class="col-6">
-                <label for="card-cvc" class="form-label">CVC</label>
-                <input id="card-cvc" :value="form.cvc" class="form-control" inputmode="numeric" autocomplete="cc-csc" placeholder="123" @input="onCvcInput" />
+
+              <div class="row g-3 mb-4">
+                <div class="col-6">
+                  <label for="card-expiry" class="form-label">Expiry</label>
+                  <input id="card-expiry" :value="form.expiry" class="form-control" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/YY" @input="onExpiryInput" />
+                </div>
+                <div class="col-6">
+                  <label for="card-cvc" class="form-label">CVC</label>
+                  <input id="card-cvc" :value="form.cvc" class="form-control" inputmode="numeric" autocomplete="cc-csc" placeholder="123" @input="onCvcInput" />
+                </div>
               </div>
+
+              <button type="submit" class="btn btn-brand w-100 py-2" :disabled="paying">
+                <span v-if="paying" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                {{ paying ? 'Paying…' : `Pay ${formatPrice(booking.totalPrice)}` }}
+              </button>
+            </form>
+
+            <div class="test-cards small mt-4">
+              <strong>Test cards (no real money):</strong><br />
+              4242 4242 4242 4242 (VISA, approved) · 5555 5555 5555 4444 (Mastercard, approved) ·
+              4000 0000 0000 0002 (declined). Any future expiry like 12/28 and any 3-digit CVC.
             </div>
-
-            <button type="submit" class="btn btn-brand w-100 py-2" :disabled="paying">
-              <span v-if="paying" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
-              {{ paying ? 'Paying…' : `Pay ${formatPrice(booking.totalPrice)}` }}
-            </button>
-          </form>
-
-          <div class="test-cards small mt-4">
-            <strong>Test cards (no real money):</strong><br />
-            4242 4242 4242 4242 (VISA, approved) · 5555 5555 5555 4444 (Mastercard, approved) ·
-            4000 0000 0000 0002 (declined). Any future expiry like 12/28 and any 3-digit CVC.
           </div>
         </div>
       </div>

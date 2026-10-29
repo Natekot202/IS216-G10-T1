@@ -58,6 +58,16 @@ export async function getUserReviews(req, res) {
   res.json(reviews)
 }
 
+export async function getReviewsGiven(req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return res.status(404).json({ message: 'User not found' })
+  }
+  const reviews = await Review.find({ owner: req.params.id })
+    .populate('sitter', 'username profilePicture')
+    .sort({ _id: -1 })
+  res.json(reviews)
+}
+
 // location helpers
 function validCoords(lat, lng) {
   return Number.isFinite(lat) && Number.isFinite(lng) &&
