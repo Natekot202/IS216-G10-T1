@@ -1,7 +1,7 @@
 import mongoose from 'mongoose'
 
 export const pet_types = ["Dog", "Cat", "Bird", "Rabbit", "Hamster", "Other"];
-export const services = ["Feeding", "Grooming", "Dog walking", "Cat walking", "Feeding Medication"]
+export const services = ["Feeding", "Grooming", "Dog walking", "Cat walking", "Feeding Medication", "Cleaning", "Playtime"]
 
 // location schema
 const pointSchema = new mongoose.Schema(
@@ -71,16 +71,16 @@ const userSchema = new mongoose.Schema({
   ownerProfile: {
     address: { type: 
       addressSchema, 
-      select: false }   
+      select: false },
+    // Services this owner's pets need (e.g. Grooming), used to recommend matching sitters
+    servicesNeeded: {
+      type: [{ type: String, enum: services }],
+      default: []
+    }
   },
 
   sitterProfile: {
-    petsittingRates: { 
-      type: Number, 
-      default: 0,
-      min: 0 
-    },             
-    experienceStart: { 
+    experienceStart: {
       type: Date 
     },                
     petTypes: { 

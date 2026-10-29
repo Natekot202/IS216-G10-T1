@@ -12,7 +12,8 @@ const props = defineProps({
 
 const sp = computed(() => props.profile.sitterProfile || {})
 const gallery = computed(() => sp.value.gallery ?? [])
-const rateAmount = computed(() => (sp.value.petsittingRates > 0 ? `S$${sp.value.petsittingRates}` : ''))
+// Prices are the same for every sitter now, so we show how many services they offer instead of a rate
+const serviceCount = computed(() => sp.value.services?.length || 0)
 
 const experience = computed(() => {
   if (!sp.value.experienceStart) {
@@ -36,7 +37,7 @@ function stars(n) {
 }
 
 const hasDetails = computed(() => 
-  sp.value.petsittingRates > 0 || sp.value.petTypes?.length || sp.value.services?.length
+  sp.value.petTypes?.length || sp.value.services?.length
 )
 
 const reviews = ref([])
@@ -94,8 +95,8 @@ function formatDate(d) {
       </div>
 
       <div class="sd-stat">
-        <span class="sd-big" :class="{ 'sd-big--empty': !rateAmount }">{{ rateAmount || '—' }}</span>
-        <span class="sd-sub">{{ rateAmount ? 'per hour' : 'rate not set' }}</span>
+        <span class="sd-big" :class="{ 'sd-big--empty': !serviceCount }">{{ serviceCount || '—' }}</span>
+        <span class="sd-sub">{{ serviceCount ? (serviceCount === 1 ? 'service offered' : 'services offered') : 'services not set' }}</span>
       </div>
 
       <div class="sd-stat">

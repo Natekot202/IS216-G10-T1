@@ -20,6 +20,7 @@
     "express-session": "^1.19.0",
     "googleapis": "^186.0.0",
     "mongoose": "^8.5.1",
-    "multer": "^2.4.0"
+    "multer": "^2.4.0",
+    "stripe": "^23.0.1"
   }
 }

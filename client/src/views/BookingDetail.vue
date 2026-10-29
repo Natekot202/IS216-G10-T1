@@ -127,6 +127,7 @@ onMounted(async () => {
       </div>
       <p class="text-muted fw-semibold mb-3">
         {{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime) }} · {{ formatPrice(booking.totalPrice) }}
+        <span v-if="booking.overnight" class="badge rounded-pill text-bg-light border ms-1">🌙 Sitter stays overnight</span>
       </p>
 
       <div v-if="booking.status === 'cancelled'" class="alert alert-secondary">

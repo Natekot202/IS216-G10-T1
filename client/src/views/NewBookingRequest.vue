@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import { formatTime } from '../utils/bookingHelpers.js'
 import { toDateString, prettyDate } from '../utils/bookingTimeHelpers.js'
 import { checkBookingRequest, buildBookingPayload } from '../utils/bookingRequestRules.js'
+import { SERVICE_PRICES, SERVICE_LABELS, PRICE_LIST_TEXT, OVERNIGHT_FEE, priceForTasks, nightsFor, bookingPrice } from '../utils/servicePrices.js'
 import { bookingsApi } from '../services/bookingApi.js'
 import { availabilityApi } from '../services/availabilityApi.js'
 import { usersApi, petsApi } from '../services/api.js'
@@ -27,13 +28,11 @@ const selectedPets = ref([]) // array of pet ids
 const when = ref({ startDate: '', startTime: '', endDate: '', endTime: '', clash: false })
 const tasks = ref([]) // the care tasks (the checklist editor sends us this list)
 const notes = ref('')
+const overnight = ref(false) // true = the sitter stays the night at the owner's place
 
 const error = ref('')
 const sending = ref(false) // tracks wether the booking request is currently sent to the server 
 const booking = ref(null) // the created booking, once sent
-
-const rate = computed(() => sitter.value?.sitterProfile?.petsittingRates || 0)
-// use '?.' instead of '.' so that if sitter.value/sitterProfile is null/undefined it wont throw an error 
 
 // returns an array of day dates from start to end, inclusive. Empty if the dates aren't filled in properly.
 const chosenDays = computed(() => {
@@ -48,18 +47,10 @@ const chosenDays = computed(() => {
   return days
 })
 
-// Hours booked: from start date + start time to end date + end time ('24:00' = end of the day)
-const chosenHours = computed(() => {
-  const { startDate, startTime, endDate, endTime } = when.value
-  if (!startDate || !endDate || !startTime || !endTime) return 0
-  const toMinutes = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5))
-  const dayGap = Math.round((new Date(endDate + 'T00:00:00') - new Date(startDate + 'T00:00:00')) / 86400000)
-  const minutes = dayGap * 24 * 60 + toMinutes(endTime) - toMinutes(startTime)
-  return minutes > 0 ? minutes / 60 : 0
-})
-
-// Price preview: hourly rate × number of hours (rounded to cents)
-const totalPrice = computed(() => Math.round(rate.value * chosenHours.value * 100) / 100)
+// Price preview: each task's fixed price × times a day × number of days, added up
+// (same sum the server does, in utils/servicePrices.js)
+const nights = computed(() => nightsFor(chosenDays.value.length, overnight.value)) // e.g. 3 days → 2 nights
+const totalPrice = computed(() => bookingPrice(tasks.value, chosenDays.value.length, overnight.value))
 
 // Chosen days the sitter hasn't marked as available
 const unavailableDays = computed(() => chosenDays.value.filter((d) => availability.value[d]?.status !== 'available'))
@@ -86,7 +77,8 @@ async function sendRequest() {
     when: when.value,
     tasks: tasks.value,
     clash: clash.value,
-    unavailableDays: unavailableDays.value
+    unavailableDays: unavailableDays.value,
+    overnight: overnight.value
   })
   if (message) return (error.value = message)
 
@@ -97,7 +89,8 @@ async function sendRequest() {
         selectedPets: selectedPets.value,
         when: when.value,
         tasks: tasks.value,
-        notes: notes.value
+        notes: notes.value,
+        overnight: overnight.value
       })
     )
   } catch (err) {
@@ -156,7 +149,7 @@ onMounted(async () => {
             <img class="avatar rounded-circle img-fluid" :src="sitter.profilePicture?.url || defaultAvatar">
             <div>
               <div class="fw-semibold">{{ sitter.username }}</div>
-              <div class="small text-muted">${{ rate }}/hr</div>
+                            <div v-if="sitter.sitterProfile?.services?.length" class="small text-muted">{{ sitter.sitterProfile.services.join(' · ') }}</div>
             </div>
           </div>
 
@@ -196,9 +189,18 @@ onMounted(async () => {
             2. within bookingdatepicker, it builds the object called change, and returns it to the parent, which the parent recieves as the when object 
           -->
 
-          <p v-if="chosenHours" class="small mb-4">
-            {{ chosenHours }} hour{{ chosenHours === 1 ? '' : 's' }} × ${{ rate }}/hr = <strong>${{ totalPrice }}</strong>
+          <p v-if="chosenDays.length" class="small mb-4">
+            {{ chosenDays.length }} day{{ chosenDays.length === 1 ? '' : 's' }} booked
           </p>
+
+          <!-- Overnight stay -->
+          <div class="form-check mb-4">
+            <input id="overnight" v-model="overnight" class="form-check-input" type="checkbox" />
+            <label class="form-check-label" for="overnight">
+              🌙 The sitter stays overnight at my place (+${{ OVERNIGHT_FEE }} a night)
+            </label>
+            <div class="form-text">For bookings that end on a later day, e.g. Fri to Sun = 2 nights.</div>
+          </div>
 
           <!-- Notes -->
           <h3 class="h6 text-uppercase text-muted fw-bold">Notes to Sitter</h3>
@@ -218,14 +220,23 @@ onMounted(async () => {
       <div class="card shadow-sm">
         <div class="card-body">
           <h3 class="h6 text-uppercase text-muted fw-bold mb-3">Price Preview</h3>
-          <div class="d-flex justify-content-between small"><span>Hourly rate</span><span>${{ rate }}/hr</span></div>
-          <div class="d-flex justify-content-between small"><span>Hours</span><span>{{ chosenHours || '–' }}</span></div>
+          <!-- One line per task, e.g. "Walk: $20 × 2 a day × 3 days = $120" -->
+          <div v-for="(t, i) in tasks" :key="i" class="d-flex justify-content-between small">
+            <span>{{ SERVICE_LABELS[t.category] }}: ${{ SERVICE_PRICES[t.category] }} × {{ t.dailyFrequency || 0 }} a day × {{ chosenDays.length }} day{{ chosenDays.length === 1 ? '' : 's' }}</span>
+            <span>${{ priceForTasks([t], chosenDays.length) }}</span>
+          </div>
+          <p v-if="tasks.length === 0" class="small text-muted mb-1">Add a care task below to see the price.</p>
+            <div v-if="nights" class="d-flex justify-content-between small">
+            <span>🌙 Overnight: ${{ OVERNIGHT_FEE }} × {{ nights }} night{{ nights === 1 ? '' : 's' }}</span>
+            <span>${{ OVERNIGHT_FEE * nights }}</span>
+          </div>
+          <div class="d-flex justify-content-between small"><span>Days</span><span>{{ chosenDays.length || '–' }}</span></div>
           <div v-if="when.startTime && when.endTime" class="d-flex justify-content-between small">
             <span>Time</span><span>{{ formatTime(when.startTime) }} – {{ formatTime(when.endTime) }}</span>
           </div>
           <hr />
           <div class="d-flex justify-content-between fw-bold"><span>Total</span><span>${{ totalPrice }}</span></div>
-          <p class="small text-muted mt-2 mb-0">Charged per hour. You pay after the sitter has completed the booking.</p>
+          <p class="small text-muted mt-2 mb-0">Same fixed prices for every sitter, per time a task is done: {{ PRICE_LIST_TEXT }}. Overnight stay: ${{ OVERNIGHT_FEE }} a night. You pay after the sitter has completed the booking.</p>
           <div v-if="clash" class="alert alert-danger small py-2 mt-3 mb-0">
             The sitter is already booked during this time. Please choose different times.
           </div>

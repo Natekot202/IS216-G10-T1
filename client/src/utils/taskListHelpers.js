@@ -10,9 +10,11 @@ const LABELS = {
   walk: 'Walking',
   groom: 'Grooming',
   medication: 'Medication',
-  other: 'Other tasks',
+  clean: 'Clean-up',
+  play: 'Playtime',
+  other: 'Other tasks', // only old bookings made before 'other' was removed
 }
-const ORDER = ['feed', 'walk', 'groom', 'medication', 'other'];
+const ORDER = ['feed', 'walk', 'groom', 'medication', 'clean', 'play', 'other'];
 
 // Inclusive, so 22 Oct to 25 Oct is 4 days.
 function bookingDuration(start, end) {

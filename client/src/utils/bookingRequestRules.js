@@ -8,7 +8,7 @@ import { prettyDate } from './bookingTimeHelpers.js'
 //   tasks: the care tasks                 clash: true if the chosen time runs into a booked time
 //   unavailableDays: chosen days the sitter hasn't marked as available
 // Returns the message to show the owner, or '' if everything is fine.
-export function checkBookingRequest({ selectedPets, when, tasks, clash, unavailableDays }) {
+export function checkBookingRequest({ selectedPets, when, tasks, clash, unavailableDays, overnight = false }) {
   if (selectedPets.length === 0) return 'Select at least one pet.'
   if (!when.startDate || !when.endDate) return 'Choose a start and end date.'
   if (when.endDate < when.startDate) return 'End date must be on or after the start date.'
@@ -18,6 +18,8 @@ export function checkBookingRequest({ selectedPets, when, tasks, clash, unavaila
     return `The sitter is not available on ${unavailableDays.map(prettyDate).join(', ')}.`
   }
 
+  if (overnight && when.endDate === when.startDate) return 'An overnight stay needs the booking to end on a later day.'
+  if (tasks.length === 0) return 'Add at least one care task. The price is based on the tasks.'
   if (tasks.some((t) => !t.title.trim())) {
     return 'Give every care task a description, or remove it.'
   }
@@ -29,7 +31,7 @@ export function checkBookingRequest({ selectedPets, when, tasks, clash, unavaila
 }
 
 // Builds the object that is sent to the server (POST /api/bookings). `notes` is the owner's note to the sitter.
-export function buildBookingPayload(sitterId, { selectedPets, when, tasks, notes }) {
+export function buildBookingPayload(sitterId, { selectedPets, when, tasks, notes, overnight = false }) {
   return {
     sitterId,
     petIds: selectedPets,
@@ -38,6 +40,7 @@ export function buildBookingPayload(sitterId, { selectedPets, when, tasks, notes
     endDate: when.endDate,
     endTime: when.endTime,
     notes,
+    overnight, // true = the sitter stays the night at the owner's place
     tasks: tasks.map((t) => {
       // keep only pets that are still selected; if none are left, the task is for all selected pets
       const chosen = t.petIds.filter((id) => selectedPets.includes(id))

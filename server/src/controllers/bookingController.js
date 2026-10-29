@@ -66,15 +66,6 @@ export const updateBookingStatus = async (req, res) => {
   booking.status = status
   await booking.save()
 
-  // Trips: the owner sent the same trip to several sitters (same groupId).
-  // The first sitter to accept gets the job, so the other requests still pending are declined.
-  if (status === 'accepted' && booking.groupId) {
-    await Booking.updateMany(
-      { groupId: booking.groupId, _id: { $ne: booking._id }, status: 'pending' },
-      { status: 'declined' }
-    )
-  }
-
   // When a sitter accepts, add the booking to their Google Calendar.
   // This never blocks or fails the accept: googleSync just says what happened, e.g. { synced: true }.
   const googleSync = status === 'accepted' ? await syncBookingToGoogle(booking) : null

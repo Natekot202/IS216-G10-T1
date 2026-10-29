@@ -1,13 +1,6 @@
-// Small helper functions shared by MyBookings.vue, GroupBookings.vue and the cards.
+// Small helper functions shared by the booking pages and tables.
 // ASSUMPTION: GET /api/bookings returns sitterId and petIds already populated
 // (objects with a .name). If not, the fallbacks below show "Sitter" / "Pet".
-
-// Statuses that mean this sitter got the job (the first sitter in a trip to accept it).
-export const CHOSEN_STATUSES = ['accepted', 'in-progress', 'completed', 'paid']
-
-export function sitterName(booking) {
-  return booking.sitterId?.username || booking.sitterId?.name || booking.sitter?.name || 'Sitter'
-}
 
 export function petNames(booking) {
   const names = (booking.petIds || []).map((p) => p?.name).filter(Boolean)

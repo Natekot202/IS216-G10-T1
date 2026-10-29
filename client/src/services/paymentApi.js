@@ -7,8 +7,13 @@ const api = axios.create({
 })
 
 export const paymentsApi = {
-  // Owner pays for a completed booking: { bookingId, cardNumber, expiry, cvc }
-  pay: (details) => api.post('/payments', details).then((res) => res.data),
+  // Owner starts paying for a completed booking. The server asks Stripe for a checkout page
+  // and sends back its link: { url }. The page then sends the owner there.
+  checkout: (bookingId) => api.post('/payments/checkout', { bookingId }).then((res) => res.data),
+  // After Stripe sends the owner back: ask the server to check with Stripe that it was really paid
+  confirm: (sessionId) => api.post('/payments/confirm', { sessionId }).then((res) => res.data),
+  // The owner pressed "back" on Stripe's page without paying: mark that attempt as rejected
+  cancel: (paymentId) => api.post(`/payments/${paymentId}/cancel`).then((res) => res.data),
   // My payment records (sitter: paid to me, owner: paid by me)
   getMine: () => api.get('/payments/mine').then((res) => res.data)
 }
