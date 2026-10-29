@@ -9,7 +9,7 @@ import LocationQuery from "../components/LocationQuery.vue";
 import FilterPanel from "../components/FilterPanel.vue";
 import DistanceFilter from "../components/DistanceFilter.vue";
 import DateRangeFilter from "../components/DateRangeFilter.vue";
-import PriceFilter from "../components/PriceFilter.vue";
+import RecommendedSitters from "../components/RecommendedSitters.vue";
 import AdditionalFilters from "../components/AdditionalFilters.vue";
 
 
@@ -35,12 +35,6 @@ watch(showMapModal, open => {
   if (open) window.addEventListener('keydown', onEsc)
   else window.removeEventListener('keydown', onEsc)
 })
-
-//rangebar values
-const minLimit = ref(0)
-const maxLimit = ref(200)
-const minValue = ref(0)
-const maxValue = ref(200)
 
 //search rating
 const userRating = ref(0) //initial rating value
@@ -103,12 +97,6 @@ function filterByRating(list) {
   return list.filter((sitter) => Math.floor(sitter.sitterProfile.ratingAvg) == userRating.value);
 }
 
-function filterByPrice(list) {
-  const min =  Number(minValue.value);
-  const max =  Number(maxValue.value);
-  return list.filter((s) => s.sitterProfile.petsittingRates >= min && s.sitterProfile.petsittingRates <= max);
-}
-
 function filterBySearch(list) {
   const key = searchKey.value.trim().toLowerCase();
   if (key === "") return list;
@@ -119,7 +107,6 @@ const searchResults = computed(() => {
   let results = sittersWithDistance.value
   results = filterByPets(results);
   results = filterByRating(results);
-  results = filterByPrice(results);
   results = filterBySearch(results);
   if (requestedDates.value.length) {
     results = results.filter((sitter) => {
@@ -134,8 +121,6 @@ const searchResults = computed(() => {
 function clearFilters(){
   selectedPets.value=[]
   otherPets.value=""
-  minValue.value=0
-  maxValue.value=100
   userRating.value=0
   locationQuery.value=""
   origin.value = null
@@ -291,6 +276,9 @@ onBeforeUnmount(() => {
         </router-link>
       </div>
 
+      <!-- sitters who offer the services this owner needs -->
+      <RecommendedSitters />
+
       <!-- main body -->
       <div class="row gx-2">
       
@@ -307,8 +295,6 @@ onBeforeUnmount(() => {
             <DistanceFilter v-model="maxDistanceKm" :limit="maxDistanceLimit" :reference-label="referenceLabel" />
 
             <DateRangeFilter v-model:from="availableFrom" v-model:to="availableTo" />
-
-            <PriceFilter v-model:min="minValue" v-model:max="maxValue" :min-limit="minLimit" :max-limit="maxLimit" />
 
             <AdditionalFilters v-model:pets="selectedPets" v-model:other="otherPets" v-model:rating="userRating" />
           </FilterPanel>

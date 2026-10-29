@@ -72,7 +72,10 @@ async function loadTransactions() {
         : '—',
       amount: p.amount,
       status: p.status,
-      method: `${p.method === 'visa' ? 'VISA' : 'Mastercard'} •••• ${p.cardLast4}`
+      // e.g. 'Visa •••• 4242', or 'Paynow' (no card). A cancelled try has no method, so just show '—'
+      method: p.method
+        ? `${p.method.charAt(0).toUpperCase() + p.method.slice(1)}${p.cardLast4 ? ` •••• ${p.cardLast4}` : ''}`
+        : '—'
     }))
 
     const pendingRows = unpaid.map((b) => ({

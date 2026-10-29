@@ -1,5 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue'
+import { SERVICE_PRICES, SERVICE_LABELS, SERVICE_HINTS } from '../utils/servicePrices.js'
 
 // The care checklist part of the booking form: the owner adds tasks (feed, walk, medication...).
 // The page gives it the pets that were picked (prop), and it tells the page the list of tasks
@@ -9,7 +10,7 @@ defineProps({
 })
 const emit = defineEmits(['change'])
 
-const categories = ['feed', 'walk', 'groom', 'medication', 'other'] // same list the server accepts
+const categories = Object.keys(SERVICE_PRICES) // same 6 types the server accepts (each has a fixed price)
 const tasks = ref([]) // each task: { category, title, dailyFrequency, petIds }
 
 function addTask() {
@@ -33,15 +34,17 @@ watch(tasks, () => emit('change', tasks.value), { deep: true })
 
 <template>
   <h3 class="h6 text-uppercase text-muted fw-bold mt-4">Care Checklist</h3>
-  <p class="small text-muted">What should the sitter do each day? Optional.</p>
+  <p class="small text-muted">What should the sitter do each day? Add at least one task. The price is based on these tasks.
+    Pick the type that really matches the job; the sitter can decline a request whose tasks don't match.</p>
 
   <div v-for="(task, i) in tasks" :key="i" class="border rounded p-2 mb-2">
     <div class="row g-2 align-items-end">
       <div class="col-sm-3">
         <label class="form-label small mb-1">Type</label>
         <select v-model="task.category" class="form-select form-select-sm">
-          <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
+          <option v-for="c in categories" :key="c" :value="c">{{ SERVICE_LABELS[c] }} (${{ SERVICE_PRICES[c] }})</option>
         </select>
+        <div class="form-text">{{ SERVICE_HINTS[task.category] }}</div>
       </div>
       <div class="col-sm-5">
         <label class="form-label small mb-1">What to do</label>

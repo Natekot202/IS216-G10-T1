@@ -1,7 +1,6 @@
 <script setup>
 // /owner/bookings: every booking request the owner has sent, 1 row = 1 booking,
-// sorted into Pending / Upcoming / Past tabs. Requests sent together for one trip
-// show the trip name, which links to /owner/bookings/group/:groupId.
+// sorted into tabs by status. Each booking is with one sitter (no trips/groups).
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { bookingsApi } from '../services/bookingApi.js'

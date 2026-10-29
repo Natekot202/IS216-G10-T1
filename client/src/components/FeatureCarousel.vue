@@ -84,7 +84,7 @@ function onTouchEnd(e) {
                     <span class="stars">★★★★★ (12)</span>
                     <span class="sub">1.2 km away</span>
                 </span>
-                <span class="rate">S$18<small>/hr</small></span>
+                <span class="rate">S$20<small>/walk</small></span>
                 </div>
                 <div class="panel sitter sitter--dim">
                 <span class="avatar avatar--b">J</span>
@@ -93,7 +93,7 @@ function onTouchEnd(e) {
                     <span class="stars">★★★★☆ (23)</span>
                     <span class="sub">3.4 km away</span>
                 </span>
-                <span class="rate">S$15<small>/hr</small></span>
+                <span class="rate">S$12<small>/groom</small></span>
                 </div>
             </div>
 

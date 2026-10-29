@@ -1,15 +1,16 @@
 import mongoose from 'mongoose'
 
 // One payment attempt by an owner for a completed booking (a receipt).
-// We never store the full card number or the CVC, only the brand and the last 4 digits.
+// Stripe handles the card. We only keep the card brand and the last 4 digits it tells us.
 const paymentSchema = new mongoose.Schema(
   {
     bookingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', required: true },
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     sitterId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     amount: { type: Number, required: true, min: 0 },
-    method: { type: String, enum: ['visa', 'mastercard'], required: true },
-    cardLast4: { type: String, required: true },
+    method: { type: String, default: '' }, // card brand from Stripe, e.g. 'visa', 'mastercard'
+    cardLast4: { type: String, default: '' },
+    stripeSessionId: { type: String, index: true }, // links this payment to Stripe's Checkout page
     status: {
       type: String,
       enum: ['pending', 'successful', 'rejected'],

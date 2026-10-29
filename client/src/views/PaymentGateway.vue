@@ -1,21 +1,23 @@
 <script setup>
-// /bookings/:id/pay (owner): pay for a booking AFTER the sitter has completed it.
-// Simulated card payment (VISA / Mastercard). No real money moves.
+// /bookings/:id/pay (owner): pay for a booking AFTER the sitter has completed it, using Stripe Checkout.
+// Test mode: no real money moves.
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { bookingsApi } from '../services/bookingApi.js'
 import { paymentsApi } from '../services/paymentApi.js'
+import { currentUser } from '../services/auth.js'
 import { petNames, formatDateRange, formatPrice } from '../utils/bookingHelpers.js'
+import { SERVICE_PRICES, SERVICE_LABELS, OVERNIGHT_FEE, priceForTasks, nightsFor } from '../utils/servicePrices.js'
 
 const route = useRoute()
 const router = useRouter()
 
 const booking = ref(null)
+const tasks = ref([]) // the booking's care tasks (they make up the price)
 const loading = ref(true)
 const loadError = ref('')
 
-const form = ref({ name: '', cardNumber: '', expiry: '', cvc: '' })
-const paying = ref(false)
+const paying = ref(false) // true while we are getting the Stripe link
 const payError = ref('')
 const receipt = ref(null) // the successful payment, once paid
 
@@ -27,58 +29,50 @@ function goBack() {
   }
 }
 
-// Hours booked, from start date + time to end date + time (no times = all day)
-const hours = computed(() => {
+// Number of days in the booking (start and end day both count)
+const days = computed(() => {
   const b = booking.value
   if (!b) return 0
-  const toMinutes = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5))
-  const dayGap = Math.round((new Date(b.endDate) - new Date(b.startDate)) / 86400000)
-  const minutes = dayGap * 24 * 60 + toMinutes(b.endTime || '24:00') - toMinutes(b.startTime || '00:00')
-  return minutes / 60
-})
-const ratePerHour = computed(() => (hours.value ? booking.value.totalPrice / hours.value : 0))
-
-// The card number without spaces, and its brand (same rule as the server)
-const digits = computed(() => form.value.cardNumber.replace(/\D/g, ''))
-const brand = computed(() => {
-  const d = digits.value
-  if (d.startsWith('4')) return 'visa'
-  const firstTwo = Number(d.slice(0, 2))
-  const firstFour = Number(d.slice(0, 4))
-  if ((firstTwo >= 51 && firstTwo <= 55) || (d.length >= 4 && firstFour >= 2221 && firstFour <= 2720)) return 'mastercard'
-  return null
+  return Math.round((new Date(b.endDate) - new Date(b.startDate)) / 86400000) + 1
 })
 
-function brandLabel(b) {
-  return b === 'visa' ? 'VISA' : b === 'mastercard' ? 'Mastercard' : 'Card'
+// Nights the sitter stayed over (0 if this wasn't an overnight booking)
+const nights = computed(() => (booking.value ? nightsFor(days.value, booking.value.overnight) : 0))
+
+// 'visa' → 'Visa', 'mastercard' → 'Mastercard', 'paynow' → 'Paynow'
+function brandLabel(brand) {
+  if (!brand) return 'Card'
+  return brand.charAt(0).toUpperCase() + brand.slice(1)
 }
 
-// Keep the inputs tidy while typing.
-// We also write the value back into the box, so a typed letter disappears straight away.
-function onCardInput(e) {
-  const tidy = e.target.value.replace(/\D/g, '').slice(0, 16).replace(/(\d{4})(?=\d)/g, '$1 ') // "4242 4242 …"
-  form.value.cardNumber = tidy
-  e.target.value = tidy
-}
-function onExpiryInput(e) {
-  const d = e.target.value.replace(/\D/g, '').slice(0, 4)
-  const tidy = d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d // "1228" -> "12/28"
-  form.value.expiry = tidy
-  e.target.value = tidy
-}
-function onCvcInput(e) {
-  const tidy = e.target.value.replace(/\D/g, '').slice(0, 3)
-  form.value.cvc = tidy
-  e.target.value = tidy
+async function loadBooking() {
+  booking.value = await bookingsApi.getOne(route.params.id)
+  const res = await bookingsApi.getCareTasks(route.params.id)
+  tasks.value = res.items || []
 }
 
 onMounted(async () => {
+  const { session_id: sessionId, cancelled } = route.query
   try {
-    booking.value = await bookingsApi.getOne(route.params.id)
-    if (booking.value.status === 'paid') {
-      loadError.value = 'This booking has already been paid. Thank you!'
-    } else if (booking.value.status !== 'completed') {
-      loadError.value = 'You can pay once the sitter has completed this booking.'
+    if (sessionId) {
+      // Back from Stripe after paying: check it really went through
+      const result = await paymentsApi.confirm(sessionId)
+      receipt.value = result.payment
+    } else if (cancelled) {
+      // Back from Stripe without paying
+      await paymentsApi.cancel(cancelled).catch(() => {}) // fine if it was already marked
+      payError.value = 'Payment was cancelled. You can try again.'
+    }
+    // Clean the address bar so a refresh does not confirm/cancel again
+    if (sessionId || cancelled) router.replace({ query: {} })
+
+    await loadBooking()
+    if (!receipt.value) {
+      if (booking.value.status === 'paid') {
+        loadError.value = 'This booking has already been paid. Thank you!'
+      } else if (booking.value.status !== 'completed') {
+        loadError.value = 'You can pay once the sitter has completed this booking.'
+      }
     }
   } catch (err) {
     loadError.value = err.response?.data?.message || 'Could not load this booking.'
@@ -89,26 +83,12 @@ onMounted(async () => {
 
 async function pay() {
   payError.value = ''
-  // Quick checks here for friendly messages (the server checks everything again)
-  if (!form.value.name.trim()) return (payError.value = 'Enter the name on the card.')
-  if (digits.value.length !== 16) return (payError.value = 'Card number must be 16 digits.')
-  if (!brand.value) return (payError.value = 'Only VISA and Mastercard are accepted.')
-  if (!/^\d{2}\/\d{2}$/.test(form.value.expiry)) return (payError.value = 'Expiry must be MM/YY.')
-  if (form.value.cvc.length !== 3) return (payError.value = 'CVC must be 3 digits.')
-
   paying.value = true
   try {
-    const result = await paymentsApi.pay({
-      bookingId: booking.value._id,
-      cardNumber: digits.value,
-      expiry: form.value.expiry,
-      cvc: form.value.cvc
-    })
-    receipt.value = result.payment
-    booking.value.status = 'paid'
+    const { url } = await paymentsApi.checkout(booking.value._id)
+    window.location.href = url // leave our site and go to Stripe's checkout page
   } catch (err) {
-    payError.value = err.response?.data?.message || 'Payment failed. Please try again.'
-  } finally {
+    payError.value = err.response?.data?.message || 'Could not start the payment. Please try again.'
     paying.value = false
   }
 }
@@ -116,7 +96,6 @@ async function pay() {
 
 <template>
   <div class="pay">
-    <!-- <router-link to="/owner/bookings?tab=to-pay" class="text-secondary text-decoration-none">&larr; Back to My Bookings</router-link> -->
     <button type="button" class="pf-back" @click="goBack">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
         <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2"
@@ -129,22 +108,22 @@ async function pay() {
 
     <div v-if="loading" class="text-muted">Loading booking…</div>
 
-    <div v-else-if="loadError" class="alert alert-warning">{{ loadError }}</div>
-
     <!-- Paid -->
     <div v-else-if="receipt" class="card shadow-sm pay-card text-center p-4 mx-auto success-card">
       <div class="display-6 mb-2">✅</div>
       <h4 class="mb-2">Payment successful</h4>
       <p class="text-muted mb-1">
-        {{ formatPrice(receipt.amount) }} paid with {{ brandLabel(receipt.method) }} •••• {{ receipt.cardLast4 }}
+      {{ formatPrice(receipt.amount) }} paid with {{ brandLabel(receipt.method) }}<span v-if="receipt.cardLast4"> •••• {{ receipt.cardLast4 }}</span>
       </p>
-      <p class="text-muted small mb-4">Thank you! Your sitter has been paid.</p>
+      <p class="text-muted small mb-4">Thank you! This booking is now paid.</p>
       <router-link to="/owner/bookings?tab=past" class="btn btn-brand">Back to My Bookings</router-link>
     </div>
 
+    <div v-else-if="loadError" class="alert alert-warning">{{ loadError }}</div>
+
     <div v-else class="row g-4">
-      <!-- Booking summary (on the right on laptops, on top on phones) -->
-      <div class="col-12 col-lg-5 order-lg-2">
+      <!-- Booking summary -->
+      <div class="col-12 col-lg-7">
         <div class="card shadow-sm pay-card">
           <div class="card-body">
             <h3 class="h6 text-uppercase text-muted fw-bold mb-3">Booking summary</h3>
@@ -155,11 +134,19 @@ async function pay() {
               <dd class="col-8">{{ petNames(booking) }}</dd>
               <dt class="col-4">When</dt>
               <dd class="col-8">{{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime) }}</dd>
-              <dt class="col-4">Hours</dt>
-              <dd class="col-8">{{ hours }}</dd>
-              <dt class="col-4">Rate</dt>
-              <dd class="col-8">{{ formatPrice(ratePerHour) }}/hr</dd>
+              <dt class="col-4">Days</dt>
+              <dd class="col-8">{{ days }}</dd>
             </dl>
+            <hr />
+            <!-- One line per care task, e.g. "Walk: $20 × 2 a day × 1 day   $40.00" -->
+            <div v-for="(t, i) in tasks" :key="i" class="d-flex justify-content-between small mb-1">
+              <span>{{ SERVICE_LABELS[t.category] }}: ${{ SERVICE_PRICES[t.category] }} × {{ t.dailyFrequency }} a day × {{ days }} day{{ days === 1 ? '' : 's' }}</span>
+              <span>{{ formatPrice(priceForTasks([t], days)) }}</span>
+            </div>
+            <div v-if="nights" class="d-flex justify-content-between small mb-1">
+              <span>🌙 Overnight: ${{ OVERNIGHT_FEE }} × {{ nights }} night{{ nights === 1 ? '' : 's' }}</span>
+              <span>{{ formatPrice(OVERNIGHT_FEE * nights) }}</span>
+            </div>
             <hr />
             <div class="d-flex justify-content-between fw-bold fs-5">
               <span>Total</span><span>{{ formatPrice(booking.totalPrice) }}</span>
@@ -168,52 +155,22 @@ async function pay() {
         </div>
       </div>
 
-      <!-- Card form -->
-      <div class="col-12 col-lg-7 order-lg-1">
+      <!-- Pay button -->
+      <div class="col-12 col-lg-5">
         <div class="card shadow-sm pay-card">
           <div class="card-body">
-            <h3 class="h6 text-uppercase text-muted fw-bold mb-3">Card details</h3>
+            <h3 class="h6 text-uppercase text-muted fw-bold mb-3">Pay securely</h3>
             <div v-if="payError" class="alert alert-danger py-2">{{ payError }}</div>
-
-            <form novalidate @submit.prevent="pay">
-              <label for="card-name" class="form-label">Name on card</label>
-              <input id="card-name" v-model="form.name" class="form-control mb-3" autocomplete="cc-name" placeholder="e.g. Tan Ah Kow" />
-
-              <label for="card-number" class="form-label">Card number</label>
-              <div class="input-group mb-3">
-                <input
-                  id="card-number"
-                  :value="form.cardNumber"
-                  class="form-control"
-                  inputmode="numeric"
-                  autocomplete="cc-number"
-                  placeholder="1234 5678 9012 3456"
-                  @input="onCardInput"
-                />
-                <span class="input-group-text brand-badge" :class="brand ? `brand-${brand}` : ''">{{ brandLabel(brand) }}</span>
-              </div>
-
-              <div class="row g-3 mb-4">
-                <div class="col-6">
-                  <label for="card-expiry" class="form-label">Expiry</label>
-                  <input id="card-expiry" :value="form.expiry" class="form-control" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/YY" @input="onExpiryInput" />
-                </div>
-                <div class="col-6">
-                  <label for="card-cvc" class="form-label">CVC</label>
-                  <input id="card-cvc" :value="form.cvc" class="form-control" inputmode="numeric" autocomplete="cc-csc" placeholder="123" @input="onCvcInput" />
-                </div>
-              </div>
-
-              <button type="submit" class="btn btn-brand w-100 py-2" :disabled="paying">
-                <span v-if="paying" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
-                {{ paying ? 'Paying…' : `Pay ${formatPrice(booking.totalPrice)}` }}
-              </button>
-            </form>
+            <p class="small text-muted">You will be taken to Stripe's secure page to enter your card, then brought back here.</p>
+            <button type="button" class="btn btn-brand w-100 py-2" :disabled="paying" @click="pay">
+              <span v-if="paying" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+              {{ paying ? 'Opening Stripe…' : `Pay ${formatPrice(booking.totalPrice)} with Stripe` }}
+            </button>
 
             <div class="test-cards small mt-4">
               <strong>Test cards (no real money):</strong><br />
-              4242 4242 4242 4242 (VISA, approved) · 5555 5555 5555 4444 (Mastercard, approved) ·
-              4000 0000 0000 0002 (declined). Any future expiry like 12/28 and any 3-digit CVC.
+              4242 4242 4242 4242 (Visa) · 5555 5555 5555 4444 (Mastercard) ·
+              4000 0000 0000 0002 (declined). Any future expiry like 12/30, any CVC, any name.
             </div>
           </div>
         </div>
@@ -229,17 +186,6 @@ async function pay() {
 }
 .success-card {
   max-width: 480px;
-}
-.brand-badge {
-  min-width: 110px;
-  justify-content: center;
-  font-weight: 700;
-}
-.brand-visa {
-  color: #1a1f71;
-}
-.brand-mastercard {
-  color: #eb001b;
 }
 .test-cards {
   background: #fff9f4;

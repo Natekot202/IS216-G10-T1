@@ -12,7 +12,6 @@ const props = defineProps({
   bookings: { type: Array, required: true },
   viewer: { type: String, default: 'owner' }, // 'owner' or 'sitter'
   busyId: { type: String, default: null }, // booking being accepted/declined right now
-  showTrip: { type: Boolean, default: true }, // hide the trip link on the trip page itself
   paginate: { type: Boolean, default: true},
   pageSize: { type: Number, default: 6 }
 })
@@ -62,10 +61,6 @@ function canCancel(booking) {
 function showRoute(booking) {
   return ['accepted', 'in-progress'].includes(booking.status)
 }
-
-function showTripLink(booking) {
-  return props.showTrip && props.viewer === 'owner' && booking.groupId
-}
 </script>
 
 <template>
@@ -90,13 +85,9 @@ function showTripLink(booking) {
                 <span class="avatar">{{ otherPerson(b).charAt(0).toUpperCase() }}</span>
                 <div>
                   <div class="fw-semibold">{{ otherPerson(b) }}</div>
-                  <div class="small text-muted">
-                    <router-link
-                      v-if="showTripLink(b)"
-                      :to="`/owner/bookings/group/${b.groupId}`"
-                      class="trip-link"
-                    >{{ b.groupName || 'Trip' }}</router-link>
-                    <span v-if="showTripLink(b)"> · </span>{{ petNames(b) }}
+                    <div class="small text-muted">
+                    {{ petNames(b) }}
+                    <span v-if="b.overnight" class="badge rounded-pill text-bg-light border ms-1">🌙 Overnight</span>
                   </div>
                 </div>
               </div>
@@ -187,11 +178,6 @@ function showTripLink(booking) {
   font-weight: 700;
   background: #fde9dd;
   color: #c44f1c;
-}
-.trip-link {
-  color: #2f6f62;
-  font-weight: 600;
-  text-decoration: none;
 }
 .actions-stack {
   width: 132px; /* every stacked button is this wide */

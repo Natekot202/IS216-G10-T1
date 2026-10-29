@@ -9,6 +9,7 @@ import { requireOwner, requireLogin } from '../middleware/authMiddleware.js'
 import { bookingRange, findClash, describeBooking, toMinutes, slotsOf, slotsCover, START_TIME_RE, END_TIME_RE } from '../utils/bookingTimes.js'
 import asyncHandler from '../middleware/asyncHandler.js'
 import { removeBookingFromGoogle } from '../utils/googleCalendar.js'
+import { bookingPrice, nightsFor } from '../utils/servicePrices.js'
 
 const router = Router()
 
@@ -26,7 +27,7 @@ function daysBetween(start, end) {
 // Times are Singapore time in 30-minute steps; endTime can be '24:00' (end of the day).
 // Creates a 'pending' booking if every check passes.
 router.post('/', requireOwner, asyncHandler(async (req, res) => {
-  const { sitterId, petIds, startDate, startTime, endDate, endTime, notes = '', tasks = [] } = req.body
+  const { sitterId, petIds, startDate, startTime, endDate, endTime, notes = '', tasks = [], overnight = false } = req.body
   const ownerId = req.session.userId
 
   // 1. Input checks
@@ -49,11 +50,9 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
   const range = bookingRange({ startDate: start, endDate: end, startTime, endTime }) // exact start and end moments
   if (range.start <= Date.now()) return res.status(400).json({ message: 'The start time has already passed.' })
 
-  // 2. The sitter exists and has an hourly rate
+  // 2. The sitter exists
   const sitter = await User.findById(sitterId)
   if (!sitter || sitter.role !== 'sitter') return res.status(404).json({ message: 'Sitter not found.' })
-  const ratePerHour = sitter.sitterProfile?.petsittingRates
-  if (!ratePerHour) return res.status(400).json({ message: 'This sitter has not set an hourly rate yet.' })
 
   // 3. The pets belong to this owner
   const pets = await Pet.find({ _id: { $in: petIds }, owner: ownerId })
@@ -83,8 +82,11 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     return res.status(409).json({ message: `The sitter is already booked ${describeBooking(clash)}.` })
   }
 
-  // 6. Care checklist (optional): check every task before anything is saved
-  if (!Array.isArray(tasks) || tasks.length > 20) {
+  // 6. Care checklist: at least one task, because the price is worked out from the tasks
+  if (!Array.isArray(tasks) || tasks.length === 0) {
+    return res.status(400).json({ message: 'Add at least one care task. The price is based on the tasks.' })
+  }
+  if (tasks.length > 20) {
     return res.status(400).json({ message: 'Send at most 20 care tasks.' })
   }
   const bookingPetIds = petIds.map(String)
@@ -104,8 +106,14 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     items.push({ category: t.category, title, dailyFrequency: t.dailyFrequency, petIds: taskPets })
   }
 
- // 7. Create the booking. Price = hourly rate × hours booked (start date+time to end date+time).
-  const hours = (range.end - range.start) / (60 * 60 * 1000)
+  // 7. Overnight stay needs at least one night, so the booking must end on a later day than it starts
+  const wantsOvernight = overnight === true
+  if (wantsOvernight && days.length < 2) {
+    return res.status(400).json({ message: 'An overnight stay needs the booking to end on a later day.' })
+  }
+
+  // 8. Create the booking.
+  // Price = each task's fixed price × times a day × number of days, added up, + overnight fee × nights
   const booking = await Booking.create({
     ownerId,
     sitterId,
@@ -115,11 +123,12 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     endDate: end,
     endTime,
     notes,
-    totalPrice: Math.round(ratePerHour * hours * 100) / 100, // rounded to cents
+    overnight: wantsOvernight,
+    totalPrice: bookingPrice(items, days.length, wantsOvernight),
     status: 'pending'
   })
 
-  // 8. Save the care checklist, linked to the booking by bookingId
+  // 9. Save the care checklist, linked to the booking by bookingId
   if (items.length) await CareChecklist.create({ bookingId: booking._id, items })
 
   res.status(201).json({
@@ -129,7 +138,8 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     endDate: toSgtDateString(booking.endDate),
     endTime: booking.endTime,
     days: days.length,
-    hours,
+    nights: nightsFor(days.length, wantsOvernight),
+    totalPrice: booking.totalPrice,
     status: booking.status,
     tasks: items.length
   })
