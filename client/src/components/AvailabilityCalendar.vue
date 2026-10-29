@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import BookingSheet from './BookingSheet.vue'
 import { formatDateRange } from '../utils/bookingHelpers.js'
 import { toDateString, prettyDate } from '../utils/bookingTimeHelpers.js'
 import {
@@ -34,6 +35,11 @@ const now = new Date()
 
 const today = toDateString(now)
 const nowMinutes = now.getHours() * 60 + now.getMinutes() // minutes after midnight right now
+
+// Phones and tablets can't hover, so there a tap opens a small preview instead of the hover card,
+// and a tap only picks the day (dragging to paint would fight with scrolling the page)
+const canHover = window.matchMedia('(hover: hover)').matches
+const isPhone = window.matchMedia('(max-width: 575.98px)').matches // same width as the phone styles at the bottom
 
 const year = ref(now.getFullYear())
 const month = ref(now.getMonth())
@@ -126,7 +132,7 @@ function paintRange(date, startMinutes, endMinutes, on) {
 // props not editable when parent renders calendar in view only mode, e.g. for owner to see sitter avialability
 function startDayPaint(date) {
   emit('select', date)
-  if (!props.editable || !canChange(date)) return
+  if (!props.editable || !canHover || !canChange(date)) return
   painting.value = true
   paintDay(date) //to paint that first day itself 
 }
@@ -140,7 +146,7 @@ function paintDay(date) {
 // Week view: press on a half-hour, then drag across more half-hours (a row or a column)
 function startSlotPaint(date, m) {
   emit('select', date)
-  if (!props.editable) return
+  if (!props.editable || !canHover) return
   painting.value = true
   paintSlot(date, m)
 }
@@ -161,7 +167,7 @@ function paintWeekday(weekday) {
 }
 
 // ----- Month / week view and moving around -----
-const view = ref('month') // 'month' | 'week'
+const view = ref(isPhone ? 'week' : 'month') // 'month' | 'week' (phones start on the week)
 const weekStart = ref(startOfWeek(now)) // the Sunday that starts the week shown in the week view
 
 function startOfWeek(d) {
@@ -181,12 +187,16 @@ const weekDays = computed(() => {
 })
 const title = computed(() => {
   if (view.value === 'month') return monthName.value
+  if (isPhone) { // shorter on phones so it fits between the two buttons: '25 Oct – 31 Oct'
+    const short = (date) => new Date(date + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })
+    return `${short(weekDays.value[0].date)} – ${short(weekDays.value[6].date)}`
+  }
   return `${prettyDate(weekDays.value[0].date)} – ${prettyDate(weekDays.value[6].date)}`
 })
 
-// The week view shows 6 am to 10 pm in half-hour rows
-const FIRST_MIN = 6 * 60
-const LAST_MIN = 22 * 60
+// The week view shows the whole day, 12am to 12am, in half-hour rows (it scrolls)
+const FIRST_MIN = 0
+const LAST_MIN = 24 * 60
 const ROW_PX = 22 // height of one half-hour row
 const rows = []
 for (let m = FIRST_MIN; m < LAST_MIN; m += 30) rows.push(m)
@@ -197,6 +207,11 @@ function blockStyle(b, date) {
   const top = ((Math.max(startMinutes, FIRST_MIN) - FIRST_MIN) / 30) * ROW_PX
   const height = ((Math.min(endMinutes, LAST_MIN) - Math.max(startMinutes, FIRST_MIN)) / 30) * ROW_PX
   return { top: top + 1 + 'px', height: Math.max(height - 2, 4) + 'px' }
+}
+// A booking of 30 minutes or less only gets one row, so its name and time share one line
+function isShort(b, date) {
+  const [startMinutes, endMinutes] = dayPart(b, date)
+  return endMinutes - startMinutes <= 30
 }
 
 function move(step) {
@@ -218,6 +233,28 @@ function goTo(date) {
 function goToday() {
   goTo(today)
 }
+// true when the month / week shown is the one we are in now (then the "Back to ..." link is hidden)
+const showingNow = computed(() => {
+  if (view.value === 'month') return year.value === now.getFullYear() && month.value === now.getMonth()
+  return toDateString(weekStart.value) === toDateString(startOfWeek(now))
+})
+// Month view on a phone: tapping the day's number opens that week
+function openWeek(date) {
+  if (canHover) return
+  goTo(date)
+  view.value = 'week'
+}
+
+// The week view scrolls, so open it at 7am (or a little before now, if this week has today in it)
+const weekBox = ref(null)
+function scrollWeek() {
+  if (!weekBox.value) return
+  const hasToday = weekDays.value.some((d) => d.date === today)
+  const startAt = hasToday ? Math.max(nowMinutes - 3 * 60, 0) : 7 * 60
+  weekBox.value.scrollTop = (startAt / 30) * ROW_PX
+}
+watch([view, weekStart], () => nextTick(scrollWeek))
+onMounted(scrollWeek)
 // when the page asks for a day (e.g. a booking request was picked), jump there
 watch(() => props.focusDate, (date) => date && goTo(date))
 
@@ -238,6 +275,7 @@ function placeCard(event) {
   return { left, top }
 }
 function showBooking(b, event) {
+  if (!canHover) return // a tap on a phone also sends mouseenter; the preview sheet is used there instead
   hovered.value = { booking: b, ...placeCard(event) }
 }
 // b-> booking object currently under the mouse 
@@ -261,6 +299,12 @@ const hoverPets = computed(() => {
   return b.pets || b.petNames.map((name) => ({ name, photo: '' }))
 })
 // changes hovered.value to null so it isnt rendered
+
+// ----- Phones: tapping a booking opens a short preview at the bottom (BookingSheet) -----
+const tapped = ref(null) // the booking being previewed
+function tapBooking(b) {
+  if (!canHover) tapped.value = b
+}
 </script>
 
 <template>
@@ -268,17 +312,25 @@ const hoverPets = computed(() => {
   <div class="avail-cal" @mouseup="stopPainting" @mouseleave="stopPainting">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
       <div class="d-flex align-items-center gap-2">
-        <button type="button" class="btn btn-outline-secondary btn-sm" aria-label="Previous" @click="move(-1)">‹</button>
-        <button type="button" class="btn btn-outline-secondary btn-sm" @click="goToday">Today</button>
-        <button type="button" class="btn btn-outline-secondary btn-sm" aria-label="Next" @click="move(1)">›</button>
-        <h2 class="cal-title mb-0 ms-1">{{ title }}</h2>
+        <button type="button" class="cal-nav-btn" :aria-label="view === 'month' ? 'Previous month' : 'Previous week'" @click="move(-1)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+        </button>
+        <h2 class="cal-title mb-0">{{ title }}</h2>
+        <button type="button" class="cal-nav-btn" :aria-label="view === 'month' ? 'Next month' : 'Next week'" @click="move(1)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+        <!-- only shows once you have moved away from this month / week -->
+        <button v-if="!showingNow" type="button" class="back-link" @click="goToday">
+          Back to this {{ view === 'month' ? 'month' : 'week' }}
+        </button>
       </div>
       <div class="d-flex flex-wrap align-items-center gap-3">
         <div class="btn-group btn-group-sm" role="group" aria-label="Calendar view">
           <button type="button" class="btn" :class="view === 'month' ? 'btn-accent' : 'btn-outline-secondary'" @click="view = 'month'">Month</button>
           <button type="button" class="btn" :class="view === 'week' ? 'btn-accent' : 'btn-outline-secondary'" @click="view = 'week'">Week</button>
         </div>
-        <div v-if="editable" class="d-flex align-items-center gap-2 small text-muted">
+        <!-- dragging only works with a mouse, so phones and tablets don't get these buttons -->
+        <div v-if="editable && canHover" class="d-flex align-items-center gap-2 small text-muted">
           Drag to
           <div class="btn-group btn-group-sm" role="group" aria-label="What dragging does">
             <button type="button" class="btn" :class="mode === 'available' ? 'btn-accent' : 'btn-outline-secondary'" @click="mode = 'available'">Make available</button>
@@ -331,7 +383,7 @@ const hoverPets = computed(() => {
 
           -->
 
-            <span class="num">{{ d.day }}</span>
+            <span class="num" @click="openWeek(d.date)">{{ d.day }}</span>
             <!-- up to 2 bookings written inside the square, then "+N more"; hover one for its details -->
             <span
               v-for="b in dayBookings(d.date).slice(0, 2)"
@@ -340,8 +392,10 @@ const hoverPets = computed(() => {
               @mouseenter="showBooking(b, $event)"
               @mousemove="moveCard"
               @mouseleave="hideBooking"
+              @click="tapBooking(b)"
             >
               <span class="chip-text">{{ chipText(b, d.date) }}</span>
+              <span class="chip-pet">{{ b.petNames[0] }}</span>
             </span>
             <span v-if="dayBookings(d.date).length > 2" class="more">+{{ dayBookings(d.date).length - 2 }} more</span>
           </div>
@@ -349,11 +403,13 @@ const hoverPets = computed(() => {
       </template>
     </div>
 
-    <!-- Week view: one column per day, one row per half-hour -->
-    <div v-else class="week">
-      <div></div>
+    <!-- Week view: one column per day, one row per half-hour. The box scrolls; the day names stay at the top -->
+    <div v-else ref="weekBox" class="week-scroll">
+    <div class="week">
+      <div class="week-head"></div>
       <div v-for="d in weekDays" :key="d.date" class="week-head" :class="{ today: d.date === today }">
-        {{ d.name }} <span class="week-num">{{ d.day }}</span>
+        <span class="d-none d-sm-inline">{{ d.name }}</span><span class="d-sm-none">{{ d.name.charAt(0) }}</span>
+        <span class="week-num">{{ d.day }}</span>
       </div>
 
       <div class="time-col">
@@ -368,6 +424,7 @@ const hoverPets = computed(() => {
             free: (slotsOf(d.date) || []).includes(m),
             off: editable && !canChangeSlot(d.date, m, dayBookings(d.date), today, nowMinutes) && !slotBooked(dayBookings(d.date), d.date, m),
             hour: m % 60 === 0,
+            night: m < 6 * 60 || m >= 22 * 60,
             looking: !editable,
             unsaved: changes[d.date] && (changes[d.date].includes(m) !== (saved[d.date] || []).includes(m))
           }"
@@ -383,15 +440,18 @@ const hoverPets = computed(() => {
           v-for="b in dayBookings(d.date)"
           :key="b._id"
           class="block"
+          :class="{ short: isShort(b, d.date) }"
           :style="blockStyle(b, d.date)"
           @mouseenter="showBooking(b, $event)"
               @mousemove="moveCard"
           @mouseleave="hideBooking"
+          @click="tapBooking(b)"
         >
           <strong>{{ b.petNames.join(', ') }}</strong>
           <span>{{ chipText(b, d.date).split(' · ')[0] }}</span>
         </div>
       </div>
+    </div>
     </div>
 
     <div class="legend d-flex flex-wrap gap-3 small mt-3">
@@ -402,14 +462,20 @@ const hoverPets = computed(() => {
       <span><span class="swatch unset"></span> Not set</span>
     </div>
     <p class="small text-muted mt-2 mb-0">
-      <template v-if="editable && view === 'month'">
+      <template v-if="editable && !canHover">
+        Tap a day, then set its hours in the Selected day card.
+      </template>
+      <template v-else-if="editable && view === 'month'">
         Drag across days to change several at once, or click a weekday letter to set that weekday for the whole month. To set only some hours of a day, use the Week view.
       </template>
       <template v-else-if="editable">
         Drag across the half-hours to make them available or unavailable, for a few hours of a day or across days. Hours in the past and booked hours can't be changed.
       </template>
-      Hover a booking to see its details.
+      {{ canHover ? 'Hover a booking to see its details.' : 'Tap a booking to see its details.' }}
     </p>
+
+    <!-- phones: the short preview of a tapped booking, with a button to its booking details page -->
+    <BookingSheet v-if="tapped" :booking="tapped" @close="tapped = null" />
 
     <!-- The white card next to the mouse. Teleport moves it out to the page's <body>, so the cards around the
          calendar (which are animated) can't shift where it appears on the screen. -->
@@ -459,6 +525,21 @@ const hoverPets = computed(() => {
 .cal-title { font-family: 'Fredoka', 'Nunito', sans-serif; font-size: 1.25rem; font-weight: 600; }
 .btn-accent { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn-accent:hover { background: #b06647; border-color: #b06647; color: #fff; }
+/* the round buttons to change month / week: 44px so they are easy to hit with a thumb */
+.cal-nav-btn {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  background: #fffdfa;
+  color: var(--ink);
+}
+.cal-nav-btn:hover { background: #f3e2d9; border-color: var(--accent); }
+.cal-nav-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.back-link { border: 0; background: none; padding: 10px 4px; color: #a85f40; font-weight: 700; font-size: 0.88rem; text-decoration: underline; text-underline-offset: 3px; }
 
 /* ----- month view ----- */
 .calendar {
@@ -492,6 +573,7 @@ const hoverPets = computed(() => {
   user-select: none; /* so dragging does not select text */
 }
 .num { font-weight: 700; font-size: 0.9rem; }
+.chip-pet { display: none; } /* only shown on phones */
 .chip { /* one booking inside a day square */
   display: block;
   margin-top: 2px;
@@ -529,6 +611,7 @@ const hoverPets = computed(() => {
 .day.booked .chip { background: #d3e0ee; }
 
 /* ----- week view ----- */
+.week-scroll { max-height: 560px; overflow-y: auto; border-bottom: 1px solid var(--line); }
 .week {
   display: grid;
   grid-template-columns: 44px repeat(7, minmax(0, 1fr));
@@ -537,20 +620,23 @@ const hoverPets = computed(() => {
   user-select: none;
 }
 .week > * { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.week-head { text-align: center; padding: 6px 2px; font-weight: 600; font-size: 0.85rem; }
+.week-head { text-align: center; padding: 6px 2px; font-weight: 600; font-size: 0.85rem; position: sticky; top: 0; z-index: 3; background: #fffdfa; }
 .week-head.today { color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); }
 .week-num { display: block; font-family: 'Fredoka', sans-serif; font-size: 1.05rem; }
 .time-col { display: grid; grid-auto-rows: 22px; }
 .time-label { font-size: 0.65rem; color: var(--muted); text-align: right; padding-right: 5px; line-height: 1; transform: translateY(-4px); }
+.time-label:first-child { transform: none; padding-top: 3px; } /* the top label stays inside the grid, so the day names can't cover it */
 .day-col { position: relative; display: grid; grid-auto-rows: 22px; }
 .slot { border-bottom: 1px dotted var(--line); cursor: pointer; background: #fffdfa; }
 .slot.looking { cursor: default; }
 .slot.hour { border-bottom: 1px solid var(--line); }
+.slot.night { background: #f7f2ec; } /* before 6am and after 10pm */
 .slot.free { background: var(--open); }
 .slot.off { opacity: 0.5; cursor: not-allowed; }
 .slot.unsaved { box-shadow: inset 0 0 0 2px var(--accent); }
 .block {
   position: absolute;
+  z-index: 2;
   left: 3px;
   right: 3px;
   background: var(--booked);
@@ -564,6 +650,9 @@ const hoverPets = computed(() => {
   display: flex;
   flex-direction: column;
 }
+.block.short { flex-direction: row; align-items: center; gap: 6px; white-space: nowrap; padding-top: 0; padding-bottom: 0; } /* one row: name and time side by side */
+.block.short strong { flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; } /* the name keeps its room */
+.block.short span { min-width: 0; overflow: hidden; text-overflow: ellipsis; } /* the time is cut short first */
 .asked-block { /* the request being looked at: dashed orange, drawn first so real bookings sit on top */
   background: rgba(196, 119, 86, 0.18);
   border: 2px dashed var(--accent);
@@ -630,10 +719,17 @@ const hoverPets = computed(() => {
   margin-right: 4px;
 }
 
-@media (max-width: 575.98px) { /* phones: squares are too small for text, so show small bars */
-  .day { min-height: 3.4rem; padding: 2px; }
-  .chip { height: 6px; padding: 0; }
-  .chip-text, .more { display: none; }
-  .week { overflow-x: auto; }
+@media (max-width: 575.98px) { /* phones: squares are small, so each booking is a tappable chip with just the pet's name */
+  .day { min-height: 4.4rem; padding: 2px; }
+  .chip { min-height: 22px; line-height: 22px; padding: 0 2px; border-left-width: 2px; font-size: 0.62rem; font-weight: 700; }
+  .chip-text { display: none; }
+  .chip-pet { display: block; overflow: hidden; text-overflow: ellipsis; }
+  .more { font-size: 0.6rem; }
+  .week-scroll { max-height: 65vh; }
+  .week { grid-template-columns: 34px repeat(7, minmax(0, 1fr)); }
+  .week-head { font-size: 0.7rem; padding: 4px 0; }
+  .time-label { font-size: 0.58rem; padding-right: 3px; }
+  .block { left: 1px; right: 1px; padding: 1px 2px; font-size: 0.6rem; border-left-width: 3px; }
+  .block span { display: none; }
 }
 </style>
