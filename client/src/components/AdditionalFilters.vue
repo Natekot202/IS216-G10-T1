@@ -20,8 +20,8 @@ const open = ref(false)
       <label class="form-label fw-bold">Pet services:</label>
       <div>
         <div class="form-check form-check-inline" v-for="p in ['dog','cat','bird','rabbit','hamster']" :key="p">
-          <input type="checkbox" class="form-check-input" v-model="pets" :value="p" :id="`pet-${p}`">
-          <label class="form-check-label text-capitalize" :for="`pet-${p}`">{{ p }}</label>
+          <input type="checkbox" class="form-check-input" v-model="pets" :value="p" :id="`pet-${p}`" style="width:20px;height: 20px;">
+          <label class="form-check-label text-capitalize m-1" :for="`pet-${p}`">{{ p }}</label>
         </div>
       </div>
       <div class="d-flex gap-2 my-2">

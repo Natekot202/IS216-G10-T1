@@ -18,7 +18,6 @@ const currentLocationIcon = L.icon({
   popupAnchor: [0, -50]
 })
 
-watch(() => props.userLocation, showUser)
 
 watch(() => props.profiles, drawSitters)
 
@@ -30,7 +29,6 @@ watch(() => props.origin, (o) => {
   originMarker = L.marker([o.lat, o.lng]).addTo(map.value).bindPopup(o.label)
 })
 
-watch(() => props.origin, o => showOrigin(o))
 
 function showOrigin(o, animate = true) {
   originMarker?.remove()
@@ -41,7 +39,9 @@ function showOrigin(o, animate = true) {
   originMarker = L.marker(to).addTo(map.value).bindPopup(o.label)
 }
 
-// in onMounted, after showUser(props.userLocation):
+watch(() => props.origin, o => showOrigin(o))
+
+
 showOrigin(props.origin, false)
 // draw markers
 function drawSitters() {
@@ -56,6 +56,8 @@ function drawSitters() {
   })
 }
 
+watch(() => props.profiles, drawSitters)
+
 // show where user is/ where user selected
 function showUser(u) {
   userMarker?.remove()
@@ -66,7 +68,7 @@ function showUser(u) {
   if (!props.origin) map.value.setView([u.lat, u.lng], 13)
 }
 
-
+watch(() => props.userLocation, showUser)
 
 onMounted(()=>{
     //initialise map inside of map container
@@ -79,7 +81,10 @@ onMounted(()=>{
     }).addTo(map.value);
 
     sitterLayer.addTo(map.value)
+
+
     showUser(props.userLocation)
+    showOrigin(props.origin, false)
     drawSitters()
 })
 

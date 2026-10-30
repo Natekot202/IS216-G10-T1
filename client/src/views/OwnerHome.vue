@@ -118,6 +118,48 @@ const searchResults = computed(() => {
   return sortByDistance(results)
 });
 
+//display for active filters
+const fmtDate = d => new Date(`${d}T00:00:00`).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })
+const activeFilters = computed(() => {
+  const chips = []
+
+  if (origin.value) chips.push({
+    key: 'location', label: `Near ${origin.value.label}`,
+    clear: () => { origin.value = null; locationQuery.value = ''; locationSuggestions.value = [] }
+  })
+
+  // only counts when the filter actually applies (matches filterByDistance)
+  if (referencePoint.value && maxDistanceKm.value < maxDistanceLimit) chips.push({
+    key: 'distance', label: `Within ${maxDistanceKm.value} km`,
+    clear: () => { maxDistanceKm.value = maxDistanceLimit }
+  })
+
+  if (availableFrom.value && availableTo.value) chips.push({
+    key: 'dates', label: `${fmtDate(availableFrom.value)} – ${fmtDate(availableTo.value)}`,
+    clear: () => { availableFrom.value = ''; availableTo.value = '' }
+  })
+
+  // if (minValue.value > minLimit.value || maxValue.value < maxLimit.value) chips.push({
+  //   key: 'price', label: `$${minValue.value}–$${maxValue.value}/hr`,
+  //   clear: () => { minValue.value = minLimit.value; maxValue.value = maxLimit.value }
+  // })
+
+  selectedPets.value.forEach(p => chips.push({
+    key: `pet-${p}`, label: p.charAt(0).toUpperCase() + p.slice(1),
+    clear: () => { selectedPets.value = selectedPets.value.filter(x => x !== p) }
+  }))
+
+  const other = otherPets.value.trim()
+  if (other) chips.push({ key: 'other', label: other, clear: () => { otherPets.value = '' } })
+
+  if (userRating.value > 0) chips.push({
+    key: 'rating', label: `${userRating.value}★ only`,
+    clear: () => { userRating.value = 0 }
+  })
+
+  return chips
+})
+
 function clearFilters(){
   selectedPets.value=[]
   otherPets.value=""
@@ -242,6 +284,7 @@ function sortByDistance(list) {
   return [...list].sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity))
 }
 
+
 onMounted(()=>{
   mq = window.matchMedia('(min-width: 992px)')
   isLg.value = mq.matches
@@ -260,20 +303,22 @@ onBeforeUnmount(() => {
 <template>
     <div class="oh container-fluid">
       <!-- heading -->
-      <div class="d-flex justify-content-start mb-3">
-        <div>
-          <h1 v-if="currentUser" class="fs-4 fw-bold">Welcome back, {{ currentUser.username }}🐾</h1>
-          <h1 v-else class="fs-4 fw-bold">Welcome to Pet Society🐾</h1>
-          <p class="fs-6">
-            A community platform for you to find a trusted sitter!
-          </p>
+      <div class="d-flex flex-column mb-2">
+        <!-- search bar  -->
+        <div class="col-12 mb-2">
+          <input type="text" v-model="searchKey" placeholder="Search by sitter name" class="form-control">
         </div>
-        <router-link to="/profile" v-if="currentUser">
-          <img v-if="profilePic" :src="profilePic"
-            class="rounded-circle ms-auto"
-            style="width: 50px; height: 50px; object-fit: cover; border:1px solid #c44f1c"
-            alt="Circular Profile">
-        </router-link>
+
+        <span class="text-secondary">{{ searchResults.length }} sitters</span>
+        <div v-if="activeFilters.length" class="d-flex flex-wrap align-items-center gap-2 mb-2">
+          <button v-for="f in activeFilters" :key="f.key" type="button"
+                  class="btn btn-outline-danger rounded-pill bg-light text-truncate"
+                  style="max-width: 100%"
+                  :aria-label="`Remove filter: ${f.label}`" @click="f.clear">
+            {{ f.label }} <span aria-hidden="true">✕</span>
+          </button>
+          <button type="button" class="btn btn-link btn-sm" @click="clearFilters">Clear all</button>
+        </div>
       </div>
 
       <!-- sitters who offer the services this owner needs -->
@@ -302,20 +347,15 @@ onBeforeUnmount(() => {
         
         <!-- search body  -->
         <div class="col-md-8 col-lg-5">
-          <!-- search bar  -->
-          <div class="col-12 mb-2">
-            <input type="text" v-model="searchKey" placeholder="Search by sitter name" class="form-control">
-          </div>
 
           <div class="d-flex align-items-center gap-2 mb-2">
-            <span class="text-secondary d-none d-md-inline">{{ searchResults.length }} sitters</span>
-            <button type="button" class="btn btn-outline-danger fw-semibold flex-fill d-md-none bg-white"
+            <button type="button" class="btn btn-outline-danger fw-bold flex-fill d-md-none bg-white"
               data-bs-toggle="offcanvas"
               data-bs-target="#offcanvasBottom"
               aria-controls="offcanvasBottom">
               ⫶☰ Filters
             </button>
-            <button type="button" class="btn btn-outline-danger bg-white fw-semibold flex-fill flex-md-grow-0 ms-md-auto d-lg-none"
+            <button type="button" class="btn btn-outline-danger bg-white fw-bold flex-fill flex-md-grow-0 ms-md-auto d-lg-none"
                 @click="showMapModal = true">
               🗺 Show map
             </button>
@@ -324,7 +364,7 @@ onBeforeUnmount(() => {
           <div class="row">
             <div class="col-12 mb-3" v-for="sitter in searchResults" :key="sitter._id">
               <SitterProfileCard :sitter="sitter">
-                <router-link :to="`/users/${sitter._id}`" class="btn border border-warning rounded col-12 fw-semibold bg-light mt-3">View Profile</router-link>
+                <router-link :to="`/users/${sitter._id}`" class="btn btn-outline-danger rounded col-12 fw-semibold bg-light mt-3">View Profile</router-link>
               </SitterProfileCard>
             </div>
           </div>
