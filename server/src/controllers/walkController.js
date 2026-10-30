@@ -21,6 +21,21 @@ async function loadSittersWalk(req, res) {
   return walk
 }
 
+// Ticks the walk's task off in its session (one completed-task entry, linked to this walk),
+// so the session's progress and the care report include it. An ended-early walk counts too.
+// The walk is already saved, so a problem here is logged rather than failing the request.
+async function tickWalkTask(walk) {
+  if (!walk.visit || !walk.task) return // walks from before booking integration
+  try {
+    await VisitSession.updateOne(
+      { _id: walk.visit, status: 'active', 'completedTasks.walk': { $ne: walk._id } }, // never tick the same walk twice
+      { $push: { completedTasks: { task: walk.task, title: walk.instructions || 'Walk', walk: walk._id } } }
+    )
+  } catch (err) {
+    console.error('Could not tick off the walk task:', err.message)
+  }
+}
+
 // How a walk is named in notification messages
 const walkLabel = (walk) => (walk.mode === 'route' ? `the walk on "${walk.routeName}"` : 'the walk')
 
@@ -207,6 +222,7 @@ export async function finishWalk(req, res) {
 
   closeWalk(walk, path, 'completed')
   await walk.save()
+  await tickWalkTask(walk)
   res.json(walk)
 }
 
@@ -228,6 +244,7 @@ export async function endWalkEarly(req, res) {
   closeWalk(walk, path, 'ended-early')
   walk.endedEarlyReason = reason
   await walk.save()
+  await tickWalkTask(walk)
 
   await notify(walk.owner, 'walk-ended-early',
     `${sitterName(req)} ended ${walkLabel(walk)} early: ${reason}`, walk._id)
