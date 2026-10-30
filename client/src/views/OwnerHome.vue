@@ -139,10 +139,10 @@ const activeFilters = computed(() => {
     clear: () => { availableFrom.value = ''; availableTo.value = '' }
   })
 
-  if (minValue.value > minLimit.value || maxValue.value < maxLimit.value) chips.push({
-    key: 'price', label: `$${minValue.value}–$${maxValue.value}/hr`,
-    clear: () => { minValue.value = minLimit.value; maxValue.value = maxLimit.value }
-  })
+  // if (minValue.value > minLimit.value || maxValue.value < maxLimit.value) chips.push({
+  //   key: 'price', label: `$${minValue.value}–$${maxValue.value}/hr`,
+  //   clear: () => { minValue.value = minLimit.value; maxValue.value = maxLimit.value }
+  // })
 
   selectedPets.value.forEach(p => chips.push({
     key: `pet-${p}`, label: p.charAt(0).toUpperCase() + p.slice(1),
