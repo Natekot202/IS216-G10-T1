@@ -6,7 +6,7 @@ import { sgtMidnight, toSgtDateString } from '../models/Availability.js'
 import { uploadImage, deleteImage } from '../config/cloudinary.js'
 import User from '../models/UserModel.js'
 
-const STARTABLE = ['accepted', 'in-progress'] // owners pay at the end, so sessions start from 'accepted' 
+const STARTABLE = ['confirmed', 'in-progress'] // owners pay at the end, so sessions start once the owner has confirmed
 
 // to ensure only valid bookings can be started
 function startBlockReason(booking, todaysVisits, today) {
@@ -51,7 +51,7 @@ export async function getTodaySessions(req, res) {
     [field]: req.session.userId,
     startDate: { $lte: dayStart },
     endDate: { $gte: dayStart },
-    status: { $in: ['accepted', 'in-progress', 'completed', 'paid'] }
+    status: { $in: ['confirmed', 'in-progress', 'completed', 'paid'] }
   })
     .populate('ownerId', 'username profilePicture')
     .populate('sitterId', 'username profilePicture')
@@ -66,7 +66,7 @@ export async function getTodaySessions(req, res) {
   const itemsByBooking = new Map(checklists.map((c) => [String(c.bookingId), c.items]))
 
   const isSitterViewer = req.session.role === 'sitter'
-  const confirmed = (b) => ['paid', 'in-progress'].includes(b.status)
+  const confirmed = (b) => ['confirmed', 'in-progress'].includes(b.status)
 
   const addressByOwner = new Map()
   if (isSitterViewer) {

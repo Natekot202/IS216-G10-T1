@@ -16,7 +16,7 @@ const props = defineProps({
   pageSize: { type: Number, default: 6 }
 })
 
-defineEmits(['accept', 'decline', 'cancel'])
+defineEmits(['accept', 'decline', 'confirm', 'cancel'])
 
 // only one details row open at a time
 const openId = ref(null)
@@ -50,16 +50,16 @@ function petNames(booking) {
 
 function canCancel(booking) {
   if (props.viewer === 'owner') {
-    return ['pending', 'accepted'].includes(booking.status)
+    return ['pending', 'accepted', 'confirmed'].includes(booking.status)
   }
-  return booking.status === 'accepted'
+  return booking.status === 'confirmed'
 }
 
-// for owners, returns true if request is pending/accepted ; can cancel for either of the two statuses 
-// for sitters, returns true if request is accepted ; can only cancel accepted requests 
+// for owners, returns true if request is pending/accepted/confirmed ; "Withdraw" a request, or "Cancel" a confirmed booking
+// for sitters, returns true if booking is confirmed ; before that they decline instead
 
 function showRoute(booking) {
-  return ['accepted', 'in-progress'].includes(booking.status)
+  return ['confirmed', 'in-progress'].includes(booking.status)
 }
 </script>
 
@@ -79,7 +79,7 @@ function showRoute(booking) {
       <tbody>
         <template v-for="b in rows" :key="b._id">
           <!-- main row -->
-          <tr :class="{ 'opacity-75': b.status === 'declined' || b.status === 'cancelled' }">
+          <tr :class="{ 'opacity-75': ['declined', 'cancelled', 'expired'].includes(b.status) }">
             <td>
               <div class="d-flex align-items-center gap-2">
                 <span class="avatar">{{ otherPerson(b).charAt(0).toUpperCase() }}</span>
@@ -94,7 +94,15 @@ function showRoute(booking) {
             </td>
             <td class="text-nowrap">{{ formatDateRange(b.startDate, b.endDate, b.startTime, b.endTime) }}</td>
             <td class="d-none d-md-table-cell">{{ formatPrice(b.totalPrice) }}</td>
-            <td><StatusPill :status="b.status" /></td>
+            <td>
+              <StatusPill :status="b.status" />
+              <div v-if="b.status === 'accepted'" class="small text-muted mt-1">
+                {{ viewer === 'owner' ? 'Waiting for you to confirm' : 'Waiting for the owner to confirm' }}
+              </div>
+              <div v-else-if="b.status === 'cancelled' && b.cancelledBy" class="small text-muted mt-1">
+                by {{ (viewer === 'owner') === (b.cancelledBy === 'owner') ? 'you' : `the ${b.cancelledBy}` }}
+              </div>
+            </td>
             <td class="text-end">
               <!-- sitters get their buttons stacked top to bottom, all the same width (Accept, Decline, View details); owners keep them in a row -->
               <div
@@ -105,6 +113,20 @@ function showRoute(booking) {
                   <button class="btn btn-sm btn-success" :disabled="busyId === b._id" @click="$emit('accept', b._id)">Accept</button>
                   <button class="btn btn-sm btn-outline-danger" :disabled="busyId === b._id" @click="$emit('decline', b._id)">Decline</button>
                 </template>
+                <!-- the sitter can still say no while waiting for the owner, so they aren't held forever -->
+                <button
+                  v-if="viewer === 'sitter' && b.status === 'accepted'"
+                  class="btn btn-sm btn-outline-danger"
+                  :disabled="busyId === b._id"
+                  @click="$emit('decline', b._id)"
+                >Decline</button>
+                <button
+                  v-if="viewer === 'owner' && b.status === 'accepted'"
+                  type="button"
+                  class="btn btn-sm btn-brand"
+                  :disabled="busyId === b._id"
+                  @click="$emit('confirm', b._id)"
+                >Confirm</button>
                 <router-link
                   v-if="viewer === 'owner' && b.status === 'completed'"
                   class="btn btn-sm btn-brand"
@@ -116,7 +138,7 @@ function showRoute(booking) {
                   class="btn btn-sm btn-outline-danger"
                   :disabled="busyId === b._id"
                   @click="$emit('cancel', b._id)"
-                >Cancel</button>
+                >{{ viewer === 'owner' && b.status !== 'confirmed' ? 'Withdraw' : 'Cancel' }}</button>
                 <!-- button only exists if they're owners ; emits the cancel event with the payload of booking_id -->
                 <!-- sitters open the Booking Detail page, owners open the details row below -->
                 <router-link

@@ -75,7 +75,7 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     return res.status(409).json({ message: `The sitter is not available at those times on ${wrongHours.join(', ')}.` })
   }
 
-  // 5. No clash with the sitter's accepted / paid / in-progress bookings, checked by exact time.
+  // 5. No clash with the sitter's accepted / confirmed / paid / in-progress bookings, checked by exact time.
   // (Pending requests don't block, because the sitter hasn't said yes yet.)
   const clash = await findClash(sitterId, range)
   if (clash) {
@@ -181,9 +181,9 @@ router.get('/:id', requireLogin, asyncHandler(async (req, res) => {
 }))
 
 // PATCH /api/bookings/:id/cancel
-// The booking's owner or sitter cancels it. Only pending or accepted bookings that haven't started yet can be cancelled
-// (a paid booking would need a refund, which doesn't exist yet).
-// The sitter's hours free up by themselves: only accepted / paid / in-progress bookings block the calendar.
+// The booking's owner or sitter cancels it. Only pending, accepted or confirmed bookings that haven't started yet can be cancelled
+// (a paid booking would need a refund, which doesn't exist yet). The owner uses this to withdraw a request.
+// The sitter's hours free up by themselves: only accepted / confirmed / paid / in-progress bookings block the calendar.
 // Out: the booking, plus googleRemoved: { removed, reason }
 router.patch('/:id/cancel', requireLogin, asyncHandler(async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Booking not found.' })
@@ -194,14 +194,15 @@ router.patch('/:id/cancel', requireLogin, asyncHandler(async (req, res) => {
   if (me !== String(booking.ownerId) && me !== String(booking.sitterId)) {
     return res.status(403).json({ message: 'This booking is not yours.' })
   }
-  if (!['pending', 'accepted'].includes(booking.status)) {
-    return res.status(400).json({ message: `Only pending or accepted bookings can be cancelled. This one is ${booking.status}.` })
+  if (!['pending', 'accepted', 'confirmed'].includes(booking.status)) {
+    return res.status(400).json({ message: `Only pending, accepted or confirmed bookings can be cancelled. This one is ${booking.status}.` })
   }
   if (bookingRange(booking).start <= Date.now()) {
     return res.status(400).json({ message: 'This booking has already started, so it can no longer be cancelled.' })
   }
 
   booking.status = 'cancelled'
+  booking.cancelledBy = me === String(booking.ownerId) ? 'owner' : 'sitter' // so the other side can see who called it off
   await booking.save()
 
   // Take the booking out of the sitter's Google Calendar. This never blocks or fails the cancel.

@@ -10,7 +10,7 @@ const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173'
 
 // GET /api/google/status
 // Out: { configured, connected, needsReconnect, unsynced }
-//   unsynced = upcoming accepted bookings that are not in the sitter's Google Calendar yet
+//   unsynced = upcoming confirmed bookings that are not in the sitter's Google Calendar yet
 router.get('/status', requireSitter, asyncHandler(async (req, res) => {
   const link = await GoogleCalendarLink.findOne({ sitterId: req.session.userId })
   res.json({
@@ -33,7 +33,7 @@ router.get('/connect', requireSitter, (req, res) => {
 
 // GET /api/google/callback
 // Step 2: Google sends the sitter back here with a one-time code (this address is registered in the Google console).
-// We save their permission, add their upcoming accepted bookings, then return them to the calendar page.
+// We save their permission, add their upcoming confirmed bookings, then return them to the calendar page.
 router.get('/callback', requireSitter, asyncHandler(async (req, res) => {
   const back = (result) => res.redirect(`${CLIENT_ORIGIN}/sitter/calendar?google=${result}`)
 
@@ -61,7 +61,7 @@ router.delete('/disconnect', requireSitter, asyncHandler(async (req, res) => {
 }))
 
 // POST /api/google/sync-now
-// Retry: adds any upcoming accepted booking that isn't in Google Calendar yet.
+// Retry: adds any upcoming confirmed booking that isn't in Google Calendar yet.
 // Out: { synced, failed }
 router.post('/sync-now', requireSitter, asyncHandler(async (req, res) => {
   const link = await GoogleCalendarLink.findOne({ sitterId: req.session.userId })

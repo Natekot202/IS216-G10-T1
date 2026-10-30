@@ -18,7 +18,7 @@ const ACCENTS = [
   { main: '#8e6b8f', tint: '#eee3ef' }      
 ]
 const accent = computed(() => ACCENTS[props.index % ACCENTS.length])
-const STATUS_LABELS = { accepted: 'Accepted', paid: 'Paid', 'in-progress': 'In progress', completed: 'Completed' }
+const STATUS_LABELS = { confirmed: 'Confirmed', paid: 'Paid', 'in-progress': 'In progress', completed: 'Completed' }
 const statusLabel = computed(() => STATUS_LABELS[status.value] ?? status.value)
 
 const initial = computed(() => (other.value?.username || '?').trim().charAt(0).toUpperCase())
@@ -52,7 +52,7 @@ const photoError = computed(() => slots.map((s) => s.error).find(Boolean) || '')
 
 const isActive = computed(() => visit.value?.status === 'active')
 const isCompleted = computed(() => visit.value?.status === 'completed')
-const canStart = computed(() => !visit.value && ['accepted', 'in-progress'].includes(status.value))
+const canStart = computed(() => !visit.value && ['confirmed', 'in-progress'].includes(status.value))
 const other = computed(() => (props.isSitter ? props.session.booking.owner : props.session.booking.sitter))
 
 function fmt(d) {

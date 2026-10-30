@@ -21,6 +21,7 @@ import walksRoutes from './src/routes/walks.js'
 import notificationRoutes from './src/routes/notifications.js'
 import mongoose from 'mongoose'
 import { recalcAllRatings, watchReviews } from './src/utils/ratingsCalc.js'
+import { startExpiringBookings } from './src/utils/expireBookings.js'
 
 if (!process.env.SESSION_SECRET){
   console.error('Session Secret is missing from .env')
@@ -79,6 +80,7 @@ app.use(errorHandler)
 async function start() {
   try {
     await connectDB()
+    startExpiringBookings() // unconfirmed requests expire once their start time passes
     recalcAllRatings().catch((err) => console.error('Rating recalculation failed', err)) 
     watchReviews()
     app.listen(PORT, () => {

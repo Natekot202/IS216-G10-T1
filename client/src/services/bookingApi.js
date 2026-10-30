@@ -19,7 +19,13 @@ export const bookingsApi = {
 
   // One booking, for the Booking Detail page
   getOne: (id) => api.get(`/bookings/${id}`).then((res) => res.data),
-  // The owner or the sitter cancels a pending or accepted booking
+  // The owner confirms a booking the sitter accepted, which makes it final.
+  // (No try/catch: errors go to the page, which shows the message.)
+  confirm: async (id) => {
+    const res = await api.patch(`/bookings/${id}/confirm`)
+    return res.data
+  },
+  // The owner or the sitter cancels a pending, accepted or confirmed booking
   cancel: (id) => api.patch(`/bookings/${id}/cancel`).then((res) => res.data),
   // The care tasks the owner added to a booking request: { items: [...] }
   getCareTasks: (id) => api.get(`/bookings/${id}/care-tasks`).then((res) => res.data)
