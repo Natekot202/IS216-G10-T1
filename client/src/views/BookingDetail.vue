@@ -59,17 +59,28 @@ function petKind(pet) {
   return [pet.species, pet.breed].filter(Boolean).join(' · ')
 }
 
-const canCancel = computed(() => ['pending', 'accepted'].includes(booking.value?.status))
-const canRespond = computed(() => isSitter.value && booking.value?.status === 'pending')
+const status = computed(() => booking.value?.status)
+// Which buttons to show:
+// sitter: Accept / Decline a pending request, Decline an accepted one (waiting for the owner), Cancel a confirmed one
+// owner:  Withdraw a pending request, Confirm / Withdraw an accepted one, Cancel a confirmed one
+const canRespond = computed(() => isSitter.value && status.value === 'pending')
+const canDeclineAccepted = computed(() => isSitter.value && status.value === 'accepted')
+const canConfirm = computed(() => !isSitter.value && status.value === 'accepted')
+const canCancel = computed(() =>
+  isSitter.value ? status.value === 'confirmed' : ['pending', 'accepted', 'confirmed'].includes(status.value)
+)
+const cancelText = computed(() => (status.value === 'confirmed' ? 'Cancel booking' : 'Withdraw request'))
 
-async function respond(status) {
+async function respond(newStatus) {
+  if (newStatus === 'declined' && status.value === 'accepted' &&
+      !window.confirm('Decline this request? You accepted it, but the owner has not confirmed yet. This cannot be undone.')) return
   busy.value = true
   actionError.value = ''
   message.value = ''
   try {
-    const updated = await bookingsApi.updateStatus(booking.value._id, status)
+    const updated = await bookingsApi.updateStatus(booking.value._id, newStatus)
     booking.value.status = updated.status
-    message.value = status === 'accepted' ? 'Request accepted ✅ The owner can now pay.' : 'Request declined.'
+    message.value = newStatus === 'accepted' ? 'Request accepted ✅ Waiting for the owner to confirm.' : 'Request declined.'
   } catch (err) {
     actionError.value = err.response?.data?.message || 'Could not update the booking.'
   } finally {
@@ -77,14 +88,33 @@ async function respond(status) {
   }
 }
 
+async function confirmBooking() {
+  busy.value = true
+  actionError.value = ''
+  message.value = ''
+  try {
+    const updated = await bookingsApi.confirm(booking.value._id)
+    booking.value.status = updated.status
+    message.value = 'Booking confirmed ✅ It is now final for you and the sitter.'
+  } catch (err) {
+    actionError.value = err.response?.data?.message || 'Could not confirm the booking.'
+  } finally {
+    busy.value = false
+  }
+}
+
 async function cancelBooking() {
-  if (!window.confirm('Cancel this booking? The other person will see it as cancelled. This cannot be undone.')) return
+  const question = status.value === 'confirmed'
+    ? 'Cancel this booking? The other person will see it as cancelled. This cannot be undone.'
+    : 'Withdraw this request? The sitter will see that you withdrew it. This cannot be undone.'
+  if (!window.confirm(question)) return
   busy.value = true
   actionError.value = ''
   message.value = ''
   try {
     const updated = await bookingsApi.cancel(booking.value._id)
     booking.value.status = updated.status
+    booking.value.cancelledBy = updated.cancelledBy
   } catch (err) {
     actionError.value = err.response?.data?.message || 'Could not cancel the booking.'
   } finally {
@@ -131,7 +161,15 @@ onMounted(async () => {
       </p>
 
       <div v-if="booking.status === 'cancelled'" class="alert alert-secondary">
-        This booking was cancelled. The hours are free on the sitter's calendar again.
+        {{ booking.cancelledBy === 'owner' ? 'The owner withdrew or cancelled this booking.' : booking.cancelledBy === 'sitter' ? 'The sitter cancelled this booking.' : 'This booking was cancelled.' }}
+        The hours are free on the sitter's calendar again.
+      </div>
+      <div v-else-if="booking.status === 'expired'" class="alert alert-secondary">
+        This request expired: the start time passed before the owner confirmed it.
+      </div>
+      <div v-else-if="booking.status === 'accepted'" class="alert alert-info">
+        {{ isSitter ? 'You accepted this request. Waiting for the owner to confirm; the hours are held for you until then.'
+                    : 'The sitter accepted your request. Confirm it below to make the booking final.' }}
       </div>
       <div v-if="message" class="alert alert-success">{{ message }}</div>
       <div v-if="actionError" class="alert alert-warning">{{ actionError }}</div>
@@ -217,13 +255,21 @@ onMounted(async () => {
         </div>
 
         <!-- the buttons run across the whole card, under a line -->
-        <div v-if="canRespond || canCancel" class="border-top mt-3 pt-3 text-center">
+        <div v-if="canRespond || canDeclineAccepted || canConfirm || canCancel" class="border-top mt-3 pt-3 text-center">
           <div v-if="canRespond" class="row g-2">
             <div class="col-6"><button type="button" class="btn btn-success w-100" :disabled="busy" @click="respond('accepted')">Accept request</button></div>
             <div class="col-6"><button type="button" class="btn btn-outline-danger w-100" :disabled="busy" @click="respond('declined')">Decline</button></div>
           </div>
+          <template v-else-if="canDeclineAccepted">
+            <button type="button" class="btn btn-outline-danger w-100" :disabled="busy" @click="respond('declined')">Decline</button>
+            <p class="small text-muted mt-2 mb-0">You can still decline until the owner confirms.</p>
+          </template>
+          <div v-else-if="canConfirm" class="row g-2">
+            <div class="col-6"><button type="button" class="btn btn-brand w-100" :disabled="busy" @click="confirmBooking">Confirm booking</button></div>
+            <div class="col-6"><button type="button" class="btn btn-outline-danger w-100" :disabled="busy" @click="cancelBooking">Withdraw request</button></div>
+          </div>
           <template v-else>
-            <button type="button" class="btn btn-outline-danger w-100" :disabled="busy" @click="cancelBooking">Cancel booking</button>
+            <button type="button" class="btn btn-outline-danger w-100" :disabled="busy" @click="cancelBooking">{{ cancelText }}</button>
             <p class="small text-muted mt-2 mb-0">You can cancel until the booking starts. Once it is paid, it can't be cancelled here.</p>
           </template>
         </div>

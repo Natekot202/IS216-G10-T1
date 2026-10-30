@@ -15,11 +15,16 @@ const bookingSchema = new mongoose.Schema(
     // true = the sitter sleeps at the owner's place (charged per night, see utils/servicePrices.js)
     overnight: { type: Boolean, default: false },
     totalPrice: { type: Number, required: true, min: 0 },
+    // pending -> accepted (sitter says yes) -> confirmed (owner picks this sitter) -> in-progress -> completed -> paid
+    // declined: the sitter said no (from pending or accepted)
+    // cancelled: the owner or sitter called it off before it started (see cancelledBy)
+    // expired: the start time passed before the owner confirmed (utils/expireBookings.js)
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'declined', 'paid', 'in-progress', 'completed', 'cancelled'],
+      enum: ['pending', 'accepted', 'confirmed', 'declined', 'paid', 'in-progress', 'completed', 'cancelled', 'expired'],
       default: 'pending'
-    }
+    },
+    cancelledBy: { type: String, enum: ['owner', 'sitter'] } // only set on cancelled bookings
   },
   { timestamps: true }
 )

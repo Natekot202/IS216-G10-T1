@@ -91,14 +91,15 @@ async function seed() {
   const mochi = await Pet.create({ owner: owner._id, name: 'Mochi', species: 'Dog', breed: 'Shiba Inu', ageMonths: 36, description: 'Friendly, loves walks' })
   const luna = await Pet.create({ owner: owner._id, name: 'Luna', species: 'Cat', breed: 'British Shorthair', ageMonths: 24, description: 'Shy at first' })
 
-  // Flow: pending -> accepted -> in-progress -> completed (owner pays now) -> paid
+  // Flow: pending -> accepted (sitter) -> confirmed (owner) -> in-progress -> completed (owner pays now) -> paid
   const plan = [
     // 3 days with an overnight stay (2 nights): tasks × 3 days + $60 × 2 nights
     makeBooking(owner, sitter, [mochi], 20, '09:00', '17:00', 'pending', 'Away for the weekend, please stay over', [WALK_TWICE, FEED_TWICE], 3, true),
     makeBooking(owner, sitter2, [mochi], 22, '08:00', '12:00', 'pending', 'Morning walks', [WALK_TWICE]),
     makeBooking(owner, sitter, [luna], 14, '10:00', '14:00', 'pending', 'Afternoon with Luna', [FEED_TWICE, CLEAN_ONCE, PLAY_ONCE]),
-    makeBooking(owner, sitter, [mochi, luna], 5, '09:00', '18:00', 'accepted', 'Starts in 5 days', [FEED_TWICE, WALK_TWICE]),
-    makeBooking(owner, sitter, [mochi], 2, '08:00', '12:00', 'accepted', 'Morning walk', [WALK_TWICE]),
+    makeBooking(owner, sitter, [mochi, luna], 5, '09:00', '18:00', 'confirmed', 'Starts in 5 days', [FEED_TWICE, WALK_TWICE]),
+    makeBooking(owner, sitter, [mochi], 2, '08:00', '12:00', 'accepted', 'Morning walk, waiting for the owner to confirm', [WALK_TWICE]),
+    makeBooking(owner, sitter2, [luna], -1, '09:00', '12:00', 'expired', 'Owner did not confirm in time', [FEED_TWICE]),
     makeBooking(owner, sitter, [luna], 0, '08:00', '20:00', 'in-progress', 'Session happening today', [FEED_TWICE, MEDS_ONCE]),
     makeBooking(owner, sitter, [mochi], -3, '10:00', '16:00', 'completed', 'Done, waiting for payment', [WALK_TWICE, GROOM_ONCE]),
     makeBooking(owner, sitter, [mochi], -10, '09:00', '17:00', 'paid', 'Done and paid', [WALK_TWICE, FEED_TWICE]),

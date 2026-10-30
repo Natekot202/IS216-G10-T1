@@ -21,7 +21,7 @@ const petNames = computed(() =>
   (props.booking.petIds || []).map((p) => p?.name).filter(Boolean).join(', ')
 )
 
-const showRoute = computed(() => ['accepted', 'in-progress'].includes(props.booking.status))
+const showRoute = computed(() => ['confirmed', 'in-progress'].includes(props.booking.status))
 </script>
 
 <template>
