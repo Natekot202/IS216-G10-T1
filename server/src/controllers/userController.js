@@ -2,12 +2,14 @@ import mongoose from 'mongoose'
 import User, { services } from '../models/UserModel.js'
 import Pet from '../models/petModel.js'
 import Review from '../models/reviewModel.js'
+import Booking from '../models/bookingModel.js'
 
 import { uploadImage, deleteImage } from '../config/cloudinary.js'
 import { computeBadges } from '../utils/sitterBadges.js'
 
 const PUBLIC_FIELDS =
   'username bio profilePicture role createdAt ' +
+  'ownerProfile.servicesNeeded ' +
   'sitterProfile.experienceStart sitterProfile.petTypes ' +
   'sitterProfile.services sitterProfile.serviceArea sitterProfile.ratingAvg sitterProfile.ratingCount ' +
   'sitterProfile.gallery'
@@ -279,4 +281,16 @@ export async function getUserBadges(req, res) {
     return res.json([])
   }
   res.json(await computeBadges(user))
+}
+
+export async function getOwnerStats(req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return res.status(404).json({ message: 'User not found' })
+  }
+  const filter = { ownerId: req.params.id, status: 'completed' }
+  const [completedBookings, sitters] = await Promise.all([
+    Booking.countDocuments(filter),
+    Booking.distinct('sitterId', filter)
+  ])
+  res.json({ completedBookings, sittersBooked: sitters.length })
 }

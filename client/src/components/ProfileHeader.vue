@@ -45,6 +45,7 @@ watch(() => props.profile._id, async (id) => {
   border-radius: 20px;
   background: #fbf1e6;                   
   box-shadow: 0 8px 20px rgba(120, 70, 40, 0.14);
+  height: 98%
 }
 
 .ph-photo {

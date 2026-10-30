@@ -3,6 +3,9 @@ import { nextTick, reactive, ref, watch, computed } from 'vue'
 import { petsApi, usersApi } from '../services/api'
 import PetCard from '../components/PetCard.vue'
 import { usePhotoPicker } from '../utils/usePhotoPicker.js'
+import StatsBand from './StatsBand.vue'
+import InfoCard from './InfoCard.vue'
+import PillList from './PillList.vue'
 
 const pets = ref([])
 const loading = ref(true)
@@ -13,7 +16,8 @@ const pet_types = ["Dog", "Cat", "Bird", "Rabbit", "Hamster", "Other"];
 const props = defineProps({
   ownerId: { type: String, default: '' },
   ownerName: { type: String, default: '' },
-  editable: { type: Boolean, default: false }
+  editable: { type: Boolean, default: false },
+  profile: { type: Object, default: null } 
 })
 
 const {
@@ -195,13 +199,64 @@ async function deletePet(id) {
     console.error(err)
   }
 }
+
+// stats cards
+const stats = ref(null)
+
+watch(() => props.ownerId, async (id) => {
+  stats.value = null
+  if (!id) {
+    return
+  }
+  try {
+    stats.value = await usersApi.getOwnerStats(id)
+  } catch (err) {
+    console.warn('Could not load owner stats', err)
+  }
+}, { immediate: true })
+
+const memberSince = computed(() => {
+  const d = props.profile?.createdAt ? new Date(props.profile.createdAt) : null
+  if (!d || Number.isNaN(d.getTime())) {
+    return ''
+  }
+  return d.toLocaleDateString('en-SG', { month: 'short', year: 'numeric' })
+})
+
+const lookingFor = computed(() => props.profile?.ownerProfile?.servicesNeeded ?? [])
+
+const ownerStats = computed(() => [
+  { key: 'since', value: memberSince.value || '–', label: 'member since' },
+  {
+    key: 'done',
+    value: stats.value ? stats.value.completedBookings : '–',
+    label: stats.value?.completedBookings === 1 ? 'completed booking' : 'completed bookings'
+  },
+  {
+    key: 'sitters',
+    value: stats.value ? stats.value.sittersBooked : '–',
+    label: stats.value?.sittersBooked === 1 ? 'sitter booked' : 'sitters booked'
+  }
+])
+
 </script>
 
 <template>
   <div>
+    <StatsBand :stats="ownerStats" />
+
+    <InfoCard v-if="lookingFor.length || editable"
+          :title="editable ? 'Services I\'m looking for' : 'Services needed'">
+      <PillList v-if="lookingFor.length" :items="lookingFor" />
+      <p v-else class="mb-0 text-muted">
+        Tell sitters what you need.
+        <router-link to="/editProfile">Add services</router-link>
+      </p>
+    </InfoCard>
+    
     <div class="od-head">
       <h4 class="od-heading">
-        {{ editable ? 'My Pets' : `${ownerName}'s pets` }}<span v-if="!loading"> ({{ pets.length }})</span>
+        {{ editable ? 'My Pets' : `Pets` }}<span v-if="!loading"> ({{ pets.length }})</span>
       </h4>
       <button v-if="editable && !showForm" type="button" class="btn btn-sm od-add" @click="openAdd">
         + Add a pet
@@ -313,7 +368,8 @@ async function deletePet(id) {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  margin-bottom: 1rem;
+  margin: 1.5rem 0 1rem;
+
 }
 .od-heading {
   margin: 0;
@@ -345,9 +401,11 @@ async function deletePet(id) {
 .od-form {
   margin-top: 1.25rem;
   padding: 1.25rem;
-  border: 1px solid #e6d3c0;
+  border: 1px solid rgba(196, 119, 86, 0.3);
+  border-top: 4px solid #e6d3c0;    
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);
 }
 .od-form__title {
   margin: 0 0 1rem;
