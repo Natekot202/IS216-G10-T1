@@ -65,7 +65,7 @@ onMounted(() => {
       </div>
 
       <div class="row g-3">
-        <div class="col-12 col-md-4 col-lg-3">
+        <div class="col-12 col-md-4 col-lg-3 d-flex">
           <ProfileHeader :profile="profile" :editable="isMine" />
         </div>
 
@@ -73,13 +73,13 @@ onMounted(() => {
           <OwnerDetails v-if="profile.role === 'owner'"
               :owner-id="profile._id"
               :owner-name="profile.username"
-              :editable="isMine" />
+              :editable="isMine"
+              :profile="profile" />
           <SitterDetails v-else :profile="profile" :editable="isMine" />
         </div>
       </div>
-      <div v-if="profile.role === 'sitter'" class="mt-4">
-        <SitterReviews :sitter-id="profile._id" />
-      </div>
+      <SitterReviews v-if="profile.role === 'sitter'" :sitter-id="profile._id" />
+      <SitterReviews v-else-if="profile.role === 'owner'" :sitter-id="profile._id" mode="given" class="mt-3"/>
     </template>
   </div>
 </template>

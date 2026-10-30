@@ -11,7 +11,7 @@ import { useLocationSearch } from '../utils/useLocationSearch.js'
 const router = useRouter()
 
 const pet_types = ["Dog", "Cat", "Bird", "Rabbit", "Hamster", "Other"];
-const services = ["Feeding", "Dog walking", "Cat walking", "Feeding Medication"]
+const services = ["Feeding", "Grooming", "Dog walking", "Cat walking", "Feeding Medication", "Cleaning", "Playtime"] 
 
 const isOwner = computed(() => currentUser.value?.role === 'owner')
 const isSitter = computed(() => currentUser.value?.role === 'sitter')
@@ -49,12 +49,12 @@ const form = ref({
   username: '',
   bio: '',
   sitterProfile: {
-    petsittingRates: '',
     experienceStart: '',
     serviceArea: '',
     petTypes: [],
     services: []
-  }
+  },
+  servicesNeeded: [] // owners only: what their pets need (used to recommend sitters)
 })
 
 let filled = false
@@ -67,12 +67,12 @@ function fillForm(user) {
     username: user.username || '',
     bio: user.bio || '',
     sitterProfile: {
-      petsittingRates: sp.petsittingRates ?? '',
       experienceStart: sp.experienceStart ? sp.experienceStart.slice(0, 7) : '',
       serviceArea: sp.serviceArea?.label || '',
       petTypes: [...(sp.petTypes || [])],
       services: [...(sp.services || [])]
-    }
+    },
+    servicesNeeded: [...(user.ownerProfile?.servicesNeeded || [])]
   }
 
   const saved = user.role === 'sitter' ? user.sitterProfile?.address : user.ownerProfile?.address
@@ -191,6 +191,9 @@ async function save() {
     if (isSitter.value) {
       payload.sitterProfile = { ...form.value.sitterProfile }
     }
+    if (isOwner.value) {
+      payload.servicesNeeded = [...form.value.servicesNeeded]
+    }
 
     currentUser.value = await usersApi.updateMe(payload)
     detailsSaved = true
@@ -306,19 +309,22 @@ async function save() {
             </div>
           </section>
 
+          <section v-if="isOwner" class="ef-card">
+            <h4 class="ef-card__title">Services I need</h4>
+            <p class="ef-card__hint">We'll recommend sitters who offer these on your home page.</p>
+            <div class="ef-chips" role="group" aria-label="Services I need">
+              <label v-for="s in services" :key="s" class="ef-chip">
+                <input type="checkbox" :value="s" v-model="form.servicesNeeded" />
+                <span>{{ s }}</span>
+              </label>
+            </div>
+          </section>
+
           <section v-if="isSitter" class="ef-card">
             <h4 class="ef-card__title">Sitter details</h4>
             <p class="ef-card__hint">Owners use these to find and compare sitters.</p>
 
             <div class="row g-3 mb-3">
-              <div class="col-12 col-sm-6">
-                <label class="form-label" for="rate">Rate (per hour)</label>
-                <div class="input-group">
-                  <span class="input-group-text">S$</span>
-                  <input id="rate" v-model="form.sitterProfile.petsittingRates" type="number" min="0" step="0.5"
-                         class="form-control" />
-                </div>
-              </div>
               <div class="col-12 col-sm-6">
                 <label class="form-label" for="since">Sitting since</label>
                 <input id="since" v-model="form.sitterProfile.experienceStart" type="month" class="form-control" />
@@ -446,7 +452,8 @@ async function save() {
 .ef-card {
   margin-bottom: 1.5rem;
   padding: 1.25rem 1.35rem;
-  border: 1px solid #e6d3c0;
+  border: 1px solid rgba(196, 119, 86, 0.3);
+  border-top: 4px solid #e6d3c0;    
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);

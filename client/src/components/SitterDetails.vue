@@ -1,8 +1,10 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
-import { usersApi } from '../services/api.js'
+import { computed } from 'vue'
 import { formatAge } from '../utils/formatAge.js'
 import PhotoCarousel from './SitterPhotosCarousel.vue'
+import StatsBand from './StatsBand.vue'
+import InfoCard from './InfoCard.vue'
+import PillList from './PillList.vue'
 
 
 const props = defineProps({
@@ -12,7 +14,8 @@ const props = defineProps({
 
 const sp = computed(() => props.profile.sitterProfile || {})
 const gallery = computed(() => sp.value.gallery ?? [])
-const rateAmount = computed(() => (sp.value.petsittingRates > 0 ? `S$${sp.value.petsittingRates}` : ''))
+// Prices are the same for every sitter now, so we show how many services they offer instead of a rate
+const serviceCount = computed(() => sp.value.services?.length || 0)
 
 const experience = computed(() => {
   if (!sp.value.experienceStart) {
@@ -35,106 +38,74 @@ function stars(n) {
   return '★'.repeat(full) + '☆'.repeat(5 - full)
 }
 
-const hasDetails = computed(() => 
-  sp.value.petsittingRates > 0 || sp.value.petTypes?.length || sp.value.services?.length
-)
+const hasDetails = computed(() => !!(sp.value.petTypes?.length || sp.value.services?.length))
 
-const reviews = ref([])
-const loadingReviews = ref(true)
-const reviewError = ref('')
+const sitterStats = computed(() => [
+  ratingCount.value
+    ? {
+        key: 'rating',
+        value: ratingAvg.value.toFixed(1),
+        stars: stars(ratingAvg.value),
+        starsLabel: `Rated ${ratingAvg.value.toFixed(1)} out of 5`,
+        label: `from ${ratingCount.value} ${ratingCount.value === 1 ? 'rating' : 'ratings'}`
+      }
+    : { key: 'rating', value: '–', empty: true, label: 'no ratings yet' },
+  {
+    key: 'services',
+    value: serviceCount.value || '–',
+    empty: !serviceCount.value,
+    label: serviceCount.value
+      ? (serviceCount.value === 1 ? 'service offered' : 'services offered')
+      : 'services not set'
+  },
+  {
+    key: 'exp',
+    value: hasExperience.value ? experience.value : '–',
+    empty: !hasExperience.value,
+    label: hasExperience.value ? 'of experience' : 'experience not set'
+  }
+])
 
-async function loadReviews() {
-  if (!props.profile._id){
-    loadingReviews.value = true
-  }
-  reviewError.value = ''
-  try {
-    reviews.value = await usersApi.getReviews(props.profile._id)
-  } catch (err) {
-    reviewError.value = err.response?.data?.message || 'Could not load reviews.'
-  } finally {
-    loadingReviews.value = false
-  }
-}
-
-watch(() => props.profile._id, loadReviews, { immediate: true })
-
-function formatDate(d) {
-  if (!d) {
-    return ''
-  }
-  const date = new Date(d)
-  if (Number.isNaN(date.getTime())) {
-    return ''
-  }
-  return new Date(d).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })
-}
 </script>
 
 <template>
   <div class="sd">
     <div v-if="editable && !hasDetails" class="sd-nudge">
-      <p class="mb-2">Owners can’t find you yet. Add your rate, experience and the pets you look after.</p>
+      <p class="mb-2">Owners can’t find you yet. Add your experience, the pets you look after and your services.</p>
       <router-link to="/editProfile" class="btn btn-sm text-white" style="background-color:#a85a38;">
         Add your details
       </router-link>
     </div>
 
-    <div class="sd-band">
-      <div class="sd-stat">
-        <template v-if="ratingCount">
-          <span class="sd-big">{{ ratingAvg.toFixed(1) }}</span>
-          <span class="sd-stars" :aria-label="`Rated ${ratingAvg.toFixed(1)} out of 5`">{{ stars(ratingAvg) }}</span>
-          <span class="sd-sub">from {{ ratingCount }} {{ ratingCount === 1 ? 'rating' : 'ratings' }}</span>
-        </template>
-        <template v-else>
-          <span class="sd-big">New</span>
-          <span class="sd-sub">no ratings yet</span>
-        </template>
-      </div>
+    <StatsBand :stats="sitterStats" />
 
-      <div class="sd-stat">
-        <span class="sd-big" :class="{ 'sd-big--empty': !rateAmount }">{{ rateAmount || '—' }}</span>
-        <span class="sd-sub">{{ rateAmount ? 'per hour' : 'rate not set' }}</span>
-      </div>
-
-      <div class="sd-stat">
-        <span class="sd-big" :class="{ 'sd-big--empty': !hasExperience }">{{ hasExperience ? experience : '—' }}</span>
-        <span class="sd-sub">{{ hasExperience ? 'of experience' : 'experience not set' }}</span>
-      </div>
-    </div>
-
-    <section class="sd-card">
+    <InfoCard>
       <p class="sd-area">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
           <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"
                 fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
           <circle cx="12" cy="10" r="2.3" fill="currentColor" />
         </svg>
-        <span v-if="hasArea" style="font-size:1.2rem;">Service Area: <strong>{{ area }}</strong></span>
-        <span v-else class="text-muted" style="font-size:1.2rem;">Service area not set</span>
+        <span v-if="hasArea">Service Area: <strong>{{ area }}</strong></span>
+        <span v-else class="text-muted">Service area not set</span>
       </p>
 
       <div class="sd-groups">
-        <section class="sd-group">
+        <section>
           <h4 class="sd-heading">Looks after</h4>
-          <ul v-if="sp.petTypes?.length" class="sd-pills">
-            <li v-for="t in sp.petTypes" :key="t">{{ t }}</li>
-          </ul>
+          <PillList v-if="sp.petTypes?.length" :items="sp.petTypes" />
           <p v-else class="text-muted mb-0">None listed yet</p>
         </section>
 
-        <section class="sd-group">
+        <section>
           <h4 class="sd-heading">Services</h4>
-          <ul v-if="sp.services?.length" class="sd-pills">
-            <li v-for="s in sp.services" :key="s">{{ s }}</li>
-          </ul>
+          <PillList v-if="sp.services?.length" :items="sp.services" />
           <p v-else class="text-muted mb-0">None listed yet</p>
         </section>
       </div>
-    </section>
+    </InfoCard>
 
-    <PhotoCarousel v-if="gallery.length" :photos="gallery" :name="profile.username" class="mb-4" />
+    <PhotoCarousel v-if="gallery.length" :photos="gallery" :name="profile.username"  class="sd-photos" />
 
     <div v-else-if="editable" class="sd-nudge">
       <p class="mb-2">Add photos of yourself so owners know who is coming to their home.</p>
@@ -146,100 +117,34 @@ function formatDate(d) {
 </template>
 
 <style scoped>
-.sd-card {
-  margin-top: 1rem;
-  padding: 1.15rem 1.3rem;
-  border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #c47756;    
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);
-}
-.sd-card .sd-pills li {
-  background: #f4e4d3;
-  border-color: transparent;
-}
 .sd-nudge {
-  margin-top: 1.25rem;
-  margin-bottom: 1.25rem;
+  margin: 1.25rem 0;
   padding: 1rem 1.15rem;
-  border: 1px dashed #c47756;
+  border: 1px dashed #e6d3c0;
   border-radius: 12px;
-  background: rgba(196, 119, 86, 0.08);
+  background: #fbf1e6;               
   color: #2b2420;
 }
 
-.sd-band {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #c47756;
-  border-radius: 20px;
-  background: #f6e3d6;
-  box-shadow: 0 8px 20px rgba(120, 70, 40, 0.14);
-}
-.sd-stat {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 0.2rem;
-  padding: 1rem 0.75rem;  
-  min-width: 0;
-  text-align: center;
-}
-.sd-stat + .sd-stat {
-  border-left: 1px solid rgba(43, 36, 32, 0.14);
-}
-.sd-big {
-  font-size: clamp(1.4rem, 1rem + 0.9vw, 1.8rem);
-  color: #2b2420;
-}
-.sd-big--empty {
-  color: rgba(43, 36, 32, 0.35);
-}
-.sd-stars {
-  color: #c44f1c;
-  font-size: 1rem;
-}
-.sd-sub {
-  font-size: 1.0rem;
-  color: #5c524b;
-}
-.sd-groups {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.5rem;
-  margin-top: 1.5rem;
-}
-.sd-groups .sd-group {
-  margin-top: 0;
-}
-@media (max-width: 575.98px) {
-  .sd-band {
-    grid-template-columns: 1fr;
-  }
-  .sd-stat + .sd-stat {
-    border-left: 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.14);
-  }
-}
 .sd-area {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  margin: 0 0 1rem;                     
+  margin: 0 0 1rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid #f0e3d4;  color: #2b2420;
+  border-bottom: 1px solid #f0e3d4;
+  font-size: 1.2rem;
+  color: #2b2420;
 }
 .sd-area svg {
   flex: 0 0 auto;
   color: #c44f1c;
 }
 
-.sd-group {
-  margin-top: 1.5rem;
-  margin-bottom: 1.5rem;
+.sd-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
 }
 .sd-heading {
   margin: 0 0 0.6rem;
@@ -247,24 +152,8 @@ function formatDate(d) {
   font-weight: 700;
   color: #2b2420;
 }
+
 .sd-photos {
   margin-top: 1.5rem;
-}
-.sd-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.sd-pills li {
-  padding: 0.3rem 0.8rem;
-  border: 1px solid #e6d3c0;
-  border-radius: 100px;
-  background: #fff;
-  color: #2b2420;
-  font-size: 0.9rem;
-  font-weight: 600;
 }
 </style>

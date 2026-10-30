@@ -1,14 +1,16 @@
 import mongoose from 'mongoose'
-import User from '../models/UserModel.js'
+import User, { services } from '../models/UserModel.js'
 import Pet from '../models/petModel.js'
 import Review from '../models/reviewModel.js'
+import Booking from '../models/bookingModel.js'
 
 import { uploadImage, deleteImage } from '../config/cloudinary.js'
 import { computeBadges } from '../utils/sitterBadges.js'
 
 const PUBLIC_FIELDS =
   'username bio profilePicture role createdAt ' +
-  'sitterProfile.petsittingRates sitterProfile.experienceStart sitterProfile.petTypes ' +
+  'ownerProfile.servicesNeeded ' +
+  'sitterProfile.experienceStart sitterProfile.petTypes ' +
   'sitterProfile.services sitterProfile.serviceArea sitterProfile.ratingAvg sitterProfile.ratingCount ' +
   'sitterProfile.gallery'
 
@@ -54,6 +56,16 @@ export async function getUserReviews(req, res) {
   }
   const reviews = await Review.find({ sitter: req.params.id })
     .populate('owner', 'username profilePicture')
+    .sort({ _id: -1 })
+  res.json(reviews)
+}
+
+export async function getReviewsGiven(req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return res.status(404).json({ message: 'User not found' })
+  }
+  const reviews = await Review.find({ owner: req.params.id })
+    .populate('sitter', 'username profilePicture')
     .sort({ _id: -1 })
   res.json(reviews)
 }
@@ -134,14 +146,13 @@ export async function updateMyProfile(req, res) {
     }
   }
 
+  // Owners: the services their pets need (only values from the allowed list are kept)
+  if (req.session.role === 'owner' && Array.isArray(req.body.servicesNeeded)) {
+    updates['ownerProfile.servicesNeeded'] = req.body.servicesNeeded.filter((s) => services.includes(s))
+  }
+
   if (req.session.role === 'sitter' && req.body.sitterProfile) {
     const sp = req.body.sitterProfile
-
-    const rate = sp.petsittingRates === '' ? 0 : Number(sp.petsittingRates)
-    if (!Number.isFinite(rate) || rate < 0) {
-      return res.status(400).json({ message: 'Rate must be 0 or more.' })
-    }
-
     let start = null
     if (sp.experienceStart) {
       start = new Date(`${sp.experienceStart}-01`)
@@ -150,7 +161,6 @@ export async function updateMyProfile(req, res) {
       }
     }
 
-    updates['sitterProfile.petsittingRates'] = rate
     updates['sitterProfile.experienceStart'] = start
     updates['sitterProfile.petTypes'] = sp.petTypes || []
     updates['sitterProfile.services'] = sp.services || []
@@ -271,4 +281,16 @@ export async function getUserBadges(req, res) {
     return res.json([])
   }
   res.json(await computeBadges(user))
+}
+
+export async function getOwnerStats(req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return res.status(404).json({ message: 'User not found' })
+  }
+  const filter = { ownerId: req.params.id, status: 'completed' }
+  const [completedBookings, sitters] = await Promise.all([
+    Booking.countDocuments(filter),
+    Booking.distinct('sitterId', filter)
+  ])
+  res.json({ completedBookings, sittersBooked: sitters.length })
 }

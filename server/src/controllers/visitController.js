@@ -6,7 +6,7 @@ import { sgtMidnight, toSgtDateString } from '../models/Availability.js'
 import { uploadImage, deleteImage } from '../config/cloudinary.js'
 import User from '../models/UserModel.js'
 
-const STARTABLE = ['accepted', 'in-progress'] // owners pay at the end, so sessions start from 'accepted' 
+const STARTABLE = ['confirmed', 'in-progress'] // owners pay at the end, so sessions start once the owner has confirmed
 
 // to ensure only valid bookings can be started
 function startBlockReason(booking, todaysVisits, today) {
@@ -51,7 +51,7 @@ export async function getTodaySessions(req, res) {
     [field]: req.session.userId,
     startDate: { $lte: dayStart },
     endDate: { $gte: dayStart },
-    status: { $in: ['accepted', 'in-progress', 'completed', 'paid'] }
+    status: { $in: ['confirmed', 'in-progress', 'completed', 'paid'] }
   })
     .populate('ownerId', 'username profilePicture')
     .populate('sitterId', 'username profilePicture')
@@ -66,11 +66,12 @@ export async function getTodaySessions(req, res) {
   const itemsByBooking = new Map(checklists.map((c) => [String(c.bookingId), c.items]))
 
   const isSitterViewer = req.session.role === 'sitter'
-  const confirmed = (b) => ['paid', 'in-progress'].includes(b.status)
+  const confirmed = (b) => ['confirmed', 'in-progress'].includes(b.status)
 
   const addressByOwner = new Map()
   if (isSitterViewer) {
-    const ownerIds = [...new Set(bookings.filter(confirmed).map((b) => String(b.ownerId._id)))]
+    // (a booking whose owner account was deleted has no ownerId after populate, so it is skipped instead of crashing)
+    const ownerIds = [...new Set(bookings.filter((b) => confirmed(b) && b.ownerId).map((b) => String(b.ownerId._id)))]
     if (ownerIds.length > 0) {
       const owners = await User.find({ _id: { $in: ownerIds } }).select('+ownerProfile.address -password')
       owners.forEach((o) => {
@@ -102,7 +103,7 @@ export async function getTodaySessions(req, res) {
       }
       // only a booking's sitter gets the address, and only once it is confirmed
       if (isSitterViewer && confirmed(b)) {
-        session.ownerAddress = addressByOwner.get(String(b.ownerId._id)) ?? null
+        session.ownerAddress = addressByOwner.get(String(b.ownerId?._id)) ?? null
       }
       return session
     })

@@ -47,7 +47,7 @@ onBeforeUnmount(() => clearInterval(timer))
 </script>
 
 <template>
-  <div class="container-fluid mt-1 mb-4">
+  <div class="sesh container-fluid mt-1 mb-4">
     <div class="border-bottom pb-2 mb-3">
       <h3 class="mb-0">Today's sessions</h3>
       <p v-if="data" class="text-muted small mb-0">{{ fmt(data.today) }}</p>

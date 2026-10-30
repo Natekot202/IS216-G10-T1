@@ -5,7 +5,6 @@ import RegisterView from "../views/Register.vue";
 import Home from "../views/Home.vue"
 import ProfileView from "../views/Profile.vue";
 import EditProfile from '../views/EditProfile.vue'
-import GroupBookings from '../views/GroupBookings.vue';
 import OwnerHome from '../views/OwnerHome.vue'
 import RolePicker from '../components/RolePicker.vue'
 import BookingRequests from '../views/BookingRequests.vue'
@@ -36,7 +35,6 @@ const routes = [
 { path: '/sitter/transactions', name: 'sitter-transactions', component: Transactions, meta: { role: 'sitter' } },
 { path: '/bookings/:id/pay', name: 'pay', component: PaymentGateway, meta: { role: 'owner' } },
 { path: '/owner/bookings', name: 'owner-bookings', component: MyBookings, meta: { role: 'owner' } },
-{ path: '/owner/bookings/group/:groupId', name: 'owner-booking-group', component: GroupBookings, meta: { role: 'owner' } },
 { path: '/sitter/calendar', name: 'sitter-calendar', component: SitterCalendar, meta: { role: 'sitter' } },
 { path: '/bookings/:id', name: 'booking-detail', component: BookingDetail, meta: { auth: true } },
 { path: '/bookings/new', name: 'new-booking', component: NewBookingRequest, meta: { role: 'owner' } },

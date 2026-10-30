@@ -72,7 +72,10 @@ async function loadTransactions() {
         : '—',
       amount: p.amount,
       status: p.status,
-      method: `${p.method === 'visa' ? 'VISA' : 'Mastercard'} •••• ${p.cardLast4}`
+      // e.g. 'Visa •••• 4242', or 'Paynow' (no card). A cancelled try has no method, so just show '—'
+      method: p.method
+        ? `${p.method.charAt(0).toUpperCase() + p.method.slice(1)}${p.cardLast4 ? ` •••• ${p.cardLast4}` : ''}`
+        : '—'
     }))
 
     const pendingRows = unpaid.map((b) => ({
@@ -99,73 +102,75 @@ onMounted(loadTransactions)
 </script>
 
 <template>
-  <h2 class="mb-4">Transactions</h2>
+  <div class="trans">
+    <h2 class="mb-4">Transactions</h2>
 
-  <div v-if="error" class="alert alert-warning">{{ error }}</div>
-  <div v-else-if="loading" class="text-muted">Loading transactions…</div>
+    <div v-if="error" class="alert alert-warning">{{ error }}</div>
+    <div v-else-if="loading" class="text-muted">Loading transactions…</div>
 
-  <template v-else>
-    <!-- Summary tiles -->
-    <div class="row g-3 mb-4">
-      <div class="col-12 col-sm-4">
-        <div class="card h-100 shadow-sm tile">
-          <div class="card-body">
-            <div class="text-muted small">Total earned</div>
-            <div class="fs-3 fw-bold text-earned">{{ formatPrice(earned) }}</div>
+    <template v-else>
+      <!-- Summary tiles -->
+      <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-4">
+          <div class="card h-100 shadow-sm tile">
+            <div class="card-body">
+              <div class="text-muted small">Total earned</div>
+              <div class="fs-3 fw-bold text-earned">{{ formatPrice(earned) }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-sm-4">
+          <div class="card h-100 shadow-sm tile">
+            <div class="card-body">
+              <div class="text-muted small">Awaiting payment</div>
+              <div class="fs-3 fw-bold text-awaiting">{{ formatPrice(awaiting) }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-sm-4">
+          <div class="card h-100 shadow-sm tile">
+            <div class="card-body">
+              <div class="text-muted small">Rejected attempts</div>
+              <div class="fs-3 fw-bold text-rejected">{{ rejectedCount }}</div>
+            </div>
           </div>
         </div>
       </div>
-      <div class="col-6 col-sm-4">
-        <div class="card h-100 shadow-sm tile">
-          <div class="card-body">
-            <div class="text-muted small">Awaiting payment</div>
-            <div class="fs-3 fw-bold text-awaiting">{{ formatPrice(awaiting) }}</div>
-          </div>
-        </div>
+
+      <BookingTabs :tabs="tabs" :active-tab="activeFilter" @select="activeFilter = $event" />
+
+      <p v-if="!visibleRows.length" class="text-muted text-center py-5">No transactions here yet 🐾</p>
+
+      <div v-else class="table-responsive tx-table">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Owner</th>
+              <th class="d-none d-md-table-cell">Session</th>
+              <th class="text-end">Amount</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in visibleRows" :key="r.key">
+              <td class="text-nowrap">{{ shortDate(r.date) }}</td>
+              <td>
+                <div class="fw-semibold">{{ r.owner }}</div>
+                <div class="small text-muted">{{ r.pets }}</div>
+              </td>
+              <td class="d-none d-md-table-cell small">{{ r.session }}</td>
+              <td class="text-end text-nowrap">
+                <div class="fw-semibold">{{ formatPrice(r.amount) }}</div>
+                <div class="small text-muted">{{ r.method }}</div>
+              </td>
+              <td><span class="tx-pill" :class="`tx-${r.status}`">{{ STATUS_LABELS[r.status] }}</span></td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <div class="col-6 col-sm-4">
-        <div class="card h-100 shadow-sm tile">
-          <div class="card-body">
-            <div class="text-muted small">Rejected attempts</div>
-            <div class="fs-3 fw-bold text-rejected">{{ rejectedCount }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <BookingTabs :tabs="tabs" :active-tab="activeFilter" @select="activeFilter = $event" />
-
-    <p v-if="!visibleRows.length" class="text-muted text-center py-5">No transactions here yet 🐾</p>
-
-    <div v-else class="table-responsive tx-table">
-      <table class="table align-middle mb-0">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Owner</th>
-            <th class="d-none d-md-table-cell">Session</th>
-            <th class="text-end">Amount</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="r in visibleRows" :key="r.key">
-            <td class="text-nowrap">{{ shortDate(r.date) }}</td>
-            <td>
-              <div class="fw-semibold">{{ r.owner }}</div>
-              <div class="small text-muted">{{ r.pets }}</div>
-            </td>
-            <td class="d-none d-md-table-cell small">{{ r.session }}</td>
-            <td class="text-end text-nowrap">
-              <div class="fw-semibold">{{ formatPrice(r.amount) }}</div>
-              <div class="small text-muted">{{ r.method }}</div>
-            </td>
-            <td><span class="tx-pill" :class="`tx-${r.status}`">{{ STATUS_LABELS[r.status] }}</span></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </template>
+    </template>
+  </div>
 </template>
 
 <style scoped>

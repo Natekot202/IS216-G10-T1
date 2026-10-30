@@ -31,10 +31,13 @@ const isNewSitter = computed(() => {
                         ~ {{ sitter.distanceKm.toFixed(1) }} km away
                     </small>
                 </div>
-                <div class="ms-auto fw-semibold" style="color:brown">${{sitter.sitterProfile.petsittingRates}}/hr</div>
             </div>
             
             <span v-for="pet in sitter.sitterProfile.petTypes" class="btn me-3 mb-2 text-white fw-medium" style="background-color: #B55B2F;">{{ pet }}</span>
+            <!-- Services offered (prices are fixed per task now, so no hourly rate here) -->
+            <p v-if="sitter.sitterProfile.services?.length" class="small text-secondary mb-2">
+                Offers: {{ sitter.sitterProfile.services.join(' · ') }}
+            </p>
             <p v-show="sitter.bio?.trim()" class="fw-medium">"{{ sitter.bio }}"</p>
             <slot></slot>
         </div>

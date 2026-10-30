@@ -10,13 +10,14 @@ import { requireOwner, requireLogin } from '../middleware/authMiddleware.js'
 import { bookingRange, findClash, describeBooking, toMinutes, slotsOf, slotsCover, START_TIME_RE, END_TIME_RE } from '../utils/bookingTimes.js'
 import asyncHandler from '../middleware/asyncHandler.js'
 import { removeBookingFromGoogle } from '../utils/googleCalendar.js'
+import { bookingPrice, nightsFor } from '../utils/servicePrices.js'
 
 const router = Router()
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-// Booking statuses where the sitter may see a walk task's route (i.e. they've accepted the booking)
-const ROUTE_VISIBLE_STATUSES = ['accepted', 'in-progress', 'completed', 'paid']
+// Booking statuses where the sitter may see a walk task's route (i.e. the owner has confirmed the booking)
+const ROUTE_VISIBLE_STATUSES = ['confirmed', 'in-progress', 'completed', 'paid']
 
 // Works out the route for a walk task.
 // choice: the id of one of the owner's routes, or 'instructions' for "follow my instructions".
@@ -45,7 +46,7 @@ function daysBetween(start, end) {
 // Times are Singapore time in 30-minute steps; endTime can be '24:00' (end of the day).
 // Creates a 'pending' booking if every check passes.
 router.post('/', requireOwner, asyncHandler(async (req, res) => {
-  const { sitterId, petIds, startDate, startTime, endDate, endTime, notes = '', tasks = [] } = req.body
+  const { sitterId, petIds, startDate, startTime, endDate, endTime, notes = '', tasks = [], overnight = false } = req.body
   const ownerId = req.session.userId
 
   // 1. Input checks
@@ -68,11 +69,9 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
   const range = bookingRange({ startDate: start, endDate: end, startTime, endTime }) // exact start and end moments
   if (range.start <= Date.now()) return res.status(400).json({ message: 'The start time has already passed.' })
 
-  // 2. The sitter exists and has an hourly rate
+  // 2. The sitter exists
   const sitter = await User.findById(sitterId)
   if (!sitter || sitter.role !== 'sitter') return res.status(404).json({ message: 'Sitter not found.' })
-  const ratePerHour = sitter.sitterProfile?.petsittingRates
-  if (!ratePerHour) return res.status(400).json({ message: 'This sitter has not set an hourly rate yet.' })
 
   // 3. The pets belong to this owner
   const pets = await Pet.find({ _id: { $in: petIds }, owner: ownerId })
@@ -95,15 +94,18 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     return res.status(409).json({ message: `The sitter is not available at those times on ${wrongHours.join(', ')}.` })
   }
 
-  // 5. No clash with the sitter's accepted / paid / in-progress bookings, checked by exact time.
+  // 5. No clash with the sitter's accepted / confirmed / paid / in-progress bookings, checked by exact time.
   // (Pending requests don't block, because the sitter hasn't said yes yet.)
   const clash = await findClash(sitterId, range)
   if (clash) {
     return res.status(409).json({ message: `The sitter is already booked ${describeBooking(clash)}.` })
   }
 
-  // 6. Care checklist (optional): check every task before anything is saved
-  if (!Array.isArray(tasks) || tasks.length > 20) {
+  // 6. Care checklist: at least one task, because the price is worked out from the tasks
+  if (!Array.isArray(tasks) || tasks.length === 0) {
+    return res.status(400).json({ message: 'Add at least one care task. The price is based on the tasks.' })
+  }
+  if (tasks.length > 20) {
     return res.status(400).json({ message: 'Send at most 20 care tasks.' })
   }
   const bookingPetIds = petIds.map(String)
@@ -130,8 +132,14 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     items.push({ category: t.category, title, dailyFrequency: t.dailyFrequency, petIds: taskPets, walkRoute })
   }
 
- // 7. Create the booking. Price = hourly rate × hours booked (start date+time to end date+time).
-  const hours = (range.end - range.start) / (60 * 60 * 1000)
+  // 7. Overnight stay needs at least one night, so the booking must end on a later day than it starts
+  const wantsOvernight = overnight === true
+  if (wantsOvernight && days.length < 2) {
+    return res.status(400).json({ message: 'An overnight stay needs the booking to end on a later day.' })
+  }
+
+  // 8. Create the booking.
+  // Price = each task's fixed price × times a day × number of days, added up, + overnight fee × nights
   const booking = await Booking.create({
     ownerId,
     sitterId,
@@ -141,11 +149,12 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     endDate: end,
     endTime,
     notes,
-    totalPrice: Math.round(ratePerHour * hours * 100) / 100, // rounded to cents
+    overnight: wantsOvernight,
+    totalPrice: bookingPrice(items, days.length, wantsOvernight),
     status: 'pending'
   })
 
-  // 8. Save the care checklist, linked to the booking by bookingId
+  // 9. Save the care checklist, linked to the booking by bookingId
   if (items.length) await CareChecklist.create({ bookingId: booking._id, items })
 
   res.status(201).json({
@@ -155,7 +164,8 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     endDate: toSgtDateString(booking.endDate),
     endTime: booking.endTime,
     days: days.length,
-    hours,
+    nights: nightsFor(days.length, wantsOvernight),
+    totalPrice: booking.totalPrice,
     status: booking.status,
     tasks: items.length
   })
@@ -177,7 +187,7 @@ router.get('/:id/care-tasks', requireLogin, asyncHandler(async (req, res) => {
   const checklist = await CareChecklist.findOne({ bookingId: booking._id })
   const items = checklist ? checklist.items.map((item) => item.toObject()) : []
 
-  // The sitter only gets a walk route's path once they've accepted the booking; before that, just its name
+  // The sitter only gets a walk route's path once the owner has confirmed the booking; before that, just its name
   const isSitter = me === String(booking.sitterId)
   if (isSitter && !ROUTE_VISIBLE_STATUSES.includes(booking.status)) {
     for (const item of items) {
@@ -209,9 +219,9 @@ router.get('/:id', requireLogin, asyncHandler(async (req, res) => {
 }))
 
 // PATCH /api/bookings/:id/cancel
-// The booking's owner or sitter cancels it. Only pending or accepted bookings that haven't started yet can be cancelled
-// (a paid booking would need a refund, which doesn't exist yet).
-// The sitter's hours free up by themselves: only accepted / paid / in-progress bookings block the calendar.
+// The booking's owner or sitter cancels it. Only pending, accepted or confirmed bookings that haven't started yet can be cancelled
+// (a paid booking would need a refund, which doesn't exist yet). The owner uses this to withdraw a request.
+// The sitter's hours free up by themselves: only accepted / confirmed / paid / in-progress bookings block the calendar.
 // Out: the booking, plus googleRemoved: { removed, reason }
 router.patch('/:id/cancel', requireLogin, asyncHandler(async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Booking not found.' })
@@ -222,14 +232,15 @@ router.patch('/:id/cancel', requireLogin, asyncHandler(async (req, res) => {
   if (me !== String(booking.ownerId) && me !== String(booking.sitterId)) {
     return res.status(403).json({ message: 'This booking is not yours.' })
   }
-  if (!['pending', 'accepted'].includes(booking.status)) {
-    return res.status(400).json({ message: `Only pending or accepted bookings can be cancelled. This one is ${booking.status}.` })
+  if (!['pending', 'accepted', 'confirmed'].includes(booking.status)) {
+    return res.status(400).json({ message: `Only pending, accepted or confirmed bookings can be cancelled. This one is ${booking.status}.` })
   }
   if (bookingRange(booking).start <= Date.now()) {
     return res.status(400).json({ message: 'This booking has already started, so it can no longer be cancelled.' })
   }
 
   booking.status = 'cancelled'
+  booking.cancelledBy = me === String(booking.ownerId) ? 'owner' : 'sitter' // so the other side can see who called it off
   await booking.save()
 
   // Take the booking out of the sitter's Google Calendar. This never blocks or fails the cancel.

@@ -5,7 +5,9 @@ import mongoose from 'mongoose'
 // Linked to the booking by `bookingId`, so Booking itself is not changed.
 // The task fields use the same names as the task model in TaskModel.js
 // (category, title, petIds, dailyFrequency) so the two can be merged later.
-export const CATEGORIES = ['feed', 'walk', 'groom', 'medication', 'other']
+// Must match the keys in utils/servicePrices.js (each type has a fixed price). No vague 'other' type.
+// (Old checklists saved with 'other' still load fine; they are never saved again.)
+export const CATEGORIES = ['feed', 'walk', 'groom', 'medication', 'clean', 'play']
 
 // GeoJSON line, the same shape as WalkRoute.path: [[lng, lat], ...]
 const lineStringSchema = new mongoose.Schema(

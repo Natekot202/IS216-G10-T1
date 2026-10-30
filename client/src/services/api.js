@@ -25,12 +25,14 @@ export const usersApi = {
   getById: (id) => api.get(`/users/${id}`).then((r) => r.data),
   getPets: (id) => api.get(`/users/${id}/pets`).then((r) => r.data),
   getReviews: (id) => api.get(`/users/${id}/reviews`).then((r) => r.data),
+  getReviewsGiven: (id) => api.get(`/users/${id}/reviews-given`).then((r) => r.data),
   updateMe: (data) => api.put('/users/me', data).then((res) => res.data),
   updatePicture: (formData) => api.put('/users/me/picture', formData).then((res) => res.data),
   removePicture: () => api.delete('/users/me/picture').then((res) => res.data),
   addGallery: (formData) => api.post('/users/me/gallery', formData).then((res) => res.data),
   removeGalleryPhoto: (photoId) => api.delete(`/users/me/gallery/${photoId}`).then((res) => res.data),
-  getBadges: (id) => api.get(`/users/${id}/badges`).then((r) => r.data)
+  getBadges: (id) => api.get(`/users/${id}/badges`).then((r) => r.data),
+  getOwnerStats: (id) => api.get(`/users/${id}/owner-stats`).then((r) => r.data)
 }
 
 export const visitsApi = {

@@ -74,7 +74,7 @@ async function markAllRead() {
 </script>
 
 <template>
-  <div class="p-3 d-flex flex-column gap-3 notifications-page">
+  <div class="noti p-3 d-flex flex-column gap-3">
     <header class="d-flex flex-wrap align-items-end gap-2">
       <div>
         <h1 class="page-title mb-1">Notifications</h1>
@@ -113,9 +113,9 @@ async function markAllRead() {
 
 <style scoped>
 /* PetSociety design system */
-.notifications-page {
+/* .notifications-page {
   max-width: 760px;
-}
+} */
 .page-title {
   font-size: 32px;
   font-weight: 700;
