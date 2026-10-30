@@ -11,7 +11,7 @@ import { useLocationSearch } from '../utils/useLocationSearch.js'
 const router = useRouter()
 
 const pet_types = ["Dog", "Cat", "Bird", "Rabbit", "Hamster", "Other"];
-const services = ["Feeding", "Grooming", "Dog walking", "Cat walking", "Feeding Medication", "Cleaning", "Playtime"] // same list as server/src/models/UserModel.js
+const services = ["Feeding", "Grooming", "Dog walking", "Cat walking", "Feeding Medication", "Cleaning", "Playtime"] 
 
 const isOwner = computed(() => currentUser.value?.role === 'owner')
 const isSitter = computed(() => currentUser.value?.role === 'sitter')
@@ -452,7 +452,8 @@ async function save() {
 .ef-card {
   margin-bottom: 1.5rem;
   padding: 1.25rem 1.35rem;
-  border: 1px solid #e6d3c0;
+  border: 1px solid rgba(196, 119, 86, 0.3);
+  border-top: 4px solid #e6d3c0;    
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);

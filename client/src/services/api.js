@@ -31,7 +31,8 @@ export const usersApi = {
   removePicture: () => api.delete('/users/me/picture').then((res) => res.data),
   addGallery: (formData) => api.post('/users/me/gallery', formData).then((res) => res.data),
   removeGalleryPhoto: (photoId) => api.delete(`/users/me/gallery/${photoId}`).then((res) => res.data),
-  getBadges: (id) => api.get(`/users/${id}/badges`).then((r) => r.data)
+  getBadges: (id) => api.get(`/users/${id}/badges`).then((r) => r.data),
+  getOwnerStats: (id) => api.get(`/users/${id}/owner-stats`).then((r) => r.data)
 }
 
 export const visitsApi = {
