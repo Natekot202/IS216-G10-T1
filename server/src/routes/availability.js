@@ -63,7 +63,7 @@ router.put('/me', requireSitter, asyncHandler(async (req, res) => {
 }))
 
 // GET /api/availability/me/bookings
-// Read-only: the sitter's accepted / paid / in-progress bookings, to show on the calendar
+// Read-only: the sitter's accepted / confirmed / paid / in-progress bookings, to show on the calendar
 // (with the owner's name, the pets' names, notes and price, so a clicked day can list them).
 router.get('/me/bookings', requireSitter, asyncHandler(async (req, res) => {
   const bookings = await Booking.find({ sitterId: req.session.userId, status: { $in: BOOKED_STATUSES } })
@@ -97,7 +97,7 @@ router.get('/:sitterId', asyncHandler(async (req, res) => {
 }))
 
 // GET /api/availability/:sitterId/busy
-// Public: the times the sitter is already booked (accepted / paid / in-progress), so the booking form can grey them out.
+// Public: the times the sitter is already booked (accepted / confirmed / paid / in-progress), so the booking form can grey them out.
 // Out: [{ start: '2026-10-21T01:00:00.000Z', end: '2026-10-21T04:00:00.000Z' }, ...]
 router.get('/:sitterId/busy', asyncHandler(async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.sitterId)) return res.status(400).json({ message: 'Invalid sitter id' })

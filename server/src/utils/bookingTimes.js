@@ -4,7 +4,12 @@ import { toSgtDateString } from '../models/Availability.js'
 // Time maths for bookings. A booking runs from startDate + startTime to endDate + endTime (Singapore time).
 // Everything is turned into "milliseconds since 1970" so two bookings can be compared with < and >.
 
-export const BOOKED_STATUSES = ['accepted', 'paid', 'in-progress']
+// Statuses that hold the sitter's time. 'accepted' is included: once a sitter says yes, those hours stay
+// theirs while the owner decides (the sitter can still decline to free them).
+export const BOOKED_STATUSES = ['accepted', 'confirmed', 'paid', 'in-progress']
+
+// Statuses where the owner has committed to a booking (used for the owner's same-pet clash check)
+export const CONFIRMED_STATUSES = ['confirmed', 'in-progress']
 
 const MINUTE_MS = 60 * 1000
 const DAY_MS = 24 * 60 * MINUTE_MS
@@ -51,7 +56,22 @@ export function rangesOverlap(a, b) {
   return a.start < b.end && b.start < a.end
 }
 
-// The sitter's accepted / paid / in-progress booking that overlaps `range`, or null.
+// The owner's confirmed / in-progress booking that overlaps `booking` AND is for at least one of the same pets, or null.
+// Used when the owner confirms: a pet can't be with two sitters at once (different pets at the same time is fine).
+export async function findPetClash(booking) {
+  const range = bookingRange(booking)
+  const candidates = await Booking.find({
+    _id: { $ne: booking._id },
+    ownerId: booking.ownerId,
+    petIds: { $in: booking.petIds }, // shares at least one pet
+    status: { $in: CONFIRMED_STATUSES },
+    startDate: { $lte: new Date(range.end) },
+    endDate: { $gte: new Date(range.start - DAY_MS) }
+  })
+  return candidates.find((c) => rangesOverlap(bookingRange(c), range)) || null
+}
+
+// The sitter's accepted / confirmed / paid / in-progress booking that overlaps `range`, or null.
 // `excludeId` leaves one booking out (the one being accepted, so it doesn't clash with itself).
 export async function findClash(sitterId, range, excludeId) {
   const filter = {

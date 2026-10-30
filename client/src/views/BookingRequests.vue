@@ -5,12 +5,13 @@ import { bookingsApi } from '../services/bookingApi.js'
 import BookingTable from '../components/BookingTable.vue'
 import BookingTabs from '../components/BookingTabs.vue'
 
-// /sitter/requests: every booking made with this sitter, sorted into Pending / Upcoming / Past tabs
-// (same tabs as the owner's My Bookings)
+// /sitter/requests: every booking made with this sitter, sorted into Pending / Awaiting owner / Upcoming / Past tabs
+// (like the tabs on the owner's My Bookings)
 const TABS = [
   { key: 'pending', label: 'Pending', statuses: ['pending'] },
-  { key: 'upcoming', label: 'Upcoming', statuses: ['accepted', 'in-progress'] },
-  { key: 'past', label: 'Past', statuses: ['completed', 'paid', 'declined', 'cancelled'] }
+  { key: 'awaiting-owner', label: 'Awaiting owner', statuses: ['accepted'] }, // accepted, waiting for the owner to confirm
+  { key: 'upcoming', label: 'Upcoming', statuses: ['confirmed', 'in-progress'] },
+  { key: 'past', label: 'Past', statuses: ['completed', 'paid', 'declined', 'cancelled', 'expired'] }
 ]
 
 const route = useRoute()
@@ -23,22 +24,6 @@ const message = ref('')
 const actionError = ref('') // why accepting / declining a request failed (the lists stay visible)
 const busyId = ref(null)
 const activeTab = ref(TABS.some((t) => t.key === route.query.tab) ? route.query.tab : 'pending')
-
-// Small popup about Google Calendar after accepting a request: { type: 'success' | 'warning', text }
-const toast = ref(null)
-let toastTimer = null
-function showToast(googleSync) {
-  if (!googleSync) return
-  if (googleSync.synced) {
-    toast.value = { type: 'success', text: '📅 Added to your Google Calendar' }
-  } else if (googleSync.reason === 'needs-reconnect' || googleSync.reason === 'error') {
-    toast.value = { type: 'warning', text: "Couldn't add this to your Google Calendar. Reconnect on My Calendar." }
-  } else {
-    return // not connected: say nothing
-  }
-  clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => (toast.value = null), 4000) // hide after 4 seconds
-}
 
 function bookingsFor(tabKey) {
   const tab = TABS.find((t) => t.key === tabKey)
@@ -69,16 +54,20 @@ async function loadRequests() {
 }
 
 async function respond(id, status) {
+  const booking = bookings.value.find((b) => b._id === id)
+  // declining a request you already accepted: check first
+  if (status === 'declined' && booking.status === 'accepted' &&
+      !window.confirm('Decline this request? You accepted it, but the owner has not confirmed yet. This cannot be undone.')) return
   busyId.value = id
   error.value = ''
   actionError.value = ''
   message.value = ''
   try {
     const updated = await bookingsApi.updateStatus(id, status)
-    const booking = bookings.value.find((b) => b._id === id)
     booking.status = updated.status
-    message.value = status === 'accepted' ? 'Request accepted ✅ The owner pays after the session is completed.' : 'Request declined.'
-    if (status === 'accepted') showToast(updated.googleSync)
+    message.value = status === 'accepted'
+      ? 'Request accepted ✅ The hours are held for you while the owner confirms. It goes into your Google Calendar once confirmed.'
+      : 'Request declined.'
   } catch (err) {
     actionError.value = err.response?.data?.message || 'Could not update the booking.'
   } finally {
@@ -86,7 +75,7 @@ async function respond(id, status) {
   }
 }
 
-// A sitter can cancel a booking they already accepted (shown under Upcoming)
+// A sitter can cancel a booking the owner has confirmed (shown under Upcoming)
 async function cancelBooking(id) {
   if (!window.confirm('Cancel this booking? The owner will see it as cancelled and can book another sitter. This cannot be undone.')) return
   busyId.value = id
@@ -95,7 +84,9 @@ async function cancelBooking(id) {
   message.value = ''
   try {
     const updated = await bookingsApi.cancel(id)
-    bookings.value.find((b) => b._id === id).status = updated.status
+    const booking = bookings.value.find((b) => b._id === id)
+    booking.status = updated.status
+    booking.cancelledBy = updated.cancelledBy
     message.value = 'Booking cancelled. The hours are free on your calendar again.'
   } catch (err) {
     actionError.value = err.response?.data?.message || 'Could not cancel the booking.'
@@ -114,15 +105,6 @@ onMounted(loadRequests)
     <div v-if="error" class="alert alert-warning">{{ error }}</div>
     <div v-if="message" class="alert alert-success">{{ message }}</div>
     <div v-if="actionError" class="alert alert-warning">{{ actionError }}</div>
-
-    <div v-if="toast" class="toast-container position-fixed bottom-0 end-0 p-3">
-      <div class="toast show align-items-center border-0" :class="`text-bg-${toast.type}`" role="status">
-        <div class="d-flex">
-          <div class="toast-body">{{ toast.text }}</div>
-          <button type="button" class="btn-close me-2 m-auto" :class="{ 'btn-close-white': toast.type === 'success' }" aria-label="Close" @click="toast = null"></button>
-        </div>
-      </div>
-    </div>
 
     <div v-if="loading" class="text-muted">Loading requests…</div>
 

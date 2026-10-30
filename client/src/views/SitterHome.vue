@@ -10,7 +10,7 @@ const error = ref('')
 
 const newRequests = computed(() => bookings.value.filter((b) => b.status === 'pending'))
 const upcoming = computed(() =>
-  bookings.value.filter((b) => ['accepted', 'in-progress'].includes(b.status))
+  bookings.value.filter((b) => ['confirmed', 'in-progress'].includes(b.status))
 )
 const nextBooking = computed(() => upcoming.value[0])
 
@@ -44,7 +44,7 @@ async function loadDashboard() {
   loading.value = true
   error.value = ''
   try {
-    bookings.value = await bookingsApi.getMine('pending,accepted,in-progress')
+    bookings.value = await bookingsApi.getMine('pending,confirmed,in-progress')
   } catch (err) {
     error.value = err.response?.data?.message || 'Could not load your dashboard.'
   } finally {

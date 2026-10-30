@@ -10,9 +10,10 @@ import BookingTabs from '../components/BookingTabs.vue'
 
 const TABS = [
   { key: 'pending', label: 'Pending', statuses: ['pending'] },
-  { key: 'upcoming', label: 'Upcoming', statuses: ['accepted', 'in-progress'] },
+  { key: 'to-confirm', label: 'To confirm', statuses: ['accepted'] }, // the sitter said yes; the owner picks which to keep
+  { key: 'upcoming', label: 'Upcoming', statuses: ['confirmed', 'in-progress'] },
   { key: 'to-pay', label: 'To pay', statuses: ['completed'] },
-  { key: 'past', label: 'Past', statuses: ['paid', 'declined', 'cancelled'] }
+  { key: 'past', label: 'Past', statuses: ['paid', 'declined', 'cancelled', 'expired'] }
 ]
 
 const route = useRoute()
@@ -63,15 +64,36 @@ async function loadBookings() {
   }
 }
 
+// The owner confirms a booking the sitter accepted. Only then is it final for both of them.
+async function confirmBooking(id) {
+  busyId.value = id
+  message.value = ''
+  actionError.value = ''
+  try {
+    const updated = await bookingsApi.confirm(id)
+    bookings.value.find((b) => b._id === id).status = updated.status
+    message.value = 'Booking confirmed ✅ You can find it under Upcoming.'
+  } catch (err) {
+    actionError.value = err.response?.data?.message || 'Could not confirm the booking.'
+  } finally {
+    busyId.value = null
+  }
+}
+
 async function cancelBooking(id) {
-  if (!window.confirm('Cancel this booking? The sitter will see it as cancelled. This cannot be undone.')) return
+  const booking = bookings.value.find((b) => b._id === id)
+  const question = booking.status === 'confirmed'
+    ? 'Cancel this booking? The sitter will see it as cancelled. This cannot be undone.'
+    : 'Withdraw this request? The sitter will see that you withdrew it. This cannot be undone.'
+  if (!window.confirm(question)) return
   busyId.value = id
   message.value = ''
   actionError.value = ''
   try {
     const updated = await bookingsApi.cancel(id)
-    bookings.value.find((b) => b._id === id).status = updated.status
-    message.value = 'Booking cancelled. You can find it under Past.'
+    booking.status = updated.status
+    booking.cancelledBy = updated.cancelledBy
+    message.value = 'Done. You can find it under Past.'
   } catch (err) {
     actionError.value = err.response?.data?.message || 'Could not cancel the booking.'
   } finally {
@@ -105,7 +127,11 @@ onMounted(loadBookings)
         <router-link to="/home" class="btn btn-brand">Find a sitter</router-link>
       </div>
 
-      <BookingTable v-else :bookings="visibleBookings" viewer="owner" :busy-id="busyId" @cancel="cancelBooking" />
+      <p v-if="activeTab === 'to-confirm' && visibleBookings.length" class="small text-muted">
+        These sitters said yes. Confirm the bookings you want; the others stay here until you withdraw them,
+        the sitter declines, or the start time passes.
+      </p>
+      <BookingTable v-if="visibleBookings.length" :bookings="visibleBookings" viewer="owner" :busy-id="busyId" @confirm="confirmBooking" @cancel="cancelBooking" />
       <!-- cancelBooking runs with the childs payload thats passed up  -->
     </template>
   </div>

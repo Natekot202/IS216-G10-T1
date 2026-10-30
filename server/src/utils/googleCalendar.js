@@ -12,7 +12,7 @@ import { bookingRange } from './bookingTimes.js'
 // We only ask Google for permission to create events (not to read the sitter's whole calendar).
 const SCOPES = ['https://www.googleapis.com/auth/calendar.events']
 const DAY_MS = 24 * 60 * 60 * 1000
-const SYNCED_STATUSES = ['accepted', 'paid', 'in-progress']
+const SYNCED_STATUSES = ['confirmed', 'paid', 'in-progress'] // only bookings the owner has confirmed go in the calendar
 
 // The Google keys come from server/.env
 export function isConfigured() {
@@ -168,7 +168,7 @@ export async function removeBookingFromGoogle(booking) {
   }
 }
 
-// This sitter's accepted / paid / in-progress bookings that haven't ended yet.
+// This sitter's confirmed / paid / in-progress bookings that haven't ended yet.
 async function upcomingBookings(sitterId) {
   const today = sgtMidnight(toSgtDateString(new Date()))
   return Booking.find({ sitterId, status: { $in: SYNCED_STATUSES }, endDate: { $gte: today } })
