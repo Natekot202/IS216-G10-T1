@@ -31,6 +31,12 @@ const isNewSitter = computed(() => {
                         ~ {{ sitter.distanceKm.toFixed(1) }} km away
                     </small>
                 </div>
+                <div class="ms-auto fw-semibold" style="color:brown">
+                    <div class="d-flex flex-column align-items-end">
+                        <small class="text-secondary">from</small>
+                        <div>${{sitter.sitterProfile.petsittingRates}}/hr</div>
+                    </div>
+                </div>
             </div>
             
             <span v-for="pet in sitter.sitterProfile.petTypes" class="btn me-3 mb-2 text-white fw-medium" style="background-color: #B55B2F;">{{ pet }}</span>

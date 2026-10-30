@@ -7,22 +7,20 @@ defineEmits(['clear'])
   <div class="filter-wrap">
     <div class="offcanvas-md offcanvas-bottom filter-panel" tabindex="-1" id="offcanvasBottom" aria-labelledby="filterTitle">
       <div class="offcanvas-header">
-        <h2 class="offcanvas-title fs-5 fw-bold" id="filterTitle">Filters</h2>
+        <div class="d-flex flex-column">
+          <h2 class="offcanvas-title fs-5 fw-bold" id="filterTitle">Filters</h2>
+          <small class="text-secondary">{{ resultCount }} sitters</small>
+        </div>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#offcanvasBottom" aria-label="Close"></button>
       </div>
 
       <div class="offcanvas-body filter-body">
         <slot></slot>
-        <button type="button" class="btn border border-warning rounded col-12 fw-semibold bg-light mt-2"
+        <button type="button" class="btn btn-outline-danger rounded col-12 fw-semibold bg-light mt-2"
                 @click="$emit('clear')">Clear filters</button>
       </div>
 
-      <div class="filter-footer d-md-none">
-        <button type="button" class="btn btn-primary w-100 fw-semibold"
-                data-bs-dismiss="offcanvas" data-bs-target="#offcanvasBottom">
-          Show {{ resultCount }} sitters
-        </button>
-      </div>
+      
     </div>
   </div>
 </template>
@@ -36,7 +34,7 @@ defineEmits(['clear'])
 @media (min-width: 768px) {
   .filter-wrap {
     position: sticky;
-    top: 7vh;
+    top: 9vh;
     max-height: calc(100vh - 7vh - 1rem);
     overflow-y: auto;
     background: #fff;
