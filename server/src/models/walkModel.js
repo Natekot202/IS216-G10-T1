@@ -61,6 +61,7 @@ const walkSchema = new mongoose.Schema(
     startedAt: { type: Date, default: null },
     endedAt: { type: Date, default: null },
     endedEarlyReason: { type: String, trim: true, maxlength: 200, default: '' },
+    backHomeRemindedAt: { type: Date, default: null }, // the sitter was reminded to end the walk (once per walk)
 
     // Filled in when the walk ends
     walkedPath: { type: lineStringSchema, default: null },

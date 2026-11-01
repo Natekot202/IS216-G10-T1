@@ -41,6 +41,16 @@ const startCheckSchema = new mongoose.Schema(
   { _id: false }
 )
 
+// The sitter's latest location. Only the latest is kept, and it's removed when the session ends.
+const lastLocationSchema = new mongoose.Schema(
+  {
+    coordinates: { type: [Number], required: true }, // [lng, lat]
+    accuracy: { type: Number, required: true },      // in metres
+    at: { type: Date, required: true }
+  },
+  { _id: false }
+)
+
 const visitSessionSchema = new mongoose.Schema(
   {
     booking: { 
@@ -69,6 +79,9 @@ const visitSessionSchema = new mongoose.Schema(
     },
     startCheck: { type: startCheckSchema, default: undefined },
     autoEnded: { type: Boolean, default: false }, // the sitter never ended it, so utils/endForgottenSessions.js did
+    home: { type: [Number], default: undefined },  // the owner's home when it started, [lng, lat]
+    lastLocation: { type: lastLocationSchema, default: undefined },
+    locationBlocked: { type: Boolean, default: false }, // the sitter's browser says location is switched off
     completedTasks: [completedTaskSchema],
     report: {
       notes: { 

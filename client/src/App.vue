@@ -6,6 +6,7 @@ import { fetchUser, currentUser } from "./services/auth.js";
 import { useRoute } from 'vue-router';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import { answerConfirm } from './utils/useConfirm.js';
+import { resumeTracking, stopTracking } from './utils/sessionTracker.js';
 
 const route = useRoute()
 
@@ -17,6 +18,9 @@ watch(() => currentUser.value?.role, (role) => {
   } else {
     delete document.documentElement.dataset.role
   }
+  // location tracking carries on across pages, so it belongs here. It only runs during a sitter's session.
+  if (role === 'sitter') resumeTracking()
+  else stopTracking()
 }, { immediate: true })
 </script>
 

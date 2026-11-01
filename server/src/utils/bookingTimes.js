@@ -77,6 +77,10 @@ export function sessionEndTime(visit, booking) {
   return sgtMidnight(visit.date).getTime() + toMinutes(booking.endTime || '24:00') * MINUTE_MS
 }
 
+// Location sharing stops this long after the booked end, and no new walks can start after that
+const SHARING_GRACE_MS = 30 * MINUTE_MS
+export const sharingEndTime = (visit, booking) => sessionEndTime(visit, booking) + SHARING_GRACE_MS
+
 // Two ranges overlap when each one starts before the other ends.
 // A booking ending at 12:00 and another starting at 12:00 do NOT overlap.
 export function rangesOverlap(a, b) {

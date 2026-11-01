@@ -5,6 +5,7 @@ const { ObjectId } = mongoose.Schema.Types
 export const NOTIFICATION_TYPES = [
   // walks (to owners)
   'walk-off-route', 'walk-back-on-route', 'walk-ended-early',
+  'walk-back-home',      // to sitter: back at the home for a while, with the walk still going
   // bookings
   'booking-requested',   // to sitter: an owner sent a request
   'booking-request-sent', // to owner: confirmation that their request was sent

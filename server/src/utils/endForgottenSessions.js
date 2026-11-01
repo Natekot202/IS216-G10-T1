@@ -30,7 +30,7 @@ async function endSession(visit, booking) {
 
   const ended = await VisitSession.findOneAndUpdate(
     { _id: visit._id, status: 'active' }, // not if the sitter has ended it just now
-    { status: 'completed', endedAt: new Date(), autoEnded: true, 'report.notes': NO_REPORT },
+    { $set: { status: 'completed', endedAt: new Date(), autoEnded: true, 'report.notes': NO_REPORT }, $unset: { lastLocation: 1 } },
     { new: true }
   )
   if (!ended) return

@@ -40,6 +40,8 @@ export const visitsApi = {
   today: () => api.get('/visits/today').then((res) => res.data),
   // body: { location, accuracy, note } (the note is for starting without a location check)
   start: (bookingId, body) => api.post(`/visits/booking/${bookingId}/start`, body).then((res) => res.data),
+  // body: { location, accuracy }, or { blocked: true } if location is switched off
+  sendLocation: (visitId, body) => api.post(`/visits/${visitId}/location`, body).then((res) => res.data),
   setTask: (visitId, taskId, count) =>
     api.patch(`/visits/${visitId}/tasks/${taskId}`, { count }).then((res) => res.data),
   end: (visitId, formData) => api.post(`/visits/${visitId}/end`, formData).then((res) => res.data)

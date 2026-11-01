@@ -7,17 +7,19 @@ import { usePhotoPicker } from '../utils/usePhotoPicker.js'
 import { sendPaymentNotification } from '../utils/sendNotification.js'
 import { medicationIncomplete } from '../utils/careDetails.js'
 import { getCurrentLocation } from '../utils/currentLocation.js'
+import { blocked, deviation, isSharing, resumeTracking, sharingEnded, stopTracking, walkEndedCount } from '../utils/sessionTracker.js'
 import ReviewForm from '../components/ReviewForm.vue'
 import SessionChat from '../components/SessionChat.vue'
 import SessionTask from '../components/SessionTask.vue'
 import WalkMap from '../components/WalkMap.vue'
+import OwnerLiveLocation from '../components/OwnerLiveLocation.vue'
 
 const props = defineProps({
   session: { type: Object, required: true },    
   isSitter: { type: Boolean, default: false },
   active: { type: Boolean, default: true } // false while another session is showing
 })
-const emit = defineEmits(['visit-change', 'unread'])
+const emit = defineEmits(['visit-change', 'unread', 'walk-ended'])
 
 const initial = computed(() => (other.value?.username || '?').trim().charAt(0).toUpperCase())
 
@@ -50,6 +52,7 @@ const startNoteError = ref('')
 const savingTask = ref(false)
 const ending = ref(false)
 const confirmingEnd = ref(false) // asking "End anyway?" because some tasks aren't ticked
+const walkPrompt = ref(false) // End session was pressed with a walk still going
 const notes = ref('')
 
 const slots = [0, 1, 2].map(() => reactive(usePhotoPicker()))
@@ -124,6 +127,7 @@ async function sendStart(note) {
     status.value = 'in-progress'
     emit('visit-change', visit.value)
     clearStartProblem()
+    resumeTracking()
   } catch (err) {
     if (err.response?.status === 409 && err.response.data.check) {
       startProblem.value = { check: err.response.data.check, distanceM: err.response.data.distanceM }
@@ -184,6 +188,11 @@ function walksFor(item) {
 // Opens the walk page for this task. The server gives back the walk already under way
 // for this task if there is one, so pressing this again carries on with the same walk.
 async function startWalk(item) {
+  // the walk under way carries on, whatever location is doing; only a new one needs it
+  if (blocked.value && String(props.session.activeWalk?.task) !== String(item._id)) {
+    actionError.value = 'Walks need location switched on.'
+    return
+  }
   startingWalk.value = item._id
   actionError.value = ''
   try {
@@ -206,7 +215,7 @@ async function startWalk(item) {
 function endSession() {
   actionError.value = ''
   if (props.session.activeWalk) {
-    actionError.value = 'Finish or end the walk you are on before submitting the report.'
+    walkPrompt.value = true
     return
   }
   if (!notes.value.trim()) {
@@ -235,6 +244,7 @@ async function submitReport() {
     })
     visit.value = await visitsApi.end(visit.value._id, form)
     emit('visit-change', visit.value)
+    stopTracking()
     if (visit.value.date === props.session.booking.endDate) {
       status.value = 'completed'
       sendPaymentNotification(props.session.booking._id)
@@ -264,6 +274,14 @@ const mapsUrl = computed(() =>
 
 // "Where to go": open before the session, a slim row during and after it
 const whereOpen = ref(!visit.value)
+// the walk under way, to go back to it
+const openWalk = () => router.push({ name: 'sitter-walk', params: { id: props.session.activeWalk._id } })
+const offRoute = computed(() => props.isSitter && props.session.activeWalk && deviation.level.value !== 'on-route')
+const showSharing = computed(() => props.isSitter && isActive.value)
+
+// the tracker ended a walk by itself at the sharing cutoff, so this page is out of date
+watch(walkEndedCount, () => emit('walk-ended'))
+
 const showWhere = computed(() => props.session.ownerAddress !== undefined && ['confirmed', 'in-progress'].includes(status.value))
 watch(visit, (v) => {
   if (v) whereOpen.value = false
@@ -372,6 +390,14 @@ watch(status, async (s) => {
           </form>
         </div>
 
+        <div v-if="walkPrompt" class="sc-panel" role="alert">
+          <p class="mb-2">Finish or end your walk before ending the session.</p>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-brand sc-panel__btn" @click="openWalk">Go to walk</button>
+            <button type="button" class="btn btn-outline-secondary sc-panel__btn" @click="walkPrompt = false">Cancel</button>
+          </div>
+        </div>
+
         <div v-if="confirmingEnd" class="sc-panel" role="alert">
           <p class="mb-2">Some tasks aren't ticked. End the session and submit the report anyway?</p>
           <div class="d-flex flex-wrap gap-2">
@@ -395,6 +421,22 @@ watch(status, async (s) => {
       Your booking time has ended. End the session and submit your report. It ends automatically at {{ autoEndText }}.
     </div>
     <div v-if="visit?.autoEnded" class="sc-notice" role="status">This session ended automatically, 6 hours after the booked end time.</div>
+
+    <div v-if="offRoute" class="sc-notice sc-notice--action" role="alert">
+      <span>{{ deviation.level.value === 'notified' ? "You're off the route, and the owner has been notified." : "You're off the route. Head back to the dashed line." }}</span>
+      <button type="button" class="btn btn-brand sc-panel__btn" @click="openWalk">Go to walk</button>
+    </div>
+
+    <!-- sitter: is the location being shared? -->
+    <div v-if="showSharing && (isSharing || blocked || sharingEnded)" class="sc-strip" :class="{ 'sc-strip--off': blocked || sharingEnded }" role="status">
+      <template v-if="sharingEnded">Location sharing has stopped because the booked time has ended.</template>
+      <template v-else-if="blocked">Location blocked. The owner sees "Location not shared". Walks need location switched on.</template>
+      <template v-else-if="isSharing">Sharing your location. Keep this page open, because updates stop if your phone locks or you leave the page.</template>
+    </div>
+
+    <!-- owner: where the sitter is, only during an active session -->
+    <OwnerLiveLocation v-if="!isSitter && isActive && session.liveLocation && active" :location="session.liveLocation"
+                       :home="visit.home" :planned-route="session.activeWalk?.plannedPath?.coordinates ?? []" />
 
     <section v-if="showWhere" class="sc-card">
       <button type="button" class="sc-where" :aria-expanded="whereOpen" @click="whereOpen = !whereOpen">
@@ -702,6 +744,25 @@ watch(status, async (s) => {
   background: #fce9df;
   color: #a84217;
   overflow-wrap: anywhere;
+}
+.sc-notice--action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+.sc-strip {
+  margin-bottom: 1rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 10px;
+  background: #e4efeb;
+  color: #235348;
+  font-size: 0.9rem;
+}
+.sc-strip--off {
+  background: #fce9df;
+  color: #a84217;
 }
 .sc-panel__btn {
   min-height: 44px;
