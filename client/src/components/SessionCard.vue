@@ -6,6 +6,7 @@ import { walkApi } from '../services/walkApi.js'
 import { usePhotoPicker } from '../utils/usePhotoPicker.js'
 import { sendPaymentNotification } from '../utils/sendNotification.js'
 import ReviewForm from '../components/ReviewForm.vue'
+import SessionChat from '../components/SessionChat.vue'
 
 const props = defineProps({
   session: { type: Object, required: true },    
@@ -390,6 +391,9 @@ watch(status, async (s) => {
 
             <p v-else class="sc-hint mb-0">The sitter's report will appear here once the visit ends.</p>
           </section>
+
+          <!-- chat between the owner and sitter of this booking -->
+          <SessionChat :booking-id="session.booking._id" :is-sitter="isSitter" />
 
           <!-- owner: optional review -->
           <section v-if="!isSitter && status === 'completed' && reviewLoaded" class="sc-card">
