@@ -12,6 +12,7 @@ const open = ref(false)
 <template>
   <div>
     <button class="btn btn-link" type="button"
+            style="color:brown"
             :aria-expanded="open" aria-controls="additionalFilters"
             @click="open = !open">
       Additional filters {{ open ? '▴' : '▾' }}
@@ -33,3 +34,14 @@ const open = ref(false)
     </div>
   </div>
 </template>
+<style scoped>
+.form-check-input:checked {
+  background-color: var(--accent-main);
+  border-color: var(--accent-main);
+}
+.form-check-input:focus {
+  border-color: var(--accent-main);
+  box-shadow: 0 0 0 0.25rem rgb(var(--accent-rgb) / 0.25);
+}
+</style>
+

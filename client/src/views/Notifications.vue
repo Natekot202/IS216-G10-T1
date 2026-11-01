@@ -73,7 +73,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => clearInterval(timer))
 
-// Clicking a notification marks it as read, then opens the booking it's about (if any)
+// Clicking a notification marks it as read and opens it
 async function openNotification(notification) {
   if (!notification.read) {
     actionError.value = ''
@@ -86,8 +86,21 @@ async function openNotification(notification) {
       return
     }
   }
-  if (notification.type === 'walk-back-home') router.push(`/sitter/walks/${notification.walk}`)
-  else if (notification.booking) router.push(`/bookings/${notification.booking}`)
+  if (notification.type === 'walk-back-home') {
+    router.push(`/sitter/walks/${notification.walk}`)
+    return
+  }
+  if (notification.type === 'payment-due') {
+    router.push({ name: 'owner-bookings', query: { tab: 'to-pay' } })
+    return
+  }
+  if (notification.type === 'payment-received') {
+    router.push({ name: 'sitter-transactions', query: { tab: 'successful' } })
+    return
+  }
+  if (notification.type.includes('booking') || notification.type.startsWith('session-')) {
+    router.push(`/bookings/${notification.booking}`)
+  }
 }
 
 async function markAllRead() {

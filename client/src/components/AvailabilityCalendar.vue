@@ -423,7 +423,18 @@ function tapBooking(b) {
     <div v-else ref="weekBox" class="week-scroll">
     <div class="week">
       <div class="week-head"></div>
-      <div v-for="d in weekDays" :key="d.date" class="week-head" :class="{ today: d.date === today }">
+      <!-- clicking a day name picks that day, so the Selected day card below shows it (same 'select' event as clicking a day in the month view) -->
+      <div
+        v-for="d in weekDays"
+        :key="d.date"
+        class="week-head pick"
+        :class="{ today: d.date === today, selected: d.date === selected }"
+        role="button"
+        tabindex="0"
+        :aria-pressed="d.date === selected"
+        @click="emit('select', d.date)"
+        @keyup.enter="emit('select', d.date)"
+      >
         <span class="d-none d-sm-inline">{{ d.name }}</span><span class="d-sm-none">{{ d.name.charAt(0) }}</span>
         <span class="week-num">{{ d.day }}</span>
       </div>
@@ -560,7 +571,7 @@ function tapBooking(b) {
 /* ----- month view ----- */
 .calendar {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr)); /* minmax(0, ...) lets a column shrink below its text, so a long pet name can't widen a square */
   gap: 5px;
 }
 .weekday {
@@ -574,13 +585,14 @@ function tapBooking(b) {
 }
 .weekday:not(:disabled):hover { background: var(--open); color: var(--ink); }
 .day {
+  min-width: 0;
   min-height: 5.4rem; /* room for the bookings written inside the square */
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
   text-align: left;
-  padding: 4px 5px;
+  padding: 6px 7px; /* more than the 3px selected frame, so a little of the square's colour shows between the frame and the bookings */
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -608,7 +620,17 @@ function tapBooking(b) {
 .day.past { opacity: 0.45; }
 .day.today { outline: 2px solid var(--accent); outline-offset: -1px; }
 .day.asked { outline: 2px dashed var(--accent); outline-offset: -2px; } /* days of the request being looked at */
-.day.selected { box-shadow: inset 0 0 0 3px var(--ink); } /* the day picked in the side card */
+/* the day picked in the side card. The dark frame is drawn on top of the bookings inside the square
+   (an inset box-shadow is drawn underneath them, so the booking chips covered it and looked like they stuck out) */
+.day.selected::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 1;
+}
 .day.unsaved::after {
   content: '';
   position: absolute;
@@ -639,6 +661,9 @@ function tapBooking(b) {
 .week > * { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .week-head { text-align: center; padding: 6px 2px; font-weight: 600; font-size: 0.85rem; position: sticky; top: 0; z-index: 3; background: #fffdfa; }
 .week-head.today { color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); }
+.week-head.pick { cursor: pointer; }
+.week-head.pick:hover { background: #f7ece4; }
+.week-head.selected { background: #f3e2d9; } /* the day picked in the side card */
 .week-num { display: block; font-family: 'Fredoka', sans-serif; font-size: 1.05rem; }
 .time-col { display: grid; grid-auto-rows: 22px; }
 .time-label { font-size: 0.7rem; color: var(--muted); text-align: right; padding-right: 5px; line-height: 1; transform: translateY(-4px); }
@@ -736,8 +761,9 @@ function tapBooking(b) {
 }
 
 @media (max-width: 575.98px) { /* phones: squares are small, so each booking is a tappable chip with just the pet's name */
-  .day { min-height: 4.4rem; padding: 2px; }
-  .chip { min-height: 22px; line-height: 22px; padding: 0 2px; border-left-width: 2px; font-size: 0.68rem; font-weight: 700; }
+  .day { min-height: 4.4rem; padding: 4px; } /* the squares are narrow, so the selected frame is thinner here and the padding is only just more than it */
+  .day.selected::before { border-width: 2px; }
+  .chip { min-height: 22px; line-height: 22px; padding: 0 1px; border-left-width: 2px; font-size: 0.68rem; font-weight: 700; }
   .chip-text { display: none; }
   .chip-pet { display: block; overflow: hidden; text-overflow: ellipsis; }
   .more { font-size: 0.66rem; }

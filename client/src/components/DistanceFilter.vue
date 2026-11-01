@@ -16,3 +16,14 @@ defineProps({ limit: Number, referenceLabel: { type: String, default: null } })
     </small>
   </div>
 </template>
+<style scoped>
+.form-range:not(:disabled)::-webkit-slider-thumb { background-color: var(--accent-main); }
+.form-range:not(:disabled)::-moz-range-thumb { background-color: var(--accent-main); }
+
+.form-range:not(:disabled)::-webkit-slider-thumb:active { background-color: var(--tint); }
+.form-range:not(:disabled)::-moz-range-thumb:active { background-color: var(--tint); }
+
+.form-range:focus::-webkit-slider-thumb { box-shadow: 0 0 0 1px #fff, 0 0 0 0.25rem rgb(var(--accent-rgb) / 0.25); }
+.form-range:focus::-moz-range-thumb { box-shadow: 0 0 0 1px #fff, 0 0 0 0.25rem rgb(var(--accent-rgb) / 0.25); }
+
+</style>

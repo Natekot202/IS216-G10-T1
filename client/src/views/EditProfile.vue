@@ -11,11 +11,34 @@ import { confirmDialog } from '../utils/useConfirm.js'
 
 const router = useRouter()
 
-const pet_types = ["Dog", "Cat", "Bird", "Rabbit", "Hamster", "Other"];
+const pet_types = ["Dog", "Cat", "Bird", "Rabbit", "Hamster"];
+const customPetType = ref('')
+const petTypeError = ref('')
+const customPetTypes = computed(() =>
+  form.value.sitterProfile.petTypes.filter((type) => !pet_types.includes(type))
+)
 const services = ["Feeding", "Grooming", "Dog walking", "Cat walking", "Feeding Medication", "Cleaning", "Playtime"] 
 
 const isOwner = computed(() => currentUser.value?.role === 'owner')
 const isSitter = computed(() => currentUser.value?.role === 'sitter')
+
+function addCustomPetType() {
+  const type = toTitleCase(customPetType.value.trim().replace(/\s+/g, ' '))
+  petTypeError.value = ''
+  if (!type) return
+
+  if (form.value.sitterProfile.petTypes.some((saved) => saved.toLowerCase() === type.toLowerCase())) {
+    petTypeError.value = `${type} is already listed.`
+    return
+  }
+
+  form.value.sitterProfile.petTypes.push(type)
+  customPetType.value = ''
+}
+
+function removeCustomPetType(type) {
+  form.value.sitterProfile.petTypes = form.value.sitterProfile.petTypes.filter((saved) => saved !== type)
+}
 
 const { file: picFile, preview, error: picError, input: fileInput, onPick, clear: clearSelection } = usePhotoPicker()
 const removing = ref(false)
@@ -364,6 +387,21 @@ async function save() {
               </label>
             </div>
 
+            <div v-if="customPetTypes.length" class="ef-custom-pets mb-3" aria-label="Additional pet types">
+              <span v-for="t in customPetTypes" :key="t" class="ef-custom-pet">
+                {{ t }}
+                <button type="button" :aria-label="`Remove ${t}`" @click="removeCustomPetType(t)">×</button>
+              </span>
+            </div>
+
+            <label class="form-label" for="customPetType">Can you look after another kind of pet?</label>
+            <div class="input-group mb-1">
+              <input id="customPetType" v-model="customPetType" type="text" class="form-control"
+                     maxlength="40" placeholder="e.g. Guinea pig" @keydown.enter.prevent="addCustomPetType" />
+              <button type="button" class="btn btn-outline-secondary" @click="addCustomPetType">Add pet type</button>
+            </div>
+            <div v-if="petTypeError" class="form-text text-danger" role="alert">{{ petTypeError }}</div>
+
             <div id="servicesLabel" class="form-label">Services</div>
             <div class="ef-chips" role="group" aria-labelledby="servicesLabel">
               <label v-for="s in services" :key="s" class="ef-chip">
@@ -599,6 +637,41 @@ async function save() {
 .ef-chip input:focus-visible + span {
   outline: 2px solid var(--accent-deep);
   outline-offset: 2px;
+}
+.ef-custom-pets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.ef-custom-pet {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.4rem 0.2rem 0.8rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.ef-custom-pet button {
+  display: inline-flex;
+  width: 1.25rem;
+  height: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.ef-custom-pet button:hover,
+.ef-custom-pet button:focus-visible {
+  background: rgb(255 255 255 / 0.2);
 }
 
 .ef-bar {

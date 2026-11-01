@@ -92,12 +92,13 @@ const userSchema = new mongoose.Schema({
     experienceStart: {
       type: Date 
     },                
-    petTypes: { 
-      type: [{ 
-        type: String, 
-        enum: pet_types 
-      }], 
-      default: [] 
+    petTypes: {
+      type: [{
+        type: String,
+        trim: true,
+        maxlength: 40
+      }],
+      default: []
     },
     services: { 
       type: [{ 

@@ -232,7 +232,7 @@ onMounted(async () => {
         {{ isSitter ? 'You accepted this request. Waiting for the owner to confirm; the hours are held for you until then.'
                     : 'The sitter accepted your request. Confirm it below to make the booking final.' }}
       </div>
-      <div v-if="message" class="alert alert-success">{{ message }}</div>
+      <!-- <div v-if="message" class="alert alert-success">{{ message }}</div> -->
       <div v-if="actionError" class="alert alert-warning">{{ actionError }}</div>
 
       <!-- Pets: tap one to show its checklist below. With one pet there is nothing to choose, so this card is left out
