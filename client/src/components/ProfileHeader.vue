@@ -39,6 +39,7 @@ watch(() => props.profile._id, async (id) => {
 
 <style scoped>
 .ph-card {
+  width: 100%; /* its column is d-flex, so without this the card only grows as wide as its content (the photo's 220px) */
   padding: 1.25rem;
   border: 1px solid rgba(196, 119, 86, 0.3);
   border-top: 4px solid var(--line);             
@@ -72,7 +73,6 @@ watch(() => props.profile._id, async (id) => {
   overflow-wrap: anywhere;
 }
 .ph-bio {
-  max-width: 30ch;
   color: black;
   overflow-wrap: anywhere;
   margin-top: 0.9rem;
