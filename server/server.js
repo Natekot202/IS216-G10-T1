@@ -23,6 +23,7 @@ import bookingMessageRoutes from './src/routes/bookingMessages.js'
 import mongoose from 'mongoose'
 import { recalcAllRatings, watchReviews } from './src/utils/ratingsCalc.js'
 import { startExpiringBookings } from './src/utils/expireBookings.js'
+import { startEndingForgottenSessions } from './src/utils/endForgottenSessions.js'
 
 if (!process.env.SESSION_SECRET){
   console.error('Session Secret is missing from .env')
@@ -83,6 +84,7 @@ async function start() {
   try {
     await connectDB()
     startExpiringBookings() // unconfirmed requests expire once their start time passes
+    startEndingForgottenSessions() // sessions the sitter never ended close 6 hours after their end time
     recalcAllRatings().catch((err) => console.error('Rating recalculation failed', err)) 
     watchReviews()
     app.listen(PORT, () => {

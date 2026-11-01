@@ -57,6 +57,15 @@ function closeWalk(walk, path, status) {
   if (current) current.endedAt = now
 }
 
+// Ends a walk still going on when its session ends by itself. It has no path, because only the sitter's phone has that.
+// (An ended-early walk still counts, the same as when the sitter ends one.)
+export async function autoEndWalk(walk) {
+  closeWalk(walk, [], 'ended-early')
+  walk.endedEarlyReason = 'The session ended automatically before the walk was finished.'
+  await walk.save()
+  await tickWalkTask(walk)
+}
+
 // POST /api/walks   body: { visitId, taskId }
 // Creates a 'ready' walk for one walk task in the sitter's active visit (today's session).
 // The route is the copy saved on the booking when it was made, so the owner editing or

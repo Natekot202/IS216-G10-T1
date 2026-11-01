@@ -6,7 +6,8 @@ import Walk from '../models/walkModel.js'
 import { sgtMidnight, toSgtDateString } from '../models/Availability.js'
 import { uploadImage, deleteImage } from '../config/cloudinary.js'
 import User from '../models/UserModel.js'
-import { notifyPaymentDue } from '../models/notificationModel.js'
+import { notify, notifyPaymentDue } from '../models/notificationModel.js'
+import { HOME_RADIUS_M, MAX_START_ACCURACY_M, isValidPoint, metresBetween } from '../utils/walkGeo.js'
 
 const STARTABLE = ['confirmed', 'in-progress'] // owners pay at the end, so sessions start once the owner has confirmed
 
@@ -22,6 +23,19 @@ function startBlockReason(booking, todaysVisits, today) {
     return "Today's session has already been started."
   }
   return ''
+}
+
+// Is the sitter at the home? `reading` is { location: [lng, lat], accuracy }, `home` is [lng, lat] or undefined.
+// Weak GPS shouldn't flag a sitter standing in the house, so a reading passes if it could be within
+// HOME_RADIUS_M once its accuracy is counted. A reading too vague to use counts as no location.
+// Returns { passed: true }, or { check: 'out-of-range', distanceM }, or { check: 'no-location' }.
+function checkStartLocation(reading, home) {
+  const accuracy = Number(reading?.accuracy)
+  if (!home || !isValidPoint(reading?.location) || !Number.isFinite(accuracy) || accuracy > MAX_START_ACCURACY_M) {
+    return { check: 'no-location' }
+  }
+  const distanceM = metresBetween(reading.location, home)
+  return distanceM - accuracy <= HOME_RADIUS_M ? { passed: true } : { check: 'out-of-range', distanceM: Math.round(distanceM) }
 }
 
 // finds the booking and checks the caller is its owner or sitter
@@ -49,10 +63,15 @@ export async function getTodaySessions(req, res) {
   const dayStart = sgtMidnight(today)
   const field = req.session.role === 'sitter' ? 'sitterId' : 'ownerId'
 
+  // A session from an earlier day stays until it's ended, so a sitter can still submit a report after midnight
+  const earlier = await VisitSession.find({ status: 'active', date: { $lt: today } }).select('booking')
+
   const bookings = await Booking.find({
     [field]: req.session.userId,
-    startDate: { $lte: dayStart },
-    endDate: { $gte: dayStart },
+    $or: [
+      { startDate: { $lte: dayStart }, endDate: { $gte: dayStart } },
+      { _id: { $in: earlier.map((v) => v.booking) } }
+    ],
     status: { $in: ['confirmed', 'in-progress', 'completed', 'paid'] }
   })
     .populate('ownerId', 'username profilePicture')
@@ -61,7 +80,7 @@ export async function getTodaySessions(req, res) {
 
   const ids = bookings.map((b) => b._id)
   const [visits, checklists] = await Promise.all([
-    VisitSession.find({ booking: { $in: ids }, date: today }),
+    VisitSession.find({ booking: { $in: ids }, $or: [{ date: today }, { status: 'active' }] }).sort({ date: 1 }),
     CareChecklist.find({ bookingId: { $in: ids } })
   ])
   const visitByBooking = new Map(visits.map((v) => [String(v.booking), v]))
@@ -114,9 +133,10 @@ export async function getTodaySessions(req, res) {
           pets: b.petIds,
           notes: b.notes || ''
         },
-        items: (itemsByBooking.get(String(b._id)) ?? []).filter((item) => taskIsOn(item, today)),
         visit: visitByBooking.get(String(b._id)) ?? null
       }
+      // the tasks for this session's day, which is an earlier day if it's still open from then
+      session.items = (itemsByBooking.get(String(b._id)) ?? []).filter((item) => taskIsOn(item, session.visit?.date ?? today))
       session.activeWalk = session.visit ? walkByVisit.get(String(session.visit._id)) ?? null : null
       // only a booking's sitter gets the address, and only once it is confirmed
       if (isSitterViewer && confirmed(b)) {
@@ -131,6 +151,9 @@ export async function getTodaySessions(req, res) {
 }
 
 // POST /api/visits/booking/:bookingId/start  (sitter)
+// In: { location: [lng, lat], accuracy, note }
+// A sitter within range starts straight away. Otherwise this answers 409 with { check, distanceM }, and they can
+// send it again with a `note` for the owner: the session then starts, and the owner is notified.
 export async function startVisit(req, res) {
   const booking = await loadBooking(req, res)
   if (!booking) {
@@ -147,11 +170,38 @@ export async function startVisit(req, res) {
     return res.status(400).json({ message: reason })
   }
 
+  // Only one session at a time: the owner of each sees where the sitter is, so two would show one home to the other
+  // (a forgotten session can't block this for long: utils/endForgottenSessions.js closes it)
+  const otherSession = await VisitSession.exists({ sitter: req.session.userId, status: 'active' })
+  if (otherSession) {
+    return res.status(409).json({ message: 'End your other session before starting this one.' })
+  }
+
+  const owner = await User.findById(booking.ownerId).select('+ownerProfile.address')
+  const result = checkStartLocation(req.body, owner?.ownerProfile?.address?.location?.coordinates)
+  let startCheck
+  if (!result.passed) {
+    const note = String(req.body.note ?? '').trim()
+    if (!note) {
+      return res.status(409).json({ message: 'Your location could not be confirmed.', check: result.check, distanceM: result.distanceM })
+    }
+    if (note.length > 200) return res.status(400).json({ message: 'The note can be up to 200 characters.' })
+    startCheck = { reason: result.check, note, distanceM: result.distanceM }
+  }
+
   try {
-    const visit = await VisitSession.create({ booking: booking._id, sitter: req.session.userId, date: today })
+    const visit = await VisitSession.create({ booking: booking._id, sitter: req.session.userId, date: today, startCheck })
     if (booking.status !== 'in-progress') {
       booking.status = 'in-progress'
       await booking.save()
+    }
+    if (startCheck) {
+      try {
+        await notify(booking.ownerId, 'session-unverified', `The sitter started without a location check: "${startCheck.note}"`, { booking: booking._id })
+      } catch (err) {
+        // The session should stand even if its notification cannot be saved (the owner still sees the note on the Session page).
+        console.error('Could not create session-unverified notification:', err.message)
+      }
     }
     return res.status(201).json(visit)
   } catch (err) {

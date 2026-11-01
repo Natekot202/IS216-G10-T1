@@ -1,5 +1,5 @@
 import Booking from '../models/bookingModel.js'
-import { toSgtDateString } from '../models/Availability.js'
+import { sgtMidnight, toSgtDateString } from '../models/Availability.js'
 
 // Time maths for bookings. A booking runs from startDate + startTime to endDate + endTime (Singapore time).
 // Everything is turned into "milliseconds since 1970" so two bookings can be compared with < and >.
@@ -70,6 +70,11 @@ export function dailyRanges(booking) {
 // Does any range in list `a` overlap any range in list `b`?
 export function anyOverlap(a, b) {
   return a.some((x) => b.some((y) => rangesOverlap(x, y)))
+}
+
+// When a day's session was booked to end, in milliseconds (the booking's end time, on the session's date)
+export function sessionEndTime(visit, booking) {
+  return sgtMidnight(visit.date).getTime() + toMinutes(booking.endTime || '24:00') * MINUTE_MS
 }
 
 // Two ranges overlap when each one starts before the other ends.

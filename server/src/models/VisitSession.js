@@ -30,6 +30,17 @@ const photoSchema = new mongoose.Schema(
   { _id: false }
 )
 
+// Set when a sitter started the session without passing the location check, and the note they sent the owner
+const startCheckSchema = new mongoose.Schema(
+  {
+    reason: { type: String, enum: ['out-of-range', 'no-location'], required: true },
+    note: { type: String, trim: true, maxlength: 200, required: true },
+    distanceM: { type: Number }, // how far from the home, when out of range
+    at: { type: Date, default: Date.now }
+  },
+  { _id: false }
+)
+
 const visitSessionSchema = new mongoose.Schema(
   {
     booking: { 
@@ -56,6 +67,8 @@ const visitSessionSchema = new mongoose.Schema(
     endedAt: { 
         type: Date 
     },
+    startCheck: { type: startCheckSchema, default: undefined },
+    autoEnded: { type: Boolean, default: false }, // the sitter never ended it, so utils/endForgottenSessions.js did
     completedTasks: [completedTaskSchema],
     report: {
       notes: { 

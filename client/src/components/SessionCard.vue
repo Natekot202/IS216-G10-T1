@@ -1,11 +1,12 @@
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { visitsApi, reviewsApi } from '../services/api.js'
 import { walkApi } from '../services/walkApi.js'
 import { usePhotoPicker } from '../utils/usePhotoPicker.js'
 import { sendPaymentNotification } from '../utils/sendNotification.js'
 import { medicationIncomplete } from '../utils/careDetails.js'
+import { getCurrentLocation } from '../utils/currentLocation.js'
 import ReviewForm from '../components/ReviewForm.vue'
 import SessionChat from '../components/SessionChat.vue'
 import SessionTask from '../components/SessionTask.vue'
@@ -13,7 +14,6 @@ import WalkMap from '../components/WalkMap.vue'
 
 const props = defineProps({
   session: { type: Object, required: true },    
-  today: { type: String, required: true },    
   isSitter: { type: Boolean, default: false },
   active: { type: Boolean, default: true } // false while another session is showing
 })
@@ -41,6 +41,12 @@ watch(() => props.session, (s) => {
 
 const actionError = ref('')
 const starting = ref(false)
+const checking = ref(false) // waiting for the browser's location
+const reading = ref(null) // the last location reading: { location, accuracy }, or null
+const startProblem = ref(null) // why the location check didn't pass: { check, distanceM }
+const writingNote = ref(false)
+const startNote = ref('')
+const startNoteError = ref('')
 const savingTask = ref(false)
 const ending = ref(false)
 const confirmingEnd = ref(false) // asking "End anyway?" because some tasks aren't ticked
@@ -57,6 +63,31 @@ const missingMedication = computed(() => !visit.value && props.session.items.som
 
 // The session bar's wording. Today's session, not the booking: it can be finished for today on a multi-day booking.
 const startedText = computed(() => (visit.value ? `Started at ${formatTime(visit.value.startedAt)}` : ''))
+// Reminds the sitter once the booked time is over. The session itself closes 6 hours later (utils/endForgottenSessions.js).
+const AUTO_END_MS = 6 * 60 * 60 * 1000
+const now = ref(Date.now())
+let clock = null
+onMounted(() => {
+  clock = setInterval(() => { now.value = Date.now() }, 60000)
+})
+onBeforeUnmount(() => clearInterval(clock))
+
+const bookedEnd = computed(() => {
+  if (!visit.value) return null
+  const [h, m] = (props.session.booking.endTime || '24:00').split(':').map(Number)
+  return new Date(`${visit.value.date}T00:00:00+08:00`).getTime() + (h * 60 + m) * 60000
+})
+const pastBookedEnd = computed(() => props.isSitter && isActive.value && now.value >= bookedEnd.value)
+const autoEndText = computed(() => formatTime(bookedEnd.value + AUTO_END_MS))
+
+const formatDistance = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m} m`)
+const outOfRange = computed(() => startProblem.value?.check === 'out-of-range')
+const problemText = computed(() => (outOfRange.value
+  ? `You're ${formatDistance(startProblem.value.distanceM)} from the home. Sessions start within 75 m.`
+  : "We couldn't get your location."))
+const noteHint = computed(() => (outOfRange.value
+  ? 'The owner will be notified, and your location will be shared as usual.'
+  : "The owner will be notified and will see 'Location not shared'. Walks can't start until location is on."))
 const barClass = computed(() => {
   if (isCompleted.value) return 'sc-bar--done'
   if (isActive.value) return 'sc-bar--live'
@@ -77,18 +108,48 @@ function formatTime(d) {
   return new Date(d).toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit' })
 }
 
-async function startSession() {
+function clearStartProblem() {
+  startProblem.value = null
+  writingNote.value = false
+  startNote.value = ''
+  startNoteError.value = ''
+}
+
+// Sends the start to the server, which checks the location. `note` is for starting without passing the check.
+async function sendStart(note) {
   starting.value = true
   actionError.value = ''
   try {
-    visit.value = await visitsApi.start(props.session.booking._id)
+    visit.value = await visitsApi.start(props.session.booking._id, { ...reading.value, note })
     status.value = 'in-progress'
     emit('visit-change', visit.value)
+    clearStartProblem()
   } catch (err) {
-    actionError.value = err.response?.data?.message || 'Could not start the session.'
+    if (err.response?.status === 409 && err.response.data.check) {
+      startProblem.value = { check: err.response.data.check, distanceM: err.response.data.distanceM }
+    } else {
+      actionError.value = err.response?.data?.message || 'Could not start the session.'
+    }
   } finally {
     starting.value = false
   }
+}
+
+// Also the "Check again" button, so it clears any note being written
+async function startSession() {
+  clearStartProblem()
+  checking.value = true
+  reading.value = await getCurrentLocation()
+  checking.value = false
+  await sendStart()
+}
+
+function startWithNote() {
+  if (!startNote.value.trim()) {
+    startNoteError.value = 'Add a quick note first.'
+    return
+  }
+  sendStart(startNote.value.trim())
 }
 
 function countFor(item) {
@@ -174,7 +235,7 @@ async function submitReport() {
     })
     visit.value = await visitsApi.end(visit.value._id, form)
     emit('visit-change', visit.value)
-    if (props.today === props.session.booking.endDate) {
+    if (visit.value.date === props.session.booking.endDate) {
       status.value = 'completed'
       sendPaymentNotification(props.session.booking._id)
     }
@@ -208,7 +269,10 @@ watch(visit, (v) => {
   if (v) whereOpen.value = false
 })
 watch(() => props.active, (isActive) => {
-  if (!isActive) confirmingEnd.value = false
+  if (!isActive) {
+    confirmingEnd.value = false
+    clearStartProblem()
+  }
 })
 
 watch(status, async (s) => {
@@ -270,7 +334,7 @@ watch(status, async (s) => {
               <strong>Session in progress</strong>
               <span class="sc-bar__sub">{{ startedText }}</span>
             </template>
-            <strong v-else>Not started</strong>
+            <strong v-else>{{ checking ? 'Checking your location…' : 'Not started' }}</strong>
           </div>
 
           <span v-if="isCompleted" class="sc-bar__text">Today's session is complete.</span>
@@ -279,12 +343,33 @@ watch(status, async (s) => {
               <span v-if="ending" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
               {{ ending ? 'Ending…' : 'End session' }}
             </button>
-            <button v-else type="button" class="sc-btn sc-btn--start" :disabled="!canStart || starting" @click="startSession">
+            <button v-else type="button" class="sc-btn sc-btn--start" :disabled="!canStart || starting || checking" @click="startSession">
               <span v-if="starting" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
               {{ starting ? 'Starting…' : 'Start session' }}
             </button>
           </template>
           <span v-else class="sc-bar__text">{{ isActive ? (session.activeWalk ? 'On a walk' : 'Sitter is working') : "The sitter hasn't started today's session yet." }}</span>
+        </div>
+
+        <!-- the location check didn't pass: try again, or start with a note for the owner -->
+        <div v-if="startProblem" class="sc-panel" role="alert">
+          <p class="mb-2">{{ problemText }}</p>
+          <div v-if="!writingNote" class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-brand sc-panel__btn" :disabled="checking || starting" @click="startSession">Check again</button>
+            <button type="button" class="btn btn-outline-secondary sc-panel__btn" @click="writingNote = true">
+              {{ outOfRange ? "I'm out of range" : 'I have no location access' }}
+            </button>
+          </div>
+          <form v-else @submit.prevent="startWithNote">
+            <label :for="`start-note-${session.booking._id}`" class="form-label small mb-1">Quick note to the owner</label>
+            <textarea :id="`start-note-${session.booking._id}`" v-model="startNote" class="form-control mb-1" rows="2" maxlength="200"></textarea>
+            <p v-if="startNoteError" class="text-danger small mb-1">{{ startNoteError }}</p>
+            <p class="sc-hint mb-2">{{ noteHint }}</p>
+            <div class="d-flex flex-wrap gap-2">
+              <button type="submit" class="btn btn-brand sc-panel__btn" :disabled="starting">{{ starting ? 'Starting…' : 'Start and notify owner' }}</button>
+              <button type="button" class="btn btn-outline-secondary sc-panel__btn" @click="clearStartProblem">Cancel</button>
+            </div>
+          </form>
         </div>
 
         <div v-if="confirmingEnd" class="sc-panel" role="alert">
@@ -299,6 +384,17 @@ watch(status, async (s) => {
         <div v-if="actionError" class="alert alert-warning sc-dock__error" role="alert">{{ actionError }}</div>
       </div>
     </div>
+
+    <!-- the session started without a location check -->
+    <div v-if="visit?.startCheck && !isCompleted" class="sc-notice" role="status">
+      <template v-if="isSitter">Started without a location check. The owner has been notified.</template>
+      <template v-else>The sitter started without a location check: {{ visit.startCheck.note }}</template>
+    </div>
+
+    <div v-if="pastBookedEnd" class="sc-notice" role="status">
+      Your booking time has ended. End the session and submit your report. It ends automatically at {{ autoEndText }}.
+    </div>
+    <div v-if="visit?.autoEnded" class="sc-notice" role="status">This session ended automatically, 6 hours after the booked end time.</div>
 
     <section v-if="showWhere" class="sc-card">
       <button type="button" class="sc-where" :aria-expanded="whereOpen" @click="whereOpen = !whereOpen">
@@ -328,6 +424,7 @@ watch(status, async (s) => {
           <p class="sc-instructions">{{ address.instructions }}</p>
         </template>
 
+        <p v-if="!visit" class="sc-hint mt-2 mb-0">Starting checks you're within 75 m of the home, then shares your location with the owner until the session ends.</p>
         <p v-if="address?.line1" class="sc-hint mt-2 mb-0">Shared with you because this booking is confirmed. Do <strong>not</strong> share this with anyone else.</p>
       </div>
     </section>
@@ -597,6 +694,14 @@ watch(status, async (s) => {
   border-radius: 10px;
   background: #fff;
   color: #2b2420;
+}
+.sc-notice {
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 10px;
+  background: #fce9df;
+  color: #a84217;
+  overflow-wrap: anywhere;
 }
 .sc-panel__btn {
   min-height: 44px;

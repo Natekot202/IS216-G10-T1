@@ -13,6 +13,9 @@ export const NOTIFICATION_TYPES = [
   'booking-declined',    // to owner
   'booking-cancelled',   // to whichever side didn't cancel
   'booking-expired',     // to owner: sitter didn't answer before the start time
+  // sessions
+  'session-unverified',  // to owner: the sitter started without passing the location check
+  'session-auto-ended',  // to both: the sitter never ended a session, so it ended itself
   // payments
   'payment-due',         // to owner: booking completed, please pay
   'payment-successful',  // to owner: receipt for their payment

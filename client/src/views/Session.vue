@@ -126,7 +126,7 @@ onBeforeUnmount(() => clearInterval(timer))
       </ul>
 
       <SessionCard v-for="s in sessions" v-show="s.booking._id === selectedId" :key="s.booking._id" :session="s"
-                   :today="data.today" :is-sitter="isSitter" :active="s.booking._id === selectedId"
+                   :is-sitter="isSitter" :active="s.booking._id === selectedId"
                    @visit-change="s.visit = $event" @unread="unread[s.booking._id] = $event" />
     </template>
   </div>
