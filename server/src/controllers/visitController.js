@@ -85,6 +85,7 @@ export async function getTodaySessions(req, res) {
             line1: a?.line1 || '',
             unit: a?.unit || '',
             postalCode: a?.postalCode || '',
+            location: a?.location?.coordinates ?? null, // [lng, lat] for the "Where to go" map
             instructions
           })
         }
