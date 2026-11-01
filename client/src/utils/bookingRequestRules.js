@@ -3,12 +3,13 @@
 // The server checks all of this again, so these exist only to tell the owner quickly, before anything is sent.
 import { prettyDate } from './bookingTimeHelpers.js'
 
-// `form` is { selectedPets, when, tasks, clash, unavailableDays }, taken from the page's refs:
+// `form` is { selectedPets, when, chosenDays, tasks, clash, unavailableDays }, taken from the page's refs:
 //   selectedPets: array of pet ids        when: { startDate, startTime, endDate, endTime }
-//   tasks: the care tasks                 clash: true if the chosen time runs into a booked time
+//   chosenDays: every booked day          tasks: the care tasks
+//   clash: true if the chosen time runs into a booked time
 //   unavailableDays: chosen days the sitter hasn't marked as available
 // Returns the message to show the owner, or '' if everything is fine.
-export function checkBookingRequest({ selectedPets, when, tasks, clash, unavailableDays }) {
+export function checkBookingRequest({ selectedPets, when, chosenDays, tasks, clash, unavailableDays }) {
   if (selectedPets.length === 0) return 'Select at least one pet.'
   if (!when.startDate || !when.endDate) return 'Choose a start and end date.'
   if (when.endDate < when.startDate) return 'End date must be on or after the start date.'
@@ -26,9 +27,13 @@ export function checkBookingRequest({ selectedPets, when, tasks, clash, unavaila
   if (tasks.some((t) => !Number.isInteger(t.dailyFrequency) || t.dailyFrequency < 1 || t.dailyFrequency > 10)) {
     return 'Times a day must be a whole number from 1 to 10.'
   }
-  // .some returns true/false for the condition 
+  // .some returns true/false for the condition
   const noRoute = tasks.find((t) => t.category === 'walk' && !t.walkRouteId)
   if (noRoute) return `Choose a route for "${noRoute.title.trim()}", or pick "No route – follow my instructions".`
+  const noDays = tasks.find((t) => t.someDays && !t.days.length)
+  if (noDays) return `Choose the days for "${noDays.title.trim()}", or set it to every day.`
+  const emptyDay = chosenDays.find((d) => !tasks.some((t) => !t.days.length || t.days.includes(d)))
+  if (emptyDay) return `${prettyDate(emptyDay)} has no tasks. Add a task for that day, or remove the day.`
   return ''
 }
 
@@ -50,7 +55,8 @@ export function buildBookingPayload(sitterId, { selectedPets, when, tasks, notes
         title: t.title.trim(),
         dailyFrequency: t.dailyFrequency,
         petIds: chosen.length ? chosen : selectedPets,
-        walkRouteId: t.walkRouteId // walk tasks: a route's id, or 'instructions'
+        walkRouteId: t.walkRouteId, // walk tasks: a route's id, or 'instructions'
+        days: t.days // empty = every day
       }
     })
   }

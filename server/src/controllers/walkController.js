@@ -2,9 +2,10 @@ import mongoose from 'mongoose'
 import Walk from '../models/walkModel.js'
 import User from '../models/UserModel.js'
 import Booking from '../models/bookingModel.js'
-import CareChecklist from '../models/CareChecklist.js'
+import CareChecklist, { taskIsOn } from '../models/CareChecklist.js'
 import VisitSession from '../models/VisitSession.js'
 import { notify } from '../utils/notify.js'
+import { sharingEndTime } from '../utils/bookingTimes.js'
 import { HOME_RADIUS_M, isValidPath, isValidPoint, metresBetween, pathLength } from '../utils/walkGeo.js'
 
 // The sitter's name for notification messages
@@ -36,6 +37,15 @@ async function tickWalkTask(walk) {
   }
 }
 
+// Why a walk can't start now, or '' if it can. Used when opening a walk and when pressing Start walk.
+function walkBlockReason(visit, booking) {
+  if (!visit || visit.status !== 'active') return 'This session has ended.'
+  if (booking && Date.now() >= sharingEndTime(visit, booking)) {
+    return "The booked time has ended, so a new walk can't start."
+  }
+  return ''
+}
+
 // How a walk is named in notification messages
 const walkLabel = (walk) => (walk.mode === 'route' ? `the walk on "${walk.routeName}"` : 'the walk')
 
@@ -57,6 +67,15 @@ function closeWalk(walk, path, status) {
   if (current) current.endedAt = now
 }
 
+// Ends a walk still going on when its session ends by itself. It has no path, because only the sitter's phone has that.
+// (An ended-early walk still counts, the same as when the sitter ends one.)
+export async function autoEndWalk(walk) {
+  closeWalk(walk, [], 'ended-early')
+  walk.endedEarlyReason = 'The session ended automatically before the walk was finished.'
+  await walk.save()
+  await tickWalkTask(walk)
+}
+
 // POST /api/walks   body: { visitId, taskId }
 // Creates a 'ready' walk for one walk task in the sitter's active visit (today's session).
 // The route is the copy saved on the booking when it was made, so the owner editing or
@@ -71,7 +90,6 @@ export async function createWalk(req, res) {
   // 1. The visit is this sitter's, and it's going on now
   const visit = await VisitSession.findOne({ _id: visitId, sitter: req.session.userId })
   if (!visit) return res.status(404).json({ message: 'Session not found.' })
-  if (visit.status !== 'active') return res.status(400).json({ message: 'This session has ended.' })
 
   // 2. The task is a walk task on this booking's care checklist
   const booking = await Booking.findById(visit.booking)
@@ -80,6 +98,9 @@ export async function createWalk(req, res) {
   if (!booking || !task || task.category !== 'walk') {
     return res.status(404).json({ message: 'Walk task not found.' })
   }
+  if (!taskIsOn(task, visit.date)) return res.status(400).json({ message: 'This walk is not scheduled for today.' })
+  const blocked = walkBlockReason(visit, booking)
+  if (blocked) return res.status(400).json({ message: blocked })
 
   // 3. A walk for this task already ready or under way: carry on with that one
   const unfinished = await Walk.findOne({ visit: visit._id, task: task._id, status: { $in: ['ready', 'in-progress'] } })
@@ -114,6 +135,7 @@ export async function createWalk(req, res) {
     task: task._id,
     mode: hasRoute ? 'route' : 'instructions',
     instructions: task.title,
+    ownerNotes: task.details?.instructions ?? '',
     route: hasRoute ? plan.route : null,
     routeName: hasRoute ? plan.name : '',
     plannedPath: hasRoute ? plan.path : undefined,
@@ -122,11 +144,12 @@ export async function createWalk(req, res) {
   res.status(201).json(walk)
 }
 
-// GET /api/walks/:id -> one walk, for its sitter or its owner
+// GET /api/walks/:id -> one walk, for its sitter, or for its owner once it's finished
 export async function getWalk(req, res) {
   const walk = await Walk.findById(req.params.id)
   const me = String(req.session.userId)
-  if (!walk || (me !== String(walk.sitter) && me !== String(walk.owner))) {
+  const ownerCanSee = me === String(walk?.owner) && ['completed', 'ended-early'].includes(walk?.status)
+  if (!walk || (me !== String(walk.sitter) && !ownerCanSee)) {
     return res.status(404).json({ message: 'Walk not found.' })
   }
   res.json(walk)
@@ -137,6 +160,12 @@ export async function startWalk(req, res) {
   const walk = await loadSittersWalk(req, res)
   if (!walk) return
   if (walk.status !== 'ready') return res.status(400).json({ message: 'This walk has already been started.' })
+
+  if (walk.visit) { // walks from before booking integration have no session
+    const [visit, booking] = await Promise.all([VisitSession.findById(walk.visit), Booking.findById(walk.booking)])
+    const blocked = walkBlockReason(visit, booking)
+    if (blocked) return res.status(400).json({ message: blocked })
+  }
 
   const { location } = req.body
   if (!isValidPoint(location)) return res.status(400).json({ message: 'Your location is missing.' })
@@ -204,6 +233,20 @@ export async function reportBackOnRoute(req, res) {
     await notify(walk.owner, 'walk-back-on-route',
       `${sitterName(req)} is back on the route "${walk.routeName}".`, walk._id)
   }
+  res.json(walk)
+}
+
+// POST /api/walks/:id/back-home
+// The sitter has been back at the home for 20 minutes with the walk still going: notifies them, once per walk.
+export async function remindBackHome(req, res) {
+  const walk = await loadSittersWalk(req, res)
+  if (!walk) return
+  if (walk.status !== 'in-progress') return res.status(400).json({ message: 'This walk is not in progress.' })
+  if (walk.backHomeRemindedAt) return res.json(walk)
+
+  walk.backHomeRemindedAt = new Date()
+  await walk.save()
+  await notify(walk.sitter, 'walk-back-home', "Looks like you're back at the home. If you've finished your walk, remember to end it.", walk._id)
   res.json(walk)
 }
 

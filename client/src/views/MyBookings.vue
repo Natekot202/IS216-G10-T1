@@ -76,7 +76,8 @@ async function confirmBooking(id) {
     const updated = await bookingsApi.confirm(id)
     bookings.value.find((b) => b._id === id).status = updated.status
     sendNotification(id, 'booking-confirmed', `${currentUser.value.username} confirmed your booking.`)
-    message.value = 'Booking confirmed ✅ You can find it under Upcoming.'
+    // straight on to the booking's page, with the care details form open
+    router.push({ name: 'booking-detail', params: { id }, query: { details: 'open' } })
   } catch (err) {
     actionError.value = err.response?.data?.message || 'Could not confirm the booking.'
   } finally {

@@ -5,6 +5,8 @@ import { distance, length, lineString } from '@turf/turf'
 // How close to the owner's home a route or walk must start and end.
 // Must match HOME_RADIUS_M in client/src/utils/useHomeCheck.js
 export const HOME_RADIUS_M = 75
+// A reading less accurate than this can't say where someone is, so a session start treats it as no location
+export const MAX_START_ACCURACY_M = 100
 
 // Stops someone sending a huge path (the client simplifies paths before sending)
 export const MAX_POINTS = 2000

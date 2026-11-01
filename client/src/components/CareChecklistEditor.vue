@@ -1,19 +1,21 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { walkRoutesApi } from '../services/walkRouteApi.js'
-import { SERVICE_PRICES, SERVICE_LABELS, SERVICE_HINTS } from '../utils/servicePrices.js'
+import { SERVICE_PRICES, SERVICE_LABELS, SERVICE_HINTS, daysForTask, priceForTasks } from '../utils/servicePrices.js'
+import { prettyDate } from '../utils/bookingTimeHelpers.js'
 
 // The care checklist part of the booking form: the owner adds tasks (feed, walk, medication...).
 // The page gives it the pets that were picked (prop), and it tells the page the list of tasks
 // whenever it changes (the 'change' event).
 const props = defineProps({
   pets: { type: Array, required: true }, // the selected pets, as full objects: [{ _id, name, ... }]
-  days: { type: Number, default: 0 } // how many days the booking covers, for the total next to "+ Add task" (0 = no dates yet)
+  dates: { type: Array, default: () => [] } // every day the booking covers: ['2026-11-03', ...] (empty = no dates yet)
 })
 const emit = defineEmits(['change'])
 
 const categories = Object.keys(SERVICE_PRICES) // same 6 types the server accepts (each has a fixed price)
-const tasks = ref([]) // each task: { category, title, dailyFrequency, petIds, walkRouteId }
+const tasks = ref([]) // each task: { category, title, dailyFrequency, petIds, walkRouteId, someDays, days }
+const dayCount = computed(() => props.dates.length)
 
 // The owner's recorded walking routes, for the route dropdown on walk tasks
 const walkRoutes = ref([])
@@ -32,7 +34,8 @@ const formatDistance = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m}
 function addTask() {
   // petIds: [] means "all the selected pets"
   // walkRouteId (walk tasks only): a route's id, 'instructions', or '' (not chosen yet)
-  tasks.value.push({ category: 'feed', title: '', dailyFrequency: 1, petIds: [], walkRouteId: '' })
+  // someDays: false = every day; true = only on the dates in `days`
+  tasks.value.push({ category: 'feed', title: '', dailyFrequency: 1, petIds: [], walkRouteId: '', someDays: false, days: [] })
 }
 
 function removeTask(index) {
@@ -44,9 +47,31 @@ function changeTimes(task, step) {
   task.dailyFrequency = Math.min(10, Math.max(1, (Number(task.dailyFrequency) || 1) + step))
 }
 
-// Price of one task for one day, and of all tasks for one day
+// Price of one task for one day, and of all the tasks for the whole booking
 const taskPrice = (task) => (SERVICE_PRICES[task.category] ?? 0) * (Number(task.dailyFrequency) || 0)
-const perDay = computed(() => tasks.value.reduce((sum, t) => sum + taskPrice(t), 0))
+const total = computed(() => priceForTasks(tasks.value, dayCount.value))
+
+function setSomeDays(task, someDays) {
+  task.someDays = someDays
+  if (!someDays) task.days = []
+}
+
+function toggleTaskDay(task, date) {
+  if (task.days.includes(date)) task.days = task.days.filter((d) => d !== date)
+  else task.days.push(date)
+}
+
+// "Tue, 3 Nov"
+const shortDate = (date) => new Date(`${date}T00:00:00`).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' })
+
+// Changing the booking's dates: a task can't stay on a day that's no longer booked,
+// and with only one day there's nothing to choose
+watch(() => props.dates, (dates) => {
+  for (const task of tasks.value) {
+    task.days = task.days.filter((d) => dates.includes(d))
+    if (dates.length < 2) setSomeDays(task, false)
+  }
+})
 
 // Same idea as togglePet (on the booking page), but for the pets chosen on one task
 function toggleTaskPet(task, id) {
@@ -60,7 +85,7 @@ watch(tasks, () => emit('change', tasks.value), { deep: true })
 
 <template>
   <h3 class="h6 text-uppercase text-muted fw-bold mt-4">Care Checklist</h3>
-  <p class="small text-muted">What should the sitter do each day? Add at least one task. The price is based on these tasks.
+  <p class="small text-muted">What should the sitter do? Tasks are done every day unless you choose certain days, and every day needs at least one task. The price is based on these tasks.
     Pick the type that really matches the job; the sitter can decline a request whose tasks don't match.</p>
 
   <!-- Labels written once, above every task (on phones each task shows its own labels instead) -->
@@ -118,6 +143,24 @@ watch(tasks, () => emit('change', tasks.value), { deep: true })
       </div>
     </div>
 
+    <!-- Only worth choosing days when the booking covers more than one -->
+    <div v-if="dates.length > 1" class="cl-sub">
+      <span class="cl-sub-label">Days</span>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <button type="button" class="btn btn-sm rounded-pill px-2 py-0"
+                :class="task.someDays ? 'btn-outline-secondary' : 'btn-dark'" @click="setSomeDays(task, false)">Every day</button>
+        <button type="button" class="btn btn-sm rounded-pill px-2 py-0"
+                :class="task.someDays ? 'btn-dark' : 'btn-outline-secondary'" @click="setSomeDays(task, true)">Certain days</button>
+        <template v-if="task.someDays">
+          <button v-for="d in dates" :key="d" type="button" class="btn btn-sm rounded-pill px-2 py-0"
+                  :class="task.days.includes(d) ? 'btn-dark' : 'btn-outline-secondary'"
+                  :aria-pressed="task.days.includes(d)" :aria-label="prettyDate(d)" @click="toggleTaskDay(task, d)">{{ shortDate(d) }}</button>
+          <span v-if="!task.days.length" class="small text-muted">(choose at least one)</span>
+          <span v-else class="small text-muted">{{ daysForTask(task, dayCount) }} day{{ task.days.length === 1 ? '' : 's' }}</span>
+        </template>
+      </div>
+    </div>
+
     <!-- Only worth choosing pets when more than one is selected -->
     <div v-if="pets.length > 1" class="cl-sub">
       <span class="cl-sub-label">For</span>
@@ -140,7 +183,7 @@ watch(tasks, () => emit('change', tasks.value), { deep: true })
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
     <button type="button" class="cl-add" @click="addTask">+ Add task</button>
     <span v-if="tasks.length" class="small">
-      ${{ perDay }} a day<template v-if="props.days"> × {{ props.days }} day{{ props.days === 1 ? '' : 's' }} = <strong class="cl-total">${{ perDay * props.days }}</strong></template>
+      <template v-if="dayCount">{{ dayCount }} day{{ dayCount === 1 ? '' : 's' }} booked · <strong class="cl-total">${{ total }}</strong></template>
     </span>
   </div>
 </template>

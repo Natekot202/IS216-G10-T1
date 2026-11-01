@@ -7,7 +7,7 @@ import { currentUser } from '../services/auth.js'
 import { sendNotification } from '../utils/sendNotification.js'
 import { toDateString, prettyDate } from '../utils/bookingTimeHelpers.js'
 import { checkBookingRequest, buildBookingPayload } from '../utils/bookingRequestRules.js'
-import { SERVICE_PRICES, SERVICE_LABELS, PRICE_LIST_TEXT, priceForTasks, bookingPrice } from '../utils/servicePrices.js'
+import { SERVICE_PRICES, SERVICE_LABELS, PRICE_LIST_TEXT, priceForTasks, bookingPrice, daysForTask } from '../utils/servicePrices.js'
 import { bookingsApi } from '../services/bookingApi.js'
 import { availabilityApi } from '../services/availabilityApi.js'
 import { usersApi, petsApi } from '../services/api.js'
@@ -90,6 +90,7 @@ async function sendRequest() {
   const message = checkBookingRequest({
     selectedPets: selectedPets.value,
     when: when.value,
+    chosenDays: chosenDays.value,
     tasks: tasks.value,
     clash: clash.value,
     unavailableDays: unavailableDays.value
@@ -214,12 +215,8 @@ onMounted(async () => {
             {{ chosenDays.length }} day{{ chosenDays.length === 1 ? '' : 's' }} booked
           </p>
 
-          <!-- Notes -->
-          <h3 class="h6 text-uppercase text-muted fw-bold">Notes to Sitter</h3>
-          <textarea v-model="notes" class="form-control" rows="4" placeholder="Feeding times, medication, walking routine…"></textarea>
-
           <!-- Care checklist -->
-          <CareChecklistEditor :pets="selectedPetList" :days="chosenDays.length" @change="tasks = $event" />
+          <CareChecklistEditor :pets="selectedPetList" :dates="chosenDays" @change="tasks = $event" />
           <!-- 
           same concept as bookingDatePicker abv 
           -->
@@ -234,7 +231,7 @@ onMounted(async () => {
           <h3 class="h6 text-uppercase text-muted fw-bold mb-3">Price Preview</h3>
           <!-- One line per task, e.g. "Walk: $20 × 2 a day × 3 days = $120" -->
           <div v-for="(t, i) in tasks" :key="i" class="d-flex justify-content-between small">
-            <span>{{ SERVICE_LABELS[t.category] }}: ${{ SERVICE_PRICES[t.category] }} × {{ t.dailyFrequency || 0 }} a day × {{ chosenDays.length }} day{{ chosenDays.length === 1 ? '' : 's' }}</span>
+            <span>{{ SERVICE_LABELS[t.category] }}: ${{ SERVICE_PRICES[t.category] }} × {{ t.dailyFrequency || 0 }} a day × {{ daysForTask(t, chosenDays.length) }} day{{ daysForTask(t, chosenDays.length) === 1 ? '' : 's' }}</span>
             <span>${{ priceForTasks([t], chosenDays.length) }}</span>
           </div>
           <p v-if="tasks.length === 0" class="small text-muted mb-1">Add a care task above to see the price.</p>

@@ -5,27 +5,31 @@ const MAX_ACCURACY_M = 30
  // skip readings less accurate than this
 const MIN_STEP_M = 5 // skip tiny moves (GPS drift while standing still)
 
-// exposes constants and bundles functions
-export function useGeoTracker(){
+// The GPS tracker itself. The location shared with an owner uses every reading, and only the path needs accurate ones.
+export function createGeoTracker(){
     // declares constants
     const position = ref(null); // latest position, [lng, lat]
     const path = ref([]);       // stores every accepted point [[lng, lat], ...]
     const accuracy = ref(null); // to metres
+    const reading = ref(null);  // the latest reading of any accuracy: { location: [lng, lat], accuracy }
     const tracking = ref(false) // true while GPS is on
     const recording = ref(false) // true while points are being added to path
     const error = ref('');
+    const blocked = ref(false)  // true when the user has refused location access
     let watchId = null;
 
     // when browser gets a new GPS reading
     // saves readings accuracy, checks accuracy, updates position, adds to path
     function onPosition(pos){
         error.value = '';
+        blocked.value = false;
 
         // accuracy value higher, more inaccurate
         const {longitude, latitude, accuracy: acc} = pos.coords
 
         // assign accuracy to ref variable, checks accuracy
         accuracy.value = acc;
+        reading.value = {location: [longitude, latitude], accuracy: acc}
         if(acc > MAX_ACCURACY_M) return // if too inaccurate, skip it
 
         // create new point, assigned to ref variable
@@ -52,6 +56,7 @@ export function useGeoTracker(){
             3: 'Timed out getting your location.'
         }
         error.value = messages[err.code] ?? err.message
+        blocked.value = err.code === 1
     }
 
     // starts GPS (shows the user's position, but doesn't record a path yet)
@@ -73,6 +78,13 @@ export function useGeoTracker(){
         })
     }
 
+    // asks the browser again, which is how a location switched back on gets noticed
+    function restart(){
+        if(watchId !== null) navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+        start()
+    }
+
     // ends GPS tracking
     function stop(){
         if(watchId !== null) navigator.geolocation.clearWatch(watchId);
@@ -81,9 +93,9 @@ export function useGeoTracker(){
         recording.value = false;
     }
 
-    // begins a new recording: clears the old path and starts it at the current position
-    function startRecording(){
-        path.value = position.value ? [position.value] : []
+    // begins a recording, carrying on from `saved` if there is one, or else from the current position
+    function startRecording(saved = []){
+        path.value = saved.length ? saved : (position.value ? [position.value] : [])
         recording.value = true
     }
 
@@ -93,8 +105,13 @@ export function useGeoTracker(){
         if(position.value && position.value !== path.value.at(-1)) path.value.push(position.value)
     }
 
-    onBeforeUnmount(stop) // stop GPS if the user leaves the page
-
     // returns constants
-    return {position, path, accuracy, tracking, recording, error, start, stop, startRecording, stopRecording}
+    return {position, path, accuracy, reading, tracking, recording, error, blocked, start, restart, stop, startRecording, stopRecording}
+}
+
+// For a page that tracks only while it's open (recording a route)
+export function useGeoTracker(){
+    const tracker = createGeoTracker()
+    onBeforeUnmount(tracker.stop) // stop GPS if the user leaves the page
+    return tracker
 }

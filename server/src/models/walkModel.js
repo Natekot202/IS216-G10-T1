@@ -48,6 +48,7 @@ const walkSchema = new mongoose.Schema(
 
     mode: { type: String, enum: WALK_MODES, default: 'route' },
     instructions: { type: String, default: '' },      // the walk task's text, e.g. "30 min around the park"
+    ownerNotes: { type: String, default: '' },        // the care details added after confirming, e.g. where the leash is
 
     // A COPY of the route and home at the time the walk was created,
     // so editing or deleting the route later doesn't change past walks.
@@ -61,6 +62,7 @@ const walkSchema = new mongoose.Schema(
     startedAt: { type: Date, default: null },
     endedAt: { type: Date, default: null },
     endedEarlyReason: { type: String, trim: true, maxlength: 200, default: '' },
+    backHomeRemindedAt: { type: Date, default: null }, // the sitter was reminded to end the walk (once per walk)
 
     // Filled in when the walk ends
     walkedPath: { type: lineStringSchema, default: null },
