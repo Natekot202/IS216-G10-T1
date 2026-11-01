@@ -24,7 +24,8 @@ const bookingSchema = new mongoose.Schema(
       enum: ['pending', 'accepted', 'confirmed', 'declined', 'paid', 'in-progress', 'completed', 'cancelled', 'expired'],
       default: 'pending'
     },
-    cancelledBy: { type: String, enum: ['owner', 'sitter'] } // only set on cancelled bookings
+    cancelledBy: { type: String, enum: ['owner', 'sitter'] }, // only set on cancelled bookings
+    cancelReason: { type: String, trim: true, maxlength: 300 } // why it was cancelled (required when cancelling), only set on cancelled bookings
   },
   { timestamps: true }
 )

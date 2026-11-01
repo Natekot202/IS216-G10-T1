@@ -16,7 +16,7 @@ defineProps({
   margin-top: 1rem;
   padding: 1.15rem 1.3rem;
   border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #e6d3c0;
+  border-top: 4px solid var(--line);
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);

@@ -19,6 +19,7 @@ import walkRouteRoutes from './src/routes/walkRoutes.js'
 import paymentRoutes from './src/routes/paymentRoute.js'
 import walksRoutes from './src/routes/walks.js'
 import notificationRoutes from './src/routes/notifications.js'
+import bookingMessageRoutes from './src/routes/bookingMessages.js'
 import mongoose from 'mongoose'
 import { recalcAllRatings, watchReviews } from './src/utils/ratingsCalc.js'
 import { startExpiringBookings } from './src/utils/expireBookings.js'
@@ -62,6 +63,7 @@ app.use('/api/sitters', sitterRoute);
 app.use('/api/users', userRoutes)  
 app.use('/api/availability', availabilityRoutes)
 app.use('/api/bookings', bookingCreateRoutes)
+app.use('/api/bookings', bookingMessageRoutes)
 app.use('/api/visits', visitRoutes)   
 app.use('/api/reviews', reviewRoutes)
 app.use('/api/google', googleCalendarRoutes)

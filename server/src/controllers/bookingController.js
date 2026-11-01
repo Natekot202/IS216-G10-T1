@@ -1,6 +1,7 @@
 import Booking from '../models/bookingModel.js'
+import { notifyBookingOnce } from '../models/notificationModel.js'
 import { syncBookingToGoogle } from '../utils/googleCalendar.js'
-import { bookingRange, findClash, findPetClash, describeBooking } from '../utils/bookingTimes.js'
+import { bookingRange, dailyRanges, findClash, findPetClash, describeBooking } from '../utils/bookingTimes.js'
 
 // GET /api/bookings                         -> all my bookings
 // GET /api/bookings?status=pending,accepted -> only those statuses
@@ -62,7 +63,7 @@ export const updateBookingStatus = async (req, res) => {
   // A sitter can't accept a request that overlaps another booking they already accepted.
   // (Two pending requests may overlap each other, so this is checked again at the moment of accepting.)
   if (status === 'accepted') {
-    const clash = await findClash(booking.sitterId, bookingRange(booking), booking._id)
+    const clash = await findClash(booking.sitterId, dailyRanges(booking), booking._id) // checked day by day: the times are the hours for each day
     if (clash) {
       return res.status(409).json({ message: `You already have a booking ${describeBooking(clash)}, so you can't accept this overlapping request.` })
     }
@@ -70,6 +71,20 @@ export const updateBookingStatus = async (req, res) => {
 
   booking.status = status
   await booking.save()
+
+  if (status === 'accepted') {
+    try {
+      await notifyBookingOnce(
+        booking,
+        booking.ownerId,
+        'booking-accepted',
+        'The sitter accepted your booking request. Confirm it to lock it in.'
+      )
+    } catch (err) {
+      // The booking acceptance should stand even if its notification cannot be saved.
+      console.error('Could not create booking-accepted notification:', err.message)
+    }
+  }
 
   // (The booking goes into the sitter's Google Calendar later, when the owner confirms.)
   res.json(booking)
@@ -108,6 +123,18 @@ export const confirmBooking = async (req, res) => {
 
   booking.status = 'confirmed'
   await booking.save()
+
+  try {
+    await notifyBookingOnce(
+      booking,
+      booking.sitterId,
+      'booking-confirmed',
+      'The owner confirmed your booking. It is now final.'
+    )
+  } catch (err) {
+    // The booking confirmation should stand even if its notification cannot be saved.
+    console.error('Could not create booking-confirmed notification:', err.message)
+  }
 
   // Now that it's final, add the booking to the sitter's Google Calendar.
   // This never blocks or fails the confirm: googleSync just says what happened, e.g. { synced: true }.

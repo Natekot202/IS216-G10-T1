@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { bookingsApi } from '../services/bookingApi.js'
 import { currentUser } from '../services/auth.js'
 import { formatTime, formatDateRange, formatPrice } from '../utils/bookingHelpers.js'
+import ProfileChecklistCard from '../components/ProfileChecklistCard.vue'
 
 const bookings = ref([])
 const loading = ref(true)
@@ -66,6 +67,8 @@ onMounted(loadDashboard)
         Review requests ({{ newRequests.length }})
       </router-link>
     </div>
+
+    <ProfileChecklistCard />
 
     <div v-if="error" class="alert alert-warning">{{ error }}</div>
     <div v-else-if="loading" class="text-muted">Loading your dashboard…</div>
@@ -170,10 +173,10 @@ onMounted(loadDashboard)
                 <div class="availability-icon" aria-hidden="true">📅</div>
                 <div>
                   <h2 class="h5 fw-bold mb-1">Keep your availability up to date</h2>
-                  <p class="small text-muted mb-0">Owners can only book the times you're free.</p>
+                  <p class="small mb-0 availability-sub">Owners can only book the times you're free.</p>
                 </div>
               </div>
-              <router-link to="/sitter/calendar" class="btn w-100 outline-btn">Update calendar</router-link>
+              <router-link to="/sitter/calendar" class="btn w-100 availability-btn">Update calendar</router-link>
             </div>
           </section>
         </div>
@@ -183,21 +186,29 @@ onMounted(loadDashboard)
 </template>
 
 <style scoped>
+.card {
+  margin-top: 1rem;
+  border: 1px solid rgba(196, 119, 86, 0.3);
+  border-top: 4px solid var(--line);    
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);
+}
 .stat-number {
-  color: #c44f1c;
+  color: var(--accent-deep);
 }
 .stat-tile:hover {
-  border-color: #c44f1c;
+  border-color: var(--accent-deep);
 }
 .main-btn {
-  background-color: #c44f1c;
+  background-color: var(--accent-deep);
 }
 .main-btn:hover {
   background-color: #a8431a;
   color: #fff;
 }
 .outline-btn {
-  border: 1px solid #c44f1c;
+  border: 1px solid var(--accent-deep);
   color: #a8431a;
   background-color: #fff;
 }
@@ -218,23 +229,52 @@ onMounted(loadDashboard)
   justify-content: center;
 }
 .count-badge {
-  background-color: #c44f1c;
+  background-color: var(--accent-deep);
 }
 .see-all {
   color: #a8431a;
 }
 .availability-card {
-  background-color: #fffaf7;
-  border-color: #e7b9a4;
+  --av-ink: #343434;
+  --av-sub: rgba(56, 52, 52, 0.88);
+  --av-tile: #fff;
+  border: 1px solid rgba(196, 119, 86, 0.3);
+  border-top: 4px solid var(--accent);    
+  border-radius: 16px;
+  background-color: #f1d1db;
+  color: var(--av-ink);
+  box-shadow: 0 10px 24px rgb(var(--accent-rgb) / 0.35);
+}
+.availability-card h2 {
+  color: var(--av-ink);
+}
+.availability-sub {
+  color: var(--av-sub);
 }
 .availability-icon {
   width: 40px;
   height: 40px;
   flex: none;
   border-radius: 10px;
-  background-color: #fbeee8;
+  background-color: var(--av-tile);
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.availability-btn {
+  border: 0;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--accent);
+  font-weight: 700;
+}
+.availability-btn:hover,
+.availability-btn:focus-visible {
+  background: var(--tint-soft);
+  color: var(--accent-hover);
+}
+.availability-btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
 </style>

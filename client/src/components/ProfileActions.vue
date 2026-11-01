@@ -18,11 +18,11 @@ const needsLogin = computed(() =>
 </script>
 
 <template>
-    <router-link v-if="editable" class="btn btn-sm button" style="background-color:#a85a38;" to="/editProfile">
+    <router-link v-if="editable" class="btn btn-sm button" style="background-color:var(--accent);" to="/editProfile">
         Edit Details
     </router-link>
 
-    <router-link v-else-if="canRequestBooking" class="btn btn-sm button" style="background-color:#a85a38;" :to="{ path: '/bookings/new', query: { sitterId: profile._id } }">
+    <router-link v-else-if="canRequestBooking" class="btn btn-sm button" style="background-color:var(--accent);" :to="{ path: '/bookings/new', query: { sitterId: profile._id } }">
         Request Booking
     </router-link>
 
@@ -35,7 +35,7 @@ const needsLogin = computed(() =>
 .button {
   padding: 0.4rem 0.95rem;
   border: 0;
-  background: #a85a38;
+  background: var(--accent);
   color: #fff;
   font-weight: 600;
 }

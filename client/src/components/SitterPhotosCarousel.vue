@@ -160,12 +160,12 @@ function onTouchEnd(e) {
   right: calc(50% - var(--pcar-w) / 2 - 1.35rem);
 }
 .pcar__arrow:hover {
-  background: #a85a38;
+  background: var(--accent);
   color: #fff;
   transform: translateY(-50%) scale(1.06);
 }
 .pcar__arrow:focus-visible {
-  outline: 2px solid #c44f1c;
+  outline: 2px solid var(--accent-deep);
   outline-offset: 2px;
 }
 .pcar__dots {
@@ -195,12 +195,12 @@ function onTouchEnd(e) {
 .pcar__fill {
   position: absolute;
   inset: 0;
-  background: #c47756;
+  background: var(--accent-main);
   transform-origin: left;
   animation: pcar-fill var(--pcar-interval) linear forwards;
 }
 .pcar__dot:focus-visible {
-  outline: 2px solid #c44f1c;
+  outline: 2px solid var(--accent-deep);
   outline-offset: 2px;
 }
 @keyframes pcar-fill {

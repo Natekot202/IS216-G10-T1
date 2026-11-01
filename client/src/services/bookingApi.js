@@ -26,7 +26,7 @@ export const bookingsApi = {
     return res.data
   },
   // The owner or the sitter cancels a pending, accepted or confirmed booking
-  cancel: (id) => api.patch(`/bookings/${id}/cancel`).then((res) => res.data),
+  cancel: (id, reason) => api.patch(`/bookings/${id}/cancel`, { reason }).then((res) => res.data), // reason = why it was cancelled (required)
   // The care tasks the owner added to a booking request: { items: [...] }
   getCareTasks: (id) => api.get(`/bookings/${id}/care-tasks`).then((res) => res.data)
 }

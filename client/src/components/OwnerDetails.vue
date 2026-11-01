@@ -6,6 +6,7 @@ import { usePhotoPicker } from '../utils/usePhotoPicker.js'
 import StatsBand from './StatsBand.vue'
 import InfoCard from './InfoCard.vue'
 import PillList from './PillList.vue'
+import { confirmDialog } from '../utils/useConfirm.js'
 
 const pets = ref([])
 const loading = ref(true)
@@ -179,7 +180,16 @@ async function submitPet() {
 }
 
 async function deletePet(id) {
-  if (!props.editable || !confirm('Remove this pet?')) {
+  if (!props.editable) {
+    return
+  }
+  const ok = await confirmDialog({
+    title: 'Remove this pet?',
+    message: "This also deletes their photo, and it can't be undone.",
+    confirmText: 'Remove',
+    danger: true
+  })
+  if (!ok) {
     return
   }
   error.value = ''
@@ -381,18 +391,18 @@ const ownerStats = computed(() => [
 .od-add {
   padding: 0.4rem 0.95rem;
   border: 0;
-  background: #a85a38;
+  background: var(--accent);
   color: #fff;
   font-weight: 600;
 }
 .od-add:hover {
-  background: #8f4a2c;
+  background: var(--accent-hover);
   color: #fff;
 }
 
 .od-empty {
   padding: 1.5rem 1.25rem;
-  border: 1px dashed #c47756;
+  border: 1px dashed var(--accent-main);
   border-radius: 16px;
   background: rgba(196, 119, 86, 0.08);
   color: #2b2420;
@@ -402,7 +412,7 @@ const ownerStats = computed(() => [
   margin-top: 1.25rem;
   padding: 1.25rem;
   border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #e6d3c0;    
+  border-top: 4px solid var(--line);    
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.7);
   box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);
@@ -434,11 +444,11 @@ const ownerStats = computed(() => [
   cursor: pointer;
 }
 .od-photo:hover {
-  border-color: #c47756;
-  background: #f4e4d3;
+  border-color: var(--accent-main);
+  background: var(--sand);
 }
 .od-photo:focus-within {
-  outline: 2px solid #c44f1c;
+  outline: 2px solid var(--accent-deep);
   outline-offset: 2px;
 }
 .od-photo small {
@@ -467,12 +477,12 @@ const ownerStats = computed(() => [
 .od-submit {
   padding: 0.5rem 1.4rem;
   border: 0;
-  background: #a85a38;
+  background: var(--accent);
   color: #fff;
   font-weight: 600;
 }
 .od-submit:hover:not(:disabled) {
-  background: #8f4a2c;
+  background: var(--accent-hover);
   color: #fff;
 }
 </style>

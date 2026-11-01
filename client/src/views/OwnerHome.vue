@@ -11,7 +11,8 @@ import DistanceFilter from "../components/DistanceFilter.vue";
 import DateRangeFilter from "../components/DateRangeFilter.vue";
 import RecommendedSitters from "../components/RecommendedSitters.vue";
 import AdditionalFilters from "../components/AdditionalFilters.vue";
-
+import { usePagination } from '../utils/usePagination.js'
+import PaginationBar from '../components/PaginationBar.vue'
 
 const URL = 'http://localhost:5000'
 const profilePic = computed(() => currentUser.value?.profilePicture?.url || "")
@@ -35,6 +36,9 @@ watch(showMapModal, open => {
   if (open) window.addEventListener('keydown', onEsc)
   else window.removeEventListener('keydown', onEsc)
 })
+
+const PAGE_SIZE = 6
+const listEl = ref(null)
 
 //search rating
 const userRating = ref(0) //initial rating value
@@ -139,10 +143,6 @@ const activeFilters = computed(() => {
     clear: () => { availableFrom.value = ''; availableTo.value = '' }
   })
 
-  // if (minValue.value > minLimit.value || maxValue.value < maxLimit.value) chips.push({
-  //   key: 'price', label: `$${minValue.value}–$${maxValue.value}/hr`,
-  //   clear: () => { minValue.value = minLimit.value; maxValue.value = maxLimit.value }
-  // })
 
   selectedPets.value.forEach(p => chips.push({
     key: `pet-${p}`, label: p.charAt(0).toUpperCase() + p.slice(1),
@@ -284,6 +284,16 @@ function sortByDistance(list) {
   return [...list].sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity))
 }
 
+const { page, pageItems: pagedSitters, goPage, reset } = usePagination(searchResults, {
+  pageSize: PAGE_SIZE,
+  scrollRef: listEl
+})
+
+watch(
+  [searchKey, selectedPets, otherPets, userRating, origin, maxDistanceKm, availableFrom, availableTo],
+  reset,
+  { deep: true }
+)
 
 onMounted(()=>{
   mq = window.matchMedia('(min-width: 992px)')
@@ -301,7 +311,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div class="oh container-fluid">
+    <div class="owner-home container-fluid">
       <!-- heading -->
       <div class="d-flex flex-column mb-2">
         <!-- search bar  -->
@@ -327,10 +337,10 @@ onBeforeUnmount(() => {
       <!-- main body -->
       <div class="row gx-2">
       
-        <div class="col-md-4 col-lg-3">
+        <div class="col-md-4 col-lg-2">
 
           <!-- filter panel  -->
-          <FilterPanel :result-count="searchResults.length" @clear="clearFilters">
+          <FilterPanel :result-count="searchResults.length" @clear="clearFilters" :activeFilters="activeFilters">
             <LocationQuery
               v-model:location-query="locationQuery"
               :location-suggestions="locationSuggestions"
@@ -361,17 +371,18 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
-          <div class="row">
-            <div class="col-12 mb-3" v-for="sitter in searchResults" :key="sitter._id">
+          <div ref="listEl" class="row">
+            <div class="col-12 mb-3" v-for="sitter in pagedSitters" :key="sitter._id">
               <SitterProfileCard :sitter="sitter">
                 <router-link :to="`/users/${sitter._id}`" class="btn btn-outline-danger rounded col-12 fw-semibold bg-light mt-3">View Profile</router-link>
               </SitterProfileCard>
             </div>
           </div>
+          <PaginationBar :page="page" :total="searchResults.length" :page-size="PAGE_SIZE" @change="goPage" />
         </div>
 
         <!-- map: right column at lg only -->
-        <div class="col-lg-4 d-none d-lg-block">
+        <div class="col-lg-5 d-none d-lg-block">
           <div class="map-panel">
             <SitterMap v-if="isLg" :profiles="searchResults" :origin="origin" :userLocation="userLocation" />
           </div>
@@ -389,6 +400,22 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.owner-home .btn-outline-danger:hover:not(:disabled),
+.owner-home .btn-outline-danger:focus-visible:not(:disabled),
+.owner-home :deep(.filter-panel button:not(.btn-link):not(.btn-close):hover:not(:disabled)),
+.owner-home :deep(.filter-panel button:not(.btn-link):not(.btn-close):focus-visible:not(:disabled)) {
+  background-color: var(--accent-hover) !important;
+  border-color: var(--accent-hover) !important;
+  color: #fff !important;
+}
+
+.owner-home .btn-link:hover,
+.owner-home .btn-link:focus-visible,
+.owner-home :deep(.filter-panel .btn-link:hover),
+.owner-home :deep(.filter-panel .btn-link:focus-visible) {
+  color: var(--accent-hover) !important;
+}
+
 .map-panel {
   position: sticky;
   top: 7vh;
@@ -410,5 +437,9 @@ onBeforeUnmount(() => {
   position: absolute; top: .75rem; right: .75rem; z-index: 1100;   /* Leaflet controls sit at 1000 */
   width: 2.5rem; height: 2.5rem; border: 0; border-radius: 50%;
   background: #3b4248; color: #fff; font-size: 1.1rem;
+}
+.map-close:hover,
+.map-close:focus-visible {
+  background: #2b2420;
 }
 </style>

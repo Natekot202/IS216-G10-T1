@@ -31,7 +31,7 @@ const taskSummary = computed(() => summariseTasks(taskItems.value, props.booking
       <button
         v-if="taskItems.length"
         type="button"
-        class="btn btn-link btn-sm p-0 text-decoration-none toggle-link"
+        class="btn btn-link btn-sm px-0 py-2 text-decoration-none toggle-link"
         @click="showAll = !showAll"
       >
         {{ showAll ? 'Hide full details ▲' : 'Show full details ▼' }}

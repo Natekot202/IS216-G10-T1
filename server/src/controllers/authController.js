@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt'
 import User from '../models/UserModel.js'
+import { passwordProblems } from '../utils/passwordRules.js';
 
 export const postSignup = async (req, res) => {
   try {
@@ -9,42 +10,33 @@ export const postSignup = async (req, res) => {
       return res.status(400).json({ errors: ["Please fill in all fields."] });
     }
 
-    const errors = [];
-    const cleanEmail = email.trim().toLowerCase();
+    const errors = []
+    const cleanUsername = String(username).trim()
+    const cleanEmail = String(email).trim().toLowerCase()
+    const pwd = String(password)
 
-    if (!cleanEmail.includes('.com')) {
-        errors.push("Must be a valid email.");
+    if (!['owner', 'sitter'].includes(role)) {
+      errors.push('Please choose a valid role.')
     }
-
-    if (password !== confirmPassword) {
-        errors.push("Passwords do not match.");
+    if (!cleanUsername || /[@\s]/.test(cleanUsername)) {
+      errors.push("Username can't contain @ or spaces.")
     }
-
-    if (password.length < 8) {
-        errors.push("Password must be at least 8 characters.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      errors.push('Must be a valid email.')
     }
-
-    const passwordRegex = /[!@#$%^&*]/;
-    if (!passwordRegex.test(password)) {
-        errors.push("Password must contain at least 1 special character.");
+    if (await User.getUserByEmail(cleanEmail)) {
+      errors.push('Email is already registered.')
     }
-
-    if (!/[A-Z]/.test(password)) {
-      errors.push('Password must contain at least 1 uppercase letter.')
+    if (cleanUsername && await User.getUserByUsername(cleanUsername)) {
+      errors.push('Username is already taken.')
     }
-
-    const existingUser = await User.getUserByEmail(cleanEmail);
-    if (existingUser) {
-        errors.push("Email is already registered."); 
+    if (pwd !== String(confirmPassword)) {
+      errors.push('Passwords do not match.')
     }
-
-    const existingUser2 = await User.getUserByUsername(username);
-    if (existingUser2) {
-        errors.push("Username is already registered."); 
-    }
+    errors.push(...passwordProblems(pwd))
 
     if (errors.length > 0) {
-        return res.status(400).json({ errors });
+      return res.status(400).json({ errors })
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -101,13 +93,42 @@ export const me = async (req, res) => {
   if (!req.session.userId) {
     return res.status(401).json({ message: "Not logged in" });
     }
-  const user = await User.findById(req.session.userId).select('-password +ownerProfile.address +sitterProfile.address')  
+  const user = await User.findById(req.session.userId).select('-password +ownerProfile.address +ownerProfile.instructions +sitterProfile.address')  
   // res.json({ id: user._id, username: user.username, role: user.role, bio: user.bio });
   // if (!user){
   //   return res.status(401).json({ message: "Not logged in" });
   // }
   res.json(user); // to return all
 };
+
+export const changePassword = async (req, res) => {
+  const { currentPassword, newPassword } = req.body
+
+  if (typeof currentPassword !== 'string' || typeof newPassword !== 'string' || !currentPassword || !newPassword) {
+    return res.status(400).json({ message: 'Please fill in both passwords.' })
+  }
+
+  const user = await User.findById(req.session.userId).select('+password')
+  if (!user) {
+    return res.status(401).json({ message: 'Please log in again.' })
+  }
+
+  if (!(await bcrypt.compare(currentPassword, user.password))) {
+    return res.status(400).json({ message: 'Your current password is incorrect.' })
+  }
+  if (await bcrypt.compare(newPassword, user.password)) {
+    return res.status(400).json({ message: 'Your new password must be different from the current one.' })
+  }
+
+  const problems = passwordProblems(newPassword)
+  if (problems.length > 0) {
+    return res.status(400).json({ message: problems[0], errors: problems })
+  }
+
+  const hash = await bcrypt.hash(newPassword, 10)
+  await User.updateOne({ _id: user._id }, { password: hash })
+  res.json({ message: 'Password updated.' })
+}
 
 export const logout = (req, res) => {
   req.session.destroy((err) => {

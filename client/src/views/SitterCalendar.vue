@@ -5,8 +5,8 @@ import { Popover } from 'bootstrap'
 import { useRoute } from 'vue-router'
 import AvailabilityCalendar from '../components/AvailabilityCalendar.vue'
 import { availabilityApi } from '../services/availabilityApi.js'
-import { toDateString } from '../utils/bookingTimeHelpers.js'
-import { ALL_DAY, shortTime, groupBookingsByDay, chipText, paintedSlots } from '../utils/availabilityHelpers.js'
+import { toDateString, DAY_MIN, DAY_START_MIN } from '../utils/bookingTimeHelpers.js'
+import { ALL_DAY, shortTime, groupBookingsByDay, chipText, paintedSlots, replacedSlots } from '../utils/availabilityHelpers.js'
 
 // Same setup as services/bookingApi.js: Vite forwards /api to the server, and
 // withCredentials sends the login cookie. (Only the Google Calendar calls use it here.)
@@ -20,7 +20,8 @@ const nowMinutes = now.getHours() * 60 + now.getMinutes() // minutes after midni
 // so if e.g. the person isnt free from 9am ( 540 mins aft 12am) - 930am (570 mins after 12am),then we assume that 
 // 1) he starts at 9am 
 // 2) he ends just before 930 (so doesnt include 930 itself i.e end time is excluded)
-//  -> a whole day has all 48 slots in saved ; saved = {'date':[0,30,60,....1410]}
+//  -> a whole day (7am to 12am) has all 34 slots in saved ; saved = {'date':[420,450,480,....1410]}
+//  -> nothing before 7am can be free or booked
 //  -> a day with some bookings ; saved = {'date':[540,570,...990]}
 
 const saved = ref({}) // what the server has: { '2026-10-20': [540, 570, ...] } i.e the orignal database value ( [] = unavailable )
@@ -67,8 +68,8 @@ function undoChanges() {
 
 // ----- Selected day: click a day on the calendar, then set its hours from here -----
 const selected = ref(today)
-const dayStart = ref(0) // minutes after midnight
-const dayEnd = ref(24 * 60)
+const dayStart = ref(DAY_START_MIN) // minutes after midnight (7am, the earliest allowed)
+const dayEnd = ref(DAY_MIN)
 
 const selectedTitle = computed(() =>
   new Date(selected.value + 'T00:00:00').toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })
@@ -78,8 +79,7 @@ const selectedBookings = computed(() =>
   (groupBookingsByDay(bookings.value)[selected.value] || []).map((b) => chipText(b, selected.value))
 )
 const selectedStatus = computed(() => {
-  const slots = changes.value[selected.value] ?? saved.value[selected.value] ?? null
-  if (slots === null) return 'Not set yet'
+  const slots = changes.value[selected.value] ?? saved.value[selected.value] ?? [] // a day never set = unavailable
   if (!slots.length) return 'Not available'
   const hours = slots.length / 2
   return `${hours} free hour${hours === 1 ? '' : 's'}`
@@ -91,27 +91,31 @@ function applyDay(on) {
     return
   }
   const date = selected.value
-  const current = changes.value[date] ?? saved.value[date] ?? null
-  const list = paintedSlots(current, date, dayStart.value, dayEnd.value, on, groupBookingsByDay(bookings.value)[date] || [], today, nowMinutes)
+  const current = changes.value[date] ?? saved.value[date] ?? []
+  const dayBookings = groupBookingsByDay(bookings.value)[date] || []
+  // "Set as free" replaces the day's hours with just this range ; "Not free" only removes this range
+  const list = on
+    ? replacedSlots(current, date, dayStart.value, dayEnd.value, dayBookings, today, nowMinutes)
+    : paintedSlots(current, date, dayStart.value, dayEnd.value, on, dayBookings, today, nowMinutes)
   if (list) {
     setSlots(date, list)
     message.value = null
   } else {
-    message.value = { type: 'warning', text: `Nothing to change: those hours are already ${on ? 'available' : 'unavailable'}, in the past, or booked.` }
+    message.value = { type: 'warning', text: on ? 'Nothing to change: those are already the only free hours that day, or the day is in the past or booked.' : 'Nothing to change: those hours are already not free, in the past, or booked.' }
   }
 }
 
 // ----- Days I'm free: set the same weekdays and hours for the next few weeks -----
 const patDays = ref([1, 2, 3, 4, 5]) // weekdays 0 = Sunday ... 6 = Saturday
 const patWeeks = ref(4)
-const patStartMinutes = ref(0) // minutes after midnight
-const patEndMinutes = ref(24 * 60)
+const patStartMinutes = ref(DAY_START_MIN) // minutes after midnight (7am, the earliest allowed)
+const patEndMinutes = ref(DAY_MIN)
 const dayNames = [
   { n: 0, name: 'Sun' }, { n: 1, name: 'Mon' }, { n: 2, name: 'Tue' }, { n: 3, name: 'Wed' },
   { n: 4, name: 'Thu' }, { n: 5, name: 'Fri' }, { n: 6, name: 'Sat' }
 ] // starts on Sunday, like the calendar
-const fromOptions = ALL_DAY // every half-hour 12:00 am ... 11:30 pm
-const toOptions = [...ALL_DAY.slice(1), 24 * 60] // every half-hour 12:30 am ... 12:00 am (end of the day)
+const fromOptions = ALL_DAY // every half-hour 7:00 am ... 11:30 pm
+const toOptions = [...ALL_DAY.slice(1), DAY_MIN] // every half-hour 7:30 am ... 12:00 am (end of the day)
 
 function togglePatDay(n) {
   if (patDays.value.includes(n)) patDays.value = patDays.value.filter((d) => d !== n)
@@ -133,8 +137,10 @@ function applyPattern(on) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)
     if (!patDays.value.includes(d.getDay())) continue
     const date = toDateString(d)
-    const current = changes.value[date] ?? saved.value[date] ?? null
-    const list = paintedSlots(current, date, patStartMinutes.value, patEndMinutes.value, on, bookedDays[date] || [], today, nowMinutes)
+    const current = changes.value[date] ?? saved.value[date] ?? []
+    const list = on
+      ? replacedSlots(current, date, patStartMinutes.value, patEndMinutes.value, bookedDays[date] || [], today, nowMinutes)
+      : paintedSlots(current, date, patStartMinutes.value, patEndMinutes.value, on, bookedDays[date] || [], today, nowMinutes)
     if (list) {
       setSlots(date, list)
       changed++
@@ -142,7 +148,7 @@ function applyPattern(on) {
   }
   message.value = changed
     ? null // the yellow bar above already says there are unsaved days
-    : { type: 'warning', text: `Nothing to change: those hours are already ${on ? 'available' : 'unavailable'}, in the past, or booked.` }
+    : { type: 'warning', text: on ? 'Nothing to change: those days already have only those free hours, or are in the past or booked.' : 'Nothing to change: those hours are already not free, in the past, or booked.' }
 }
 
 // ----- Google Calendar -----
@@ -301,13 +307,13 @@ onMounted(async () => {
             <div class="row g-2 my-2">
               <div class="col-6">
                 <label class="form-label small mb-1" for="day-start">From</label>
-                <select id="day-start" v-model="dayStart" class="form-select form-select-sm">
+                <select id="day-start" v-model="dayStart" class="form-select">
                   <option v-for="m in fromOptions" :key="m" :value="m">{{ shortTime(m) }}</option>
                 </select>
               </div>
               <div class="col-6">
                 <label class="form-label small mb-1" for="day-end">Until</label>
-                <select id="day-end" v-model="dayEnd" class="form-select form-select-sm">
+                <select id="day-end" v-model="dayEnd" class="form-select">
                   <option v-for="m in toOptions" :key="m" :value="m">{{ shortTime(m) }}{{ m === 1440 ? ' (end of day)' : '' }}</option>
                 </select>
               </div>
@@ -340,19 +346,19 @@ onMounted(async () => {
             <div class="row g-2 mb-2">
               <div class="col-6">
                 <label class="form-label small mb-1" for="pat-start">From</label>
-                <select id="pat-start" v-model="patStartMinutes" class="form-select form-select-sm">
+                <select id="pat-start" v-model="patStartMinutes" class="form-select">
                   <option v-for="m in fromOptions" :key="m" :value="m">{{ shortTime(m) }}</option>
                 </select>
               </div>
               <div class="col-6">
                 <label class="form-label small mb-1" for="pat-end">Until</label>
-                <select id="pat-end" v-model="patEndMinutes" class="form-select form-select-sm">
+                <select id="pat-end" v-model="patEndMinutes" class="form-select">
                   <option v-for="m in toOptions" :key="m" :value="m">{{ shortTime(m) }}{{ m === 1440 ? ' (end of day)' : '' }}</option>
                 </select>
               </div>
             </div>
             <label class="form-label small mb-1" for="pat-weeks">For the next</label>
-            <select id="pat-weeks" v-model="patWeeks" class="form-select form-select-sm mb-3">
+            <select id="pat-weeks" v-model="patWeeks" class="form-select mb-3">
               <option v-for="w in 12" :key="w" :value="w">{{ w }} week{{ w === 1 ? '' : 's' }}</option>
             </select>
             <div class="d-flex gap-2">
@@ -373,9 +379,9 @@ onMounted(async () => {
   --ink: #2b2420;
   --muted: #766a60;
   --line: #e4dbd0;
-  --accent: #c47756;
-  --open: #e3e9dc;
-  --open-line: #8aa07c;
+  --accent: var(--accent-main);
+  --open: #cfe6c2;
+  --open-line: #5f9150;
   --blocked: #e6dfd6;
   font-family: 'Nunito', system-ui, sans-serif;
   color: var(--ink);
@@ -409,8 +415,8 @@ onMounted(async () => {
 
 /* ----- Google Calendar switch ----- */
 .google-box { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px 6px 12px; }
-.google-box .form-check-input:checked { background-color: #c44f1c; border-color: #c44f1c; }
-.info-btn { border: 0; background: none; color: var(--muted); padding: 2px; line-height: 0; border-radius: 50%; }
+.google-box .form-check-input:checked { background-color: var(--accent-deep); border-color: var(--accent-deep); }
+.info-btn { border: 0; background: none; color: var(--muted); padding: 8px; line-height: 0; border-radius: 50%; }
 .info-btn:hover, .info-btn:focus-visible { color: var(--ink); }
 
 
@@ -428,9 +434,9 @@ onMounted(async () => {
   background: var(--blocked);
   color: var(--muted);
   border-radius: 2px;
-  padding: 8px 0 5px;
+  padding: 11px 0 8px;
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
 }
 .free-day.on { background: var(--open); color: var(--ink); border-bottom-color: var(--open-line); }
 

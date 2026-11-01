@@ -7,6 +7,7 @@ import defaultAvatar from '../assets/img/tempProfile.jpg'
 import { usePhotoPicker } from '../utils/usePhotoPicker.js'
 import LocationQuery from '../components/LocationQuery.vue'
 import { useLocationSearch } from '../utils/useLocationSearch.js'
+import { confirmDialog } from '../utils/useConfirm.js'
 
 const router = useRouter()
 
@@ -20,7 +21,13 @@ const { file: picFile, preview, error: picError, input: fileInput, onPick, clear
 const removing = ref(false)
 
 async function removePicture() {
-  if (!confirm('Remove your profile picture?')) {
+  const ok = await confirmDialog({
+    title: 'Remove your profile picture?',
+    message: "You'll go back to the default avatar.",
+    confirmText: 'Remove',
+    danger: true
+  })
+  if (!ok) {
     return
   }
   removing.value = true
@@ -48,6 +55,7 @@ function toTitleCase(s) {
 const form = ref({
   username: '',
   bio: '',
+  instructions: '',
   sitterProfile: {
     experienceStart: '',
     serviceArea: '',
@@ -62,10 +70,10 @@ let hadAddress = false
 
 function fillForm(user) {
   const sp = user.sitterProfile || {}
-  const addr = user.ownerProfile?.address || {}
   form.value = {
     username: user.username || '',
     bio: user.bio || '',
+    instructions: user.ownerProfile?.instructions || '',
     sitterProfile: {
       experienceStart: sp.experienceStart ? sp.experienceStart.slice(0, 7) : '',
       serviceArea: sp.serviceArea?.label || '',
@@ -141,7 +149,13 @@ function clearPending(item) {
 }
 
 async function deleteSaved(photo) {
-  if (!confirm('Delete this photo?')) {
+  const ok = await confirmDialog({
+    title: 'Delete this photo?',
+    message: "It will disappear from your profile, and this can't be undone.",
+    confirmText: 'Delete',
+    danger: true
+  })
+  if (!ok) {
     return
   }
   removingId.value = photo._id
@@ -193,6 +207,7 @@ async function save() {
     }
     if (isOwner.value) {
       payload.servicesNeeded = [...form.value.servicesNeeded]
+      payload.instructions = form.value.instructions
     }
 
     currentUser.value = await usersApi.updateMe(payload)
@@ -261,8 +276,18 @@ async function save() {
             </template>
             <template v-if="isOwner">
               <label class="form-label mt-2" for="unit">Unit number</label>
-              <input id="unit" v-model="unit" class="form-control" placeholder="#05-123" maxlength="20" />
+              <input id="unit" v-model="unit" class="form-control mb-2" placeholder="#05-123" maxlength="20" />
             </template>
+            <template v-if="isOwner">
+              <label class="form-label mt-2" for="instr">Instructions to get in</label>
+              <textarea id="instr" v-model="form.instructions" class="form-control" rows="3" maxlength="300"
+                        placeholder="e.g. Door code 1234"></textarea>
+            </template>
+          </section>
+
+          <section class="ef-card ef-card--private">
+            <h4 class="ef-card__title">Password</h4>
+            <router-link to="/account/password" class="btn btn-sm mt-2" style="border:1px solid;">Change password</router-link>
           </section>
         </div>
 
@@ -355,8 +380,13 @@ async function save() {
             <div class="eg-grid">
               <div v-for="photo in savedGallery" :key="photo._id" class="eg-tile">
                 <img :src="photo.url" alt="One of your photos" />
-                <button type="button" class="btn-close eg-x bg-white p-1" aria-label="Delete photo"
-                        :disabled="removingId === photo._id" @click="deleteSaved(photo)"></button>
+                <button v-if="removingId !== photo._id" type="button" class="btn-close eg-x bg-white p-1"
+                        aria-label="Delete photo" :disabled="removingId !== null" @click="deleteSaved(photo)"></button>
+
+                <div v-else class="eg-deleting" role="status">
+                  <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                  <span>Deleting…</span>
+                </div>
               </div>
 
               <div v-for="item in pending" :key="item.id" class="eg-tile">
@@ -395,7 +425,10 @@ async function save() {
 </template>
 
 <style scoped>
-
+.sc-instructions {
+  white-space: pre-line;        
+  overflow-wrap: anywhere;      
+}
 .eg-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -406,7 +439,7 @@ async function save() {
   aspect-ratio: 1;
   overflow: hidden;
   border-radius: 12px;
-  background: #f4e4d3;
+  background: var(--sand);
 }
 .eg-tile img {
   width: 100%;
@@ -434,18 +467,18 @@ async function save() {
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
-  border: 2px dashed #c9a98f;
-  background: #f8eee3;
-  color: #5c524b;
+  border: 2px dashed rgb(var(--accent-rgb) / 0.5);
+  background: var(--tint-soft);
+  color: var(--accent);
   font-size: 0.85rem;
   cursor: pointer;
 }
 .eg-add:hover {
-  border-color: #c47756;
-  background: #f4e4d3;
+  border-color: var(--accent-main);
+  background: var(--sand);
 }
 .eg-add:focus-within {
-  outline: 2px solid #c44f1c;
+  outline: 2px solid var(--accent-deep);
   outline-offset: 2px;
 }
 
@@ -453,7 +486,7 @@ async function save() {
   margin-bottom: 1.5rem;
   padding: 1.25rem 1.35rem;
   border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #e6d3c0;    
+  border-top: 4px solid var(--line);    
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);
@@ -473,7 +506,7 @@ async function save() {
   color: #5c524b;
 }
 .ef-card--private {
-  background: #fbf1e6;
+  background: var(--tint-soft);
 }
 
 .ef-who {
@@ -493,7 +526,7 @@ async function save() {
   height: 150px;
   overflow: hidden;
   border-radius: 20px;
-  background: #f4e4d3;
+  background: var(--sand);
 }
 .ef-avatar img {
   width: 100%;
@@ -517,7 +550,7 @@ async function save() {
   background: rgba(43, 36, 32, 0.88);
 }
 .ef-avatar:focus-within {
-  outline: 2px solid #c44f1c;
+  outline: 2px solid var(--accent-deep);
   outline-offset: 2px;
 }
 .ef-avatar__actions {
@@ -553,18 +586,18 @@ async function save() {
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 .ef-chip input:hover + span {
-  border-color: #c47756;
+  border-color: var(--accent-main);
 }
 .ef-chip input:checked + span {
-  background: #a85a38;
-  border-color: #a85a38;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
 }
 .ef-chip input:checked + span::before {
   content: '✓ ';
 }
 .ef-chip input:focus-visible + span {
-  outline: 2px solid #c44f1c;
+  outline: 2px solid var(--accent-deep);
   outline-offset: 2px;
 }
 
@@ -579,8 +612,8 @@ async function save() {
   gap: 0.6rem;
   margin-top: 0.5rem;
   padding: 0.8rem 0;
-  border-top: 1px solid #e6d3c0;
-  background: rgba(255, 250, 245, 0.94);
+  border-top: 1px solid var(--line);
+  background: var(--tint-soft);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
@@ -592,12 +625,25 @@ async function save() {
 .ef-save {
   padding: 0.5rem 1.5rem;
   border: 0;
-  background: #a85a38;
+  background: var(--accent);
   color: #fff;
   font-weight: 600;
 }
 .ef-save:hover:not(:disabled) {
-  background: #8f4a2c;
+  background: var(--accent-hover);
   color: #fff;
+}
+.eg-deleting {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background: rgba(43, 36, 32, 0.6);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 </style>

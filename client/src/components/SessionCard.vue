@@ -4,7 +4,9 @@ import { useRouter } from 'vue-router'
 import { visitsApi, reviewsApi } from '../services/api.js'
 import { walkApi } from '../services/walkApi.js'
 import { usePhotoPicker } from '../utils/usePhotoPicker.js'
+import { sendPaymentNotification } from '../utils/sendNotification.js'
 import ReviewForm from '../components/ReviewForm.vue'
+import SessionChat from '../components/SessionChat.vue'
 
 const props = defineProps({
   session: { type: Object, required: true },    
@@ -14,10 +16,10 @@ const props = defineProps({
 })
 
 const ACCENTS = [
-  { main: '#c47756', tint: '#f6e3d6' },     
-  { main: '#6f8f5a', tint: '#e6eedd' }, 
-  { main: '#5f84a2', tint: '#e1ebf3' },    
-  { main: '#8e6b8f', tint: '#eee3ef' }      
+  { main: 'var(--accent-main)', tint: 'var(--tint)' },     
+  { main: '#6f8f5a', tint: '#e1eedd' },
+  { main: '#5f84a2', tint: '#e1ebf3' },
+  { main: '#8e6b8f', tint: '#eee3ef' }    
 ]
 const accent = computed(() => ACCENTS[props.index % ACCENTS.length])
 const STATUS_LABELS = { confirmed: 'Confirmed', paid: 'Paid', 'in-progress': 'In progress', completed: 'Completed' }
@@ -90,9 +92,14 @@ function countFor(item) {
   return visit.value.completedTasks.filter((t) => String(t.task) === String(item._id)).length
 }
 
+function canToggle(item, n) {
+  const c = countFor(item)
+  return n === c + 1 || n === c
+}
+
 async function tick(item, n, event) {
   const current = countFor(item)
-  if (!props.isSitter || !isActive.value || savingTask.value) {
+  if (!props.isSitter || !isActive.value || savingTask.value || !canToggle(item, n)) {
     event.target.checked = n <= current
     return
   }
@@ -171,6 +178,7 @@ async function submitReport() {
     visit.value = await visitsApi.end(visit.value._id, form)
     if (props.today === props.session.booking.endDate) {
       status.value = 'completed'
+      sendPaymentNotification(props.session.booking._id)
     }
     slots.forEach((s) => s.clear())
   } catch (err) {
@@ -269,8 +277,16 @@ watch(status, async (s) => {
                 <span v-if="address.unit">{{ address.unit }}</span>
                 <span v-if="address.postalCode">Singapore {{ address.postalCode }}</span>
               </address>
+
               <a :href="mapsUrl" target="_blank" rel="noopener" class="sc-link">Open in Google Maps</a>
-              <p class="sc-hint mt-2 mb-0">Shared with you because this booking is confirmed. <br> Do <strong style="color:red;">not</strong> share this with anyone else.</p>
+
+              <template v-if="address.instructions">
+                <h4 class="sc-title mt-3">Getting in</h4>
+                <p class="sc-instructions">{{ address.instructions }}</p>
+              </template>
+
+
+              <p class="sc-hint mt-2 mb-0">Shared with you because this booking is confirmed. <br> Do <strong class="text-danger">not</strong> share this with anyone else.</p>
             </template>
 
             <p v-else class="sc-hint mb-0">The owner hasn't added an address yet.</p>
@@ -300,16 +316,16 @@ watch(status, async (s) => {
             <p v-if="!session.items.length" class="sc-hint mb-0">No care checklist was added to this booking.</p>
             <div v-else class="sc-tasks">
               <div v-for="item in session.items" :key="item._id" class="sc-task">
-                <div class="d-flex gap-1">
+                <div class="sc-task__boxes">
                   <!-- walk tasks: the boxes only show progress; they're ticked by finishing a walk -->
                   <input v-for="n in item.dailyFrequency" :key="n" type="checkbox"
                          class="form-check-input mt-0 task-check"
                          :checked="n <= countFor(item)"
-                         :disabled="isWalkTask(item) || !isSitter || !isActive || savingTask"
+                         :disabled="!isSitter || !isActive || savingTask || !canToggle(item, n)"
                          :aria-label="isWalkTask(item) ? `Walk ${n}, ticked when the walk ends` : undefined"
                          @change="tick(item, n, $event)" />
                 </div>
-                <div class="flex-grow-1">
+                <div class="sc-task__main">
                   <span class="sc-task__title"
                         :class="{ 'sc-task__title--done': countFor(item) >= item.dailyFrequency }">{{ item.title }}</span>
                   <template v-if="isWalkTask(item)">
@@ -321,11 +337,11 @@ watch(status, async (s) => {
                     </small>
                   </template>
                 </div>
-                <small v-if="item.dailyFrequency > 1" class="text-muted">
+                <small v-if="item.dailyFrequency > 1" class="sc-task__count">
                   {{ countFor(item) }}/{{ item.dailyFrequency }}
                 </small>
                 <button v-if="isWalkTask(item) && isSitter && isActive && countFor(item) < item.dailyFrequency"
-                        type="button" class="sc-btn sc-btn--small" :disabled="startingWalk === item._id"
+                        type="button" class="sc-btn sc-btn--small sc-task__walk" :disabled="startingWalk === item._id"
                         @click="startWalk(item)">
                   {{ startingWalk === item._id ? 'Opening…' : 'Start walk' }}
                 </button>
@@ -335,7 +351,7 @@ watch(status, async (s) => {
 
           <!-- completion report -->
           <section class="sc-card">
-            <h4 class="sc-title">Visit report</h4>
+            <h4 class="sc-title">{{ isSitter ? 'Visit Report (Complete only at the end)' : 'Visit Report' }}</h4>
 
             <template v-if="isCompleted">
               <p class="text-break" style="white-space: pre-line">{{ visit.report.notes }}</p>
@@ -376,6 +392,9 @@ watch(status, async (s) => {
             <p v-else class="sc-hint mb-0">The sitter's report will appear here once the visit ends.</p>
           </section>
 
+          <!-- chat between the owner and sitter of this booking -->
+          <SessionChat :booking-id="session.booking._id" :is-sitter="isSitter" />
+
           <!-- owner: optional review -->
           <section v-if="!isSitter && status === 'completed' && reviewLoaded" class="sc-card">
             <h4 class="sc-title">Review your sitter (optional)</h4>
@@ -412,7 +431,7 @@ watch(status, async (s) => {
   border: 1px solid rgba(43, 36, 32, 0.12);
   border-radius: 20px;
   background: var(--bk-tint);
-  box-shadow: 0 10px 24px rgba(120, 70, 40, 0.14);
+  box-shadow: 0 10px 24px rgb(var(--accent-rgb) / 0.18);
 }
 
 .sc-head {
@@ -423,7 +442,14 @@ watch(status, async (s) => {
   padding: 1rem 1.25rem;
   background: #2b2420;
   color: #fff;
-  border-bottom: 4px solid var(--bk);        
+  border-bottom: 4px solid var(--bk);  
+  box-shadow: 0 4px 12px rgb(var(--accent-rgb) / 0.1);      
+}
+.sc-instructions {
+  margin: 0 0 0.6rem;
+  color: #2b2420;
+  white-space: pre-line;         
+  overflow-wrap: anywhere;        
 }
 .sc-who {
   display: flex;
@@ -456,7 +482,6 @@ watch(status, async (s) => {
 }
 .sc-name {
   color: #fff;
-  font-family: var(--font-heading, 'Trirong', Georgia, serif);
   font-size: 1.15rem;
   font-weight: 700;
   text-decoration: none;
@@ -501,7 +526,8 @@ watch(status, async (s) => {
   font-weight: 700;
 }
 .sc-status--in-progress {
-  background: #e3946f;
+  background: var(--accent-main);                              
+  color: #fff;
 }
 .sc-status--completed {
   background: #cfe0c0;
@@ -513,6 +539,7 @@ watch(status, async (s) => {
 }
 
 .sc-card {
+  min-width: 0;                  
   padding: 1.1rem 1.2rem;
   border: 1px solid rgba(43, 36, 32, 0.08);
   border-radius: 14px;
@@ -527,6 +554,7 @@ watch(status, async (s) => {
 }
 .sc-card__head {
   display: flex;
+  flex-wrap: wrap;               
   align-items: baseline;
   justify-content: space-between;
   gap: 0.5rem;
@@ -551,13 +579,13 @@ watch(status, async (s) => {
   padding: 0.6rem 1rem;
   border: 0;
   border-radius: 10px;
-  background: #a85a38;
+  background: var(--accent);
   color: #fff;
   font-weight: 700;
   transition: background 0.2s;
 }
 .sc-btn:hover:not(:disabled) {
-  background: #8f4a2c;
+  background: var(--accent-hover);
 }
 .sc-btn:disabled {
   opacity: 0.55;
@@ -599,23 +627,17 @@ watch(status, async (s) => {
   margin-bottom: 0.6rem;
   overflow: hidden;
   border-radius: 999px;
-  background: #efe3d6;
+  background: var(--bar-track);
 }
 .sc-progress span {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: var(--bk);
+  background: var(--bar-fill);
   transition: width 0.4s ease;
 }
-.sc-task {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.55rem 0;
-}
 .sc-task + .sc-task {
-  border-top: 1px solid #f0e3d4;
+  border-top: 1px solid var(--line);
 }
 .sc-task__title--done {
   color: #5c524b;
@@ -630,17 +652,20 @@ watch(status, async (s) => {
   justify-content: center;
   aspect-ratio: 1;
   overflow: hidden;
-  border: 2px dashed #c9a98f;
+  border: 2px dashed rgb(var(--accent-rgb) / 0.5);
   border-radius: 10px;
-  background: #f8eee3;
+  background: var(--tint-soft);
   color: #5c524b;
   font-size: 0.85rem;
   cursor: pointer;
 }
 .photo-slot:hover {
-  border-color: #c47756;
+  border-color: var(--accent-main);
+  background: var(--sand);
 }
 .photo-slot__img {
+  outline: 2px solid var(--accent-deep);
+  outline-offset: 2px;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -672,12 +697,12 @@ fieldset:disabled .photo-slot {
   cursor: pointer;
 }
 .form-check-input.task-check:checked {
-  background-color: #c47756;
-  border-color: #c47756;
+  background-color: var(--accent-main);
+  border-color: var(--accent-main);
 }
 .form-check-input.task-check:focus {
-  border-color: #c44f1c;
-  box-shadow: 0 0 0 0.2rem rgba(196, 79, 28, 0.25);
+  border-color: var(--accent-deep);
+  box-shadow: 0 0 0 0.2rem rgb(var(--accent-rgb) / 0.25);
 }
 .form-check-input.task-check:disabled {
   opacity: 0.7;
@@ -696,7 +721,7 @@ fieldset:disabled .photo-slot {
   overflow-wrap: anywhere;
 }
 .sc-link {
-  color: #a85a38;
+  color: var(--accent);
   font-weight: 700;
 }
 .sc-notes {
@@ -704,5 +729,83 @@ fieldset:disabled .photo-slot {
   color: #2b2420;
   white-space: pre-line;    
   overflow-wrap: anywhere;
+}
+
+.sc-task {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.4rem 0.75rem;
+  padding: 0.55rem 0;
+}
+.sc-task__boxes {
+  display: flex;
+  flex: none;
+  gap: 0.35rem;
+  padding-top: 0.2rem;
+}
+.sc-task__main {
+  flex: 1 1 9rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sc-task__count {
+  flex: none;
+  padding-top: 0.2rem;
+  color: #5c524b;
+}
+
+@media (max-width: 767.98px) {
+  .sc-head {
+    position: relative;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.9rem 1rem 3rem;
+  }
+  .sc-who,
+  .sc-meta {
+    width: 100%;
+  }
+  .sc-meta {
+    flex: none;
+  }
+  .sc-who__text {
+    padding-right: 0;        
+  }
+  .sc-status {
+    position: absolute;
+    bottom: 0.9rem;
+    right: 1rem;
+    top: auto;
+    margin: 0;
+  }
+  .sc-body {
+    padding: 0.9rem 1rem 1rem;
+  }
+}
+/* phones */
+@media (max-width: 575.98px) {
+  .sc-body {
+    padding: 0.75rem 0.75rem 1rem;
+  }
+  .sc-card {
+    padding: 0.9rem 1rem;
+  }
+  .sc-title {
+    font-size: 1.05rem;
+  }
+  .sc-task__walk {
+    flex: 1 1 100%;              
+    padding: 0.55rem 0.9rem;
+  }
+  .form-check-input.task-check {
+    width: 1.4rem;                  
+    height: 1.4rem;
+  }
+  .sc-link {
+    display: inline-block;
+    padding: 0.35rem 0;
+  }
 }
 </style>

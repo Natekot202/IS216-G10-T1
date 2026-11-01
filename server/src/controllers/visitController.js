@@ -6,6 +6,7 @@ import Walk from '../models/walkModel.js'
 import { sgtMidnight, toSgtDateString } from '../models/Availability.js'
 import { uploadImage, deleteImage } from '../config/cloudinary.js'
 import User from '../models/UserModel.js'
+import { notifyPaymentDue } from '../models/notificationModel.js'
 
 const STARTABLE = ['confirmed', 'in-progress'] // owners pay at the end, so sessions start once the owner has confirmed
 
@@ -69,20 +70,28 @@ export async function getTodaySessions(req, res) {
   const isSitterViewer = req.session.role === 'sitter'
   const confirmed = (b) => ['confirmed', 'in-progress'].includes(b.status)
 
-  const addressByOwner = new Map()
+ const addressByOwner = new Map()
   if (isSitterViewer) {
-    // (a booking whose owner account was deleted has no ownerId after populate, so it is skipped instead of crashing)
+    // a booking whose owner account was deleted has no ownerId after populate, so it is skipped instead of crashing
     const ownerIds = [...new Set(bookings.filter((b) => confirmed(b) && b.ownerId).map((b) => String(b.ownerId._id)))]
     if (ownerIds.length > 0) {
-      const owners = await User.find({ _id: { $in: ownerIds } }).select('+ownerProfile.address -password')
+      const owners = await User.find({ _id: { $in: ownerIds } })
+        .select('+ownerProfile.address +ownerProfile.instructions -password')
       owners.forEach((o) => {
         const a = o.ownerProfile?.address
-        if (a?.line1) {
-          addressByOwner.set(String(o._id), { line1: a.line1, unit: a.unit || '', postalCode: a.postalCode || '' })
+        const instructions = o.ownerProfile?.instructions || ''
+        if (a?.line1 || instructions) {
+          addressByOwner.set(String(o._id), {
+            line1: a?.line1 || '',
+            unit: a?.unit || '',
+            postalCode: a?.postalCode || '',
+            instructions
+          })
         }
       })
     }
   }
+
 
   const sessions = bookings
     .map((b) => {
@@ -235,6 +244,12 @@ export async function endVisit(req, res) {
   if (booking && visit.date === toSgtDateString(booking.endDate)) {
     booking.status = 'completed'
     await booking.save()
+    try {
+      await notifyPaymentDue(booking)
+    } catch (err) {
+      // The booking completion should stand even if saving its notification fails.
+      console.error('Could not create payment-due notification:', err.message)
+    }
   }
   res.json(visit)
 }

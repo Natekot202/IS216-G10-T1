@@ -5,7 +5,7 @@ import User from '../models/UserModel.js'
 import GoogleCalendarLink from '../models/GoogleCalendarLink.js'
 import CalendarEvent from '../models/CalendarEvent.js'
 import { sgtMidnight, toSgtDateString } from '../models/Availability.js'
-import { bookingRange } from './bookingTimes.js'
+import { bookingRange, dailyRanges } from './bookingTimes.js'
 
 // All the Google Calendar code lives here, so routes and controllers only call these functions.
 
@@ -66,12 +66,15 @@ function buildEvent(booking, ownerName, petNames) {
   if (booking.notes) lines.push(`Notes: ${booking.notes}`)
   lines.push(`Booking requests: ${clientOrigin}/sitter/requests`)
 
-  let start, end
+  let start, end, recurrence
   if (booking.startTime && booking.endTime) {
-    // A booking with times becomes a timed event.
-    const range = bookingRange(booking)
+    // A booking with times becomes a timed event. Its times are the hours for each day,
+    // so a booking over several days is one event on the first day that repeats daily (COUNT = number of days).
+    const days = dailyRanges(booking)
+    const range = days.length > 1 ? days[0] : bookingRange(booking)
     start = { dateTime: sgtDateTime(range.start), timeZone: 'Asia/Singapore' }
     end = { dateTime: sgtDateTime(range.end), timeZone: 'Asia/Singapore' }
+    if (days.length > 1) recurrence = [`RRULE:FREQ=DAILY;COUNT=${days.length}`]
   } else {
     // An old booking without times stays an all-day event.
     // Google's all-day events end on the day AFTER the last day, so add one day.
@@ -86,7 +89,8 @@ function buildEvent(booking, ownerName, petNames) {
     summary: `Pet sitting: ${petNames.join(', ')}`,
     description: lines.join('\n'),
     start,
-    end
+    end,
+    ...(recurrence ? { recurrence } : {})
   }
 }
 

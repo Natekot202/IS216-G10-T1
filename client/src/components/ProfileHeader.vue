@@ -41,9 +41,9 @@ watch(() => props.profile._id, async (id) => {
 .ph-card {
   padding: 1.25rem;
   border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #e6d3c0;             
+  border-top: 4px solid var(--line);             
   border-radius: 20px;
-  background: #fbf1e6;                   
+  background: var(--tint-soft);                   
   box-shadow: 0 8px 20px rgba(120, 70, 40, 0.14);
   height: 98%
 }
@@ -99,7 +99,7 @@ watch(() => props.profile._id, async (id) => {
   border: 1px solid rgba(196, 119, 86, 0.45);
   border-radius: 999px;
   background: #fff;
-  color: #8f4a2c;
+  color: var(--accent-hover);
   font-size: 0.8rem;
   font-weight: 700;
 }

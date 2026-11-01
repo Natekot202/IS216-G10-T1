@@ -21,7 +21,8 @@ const availabilitySchema = new mongoose.Schema(
       required: true
     },
     // The half-hours of this day the sitter is free, as minutes after midnight: 540 = 9:00, 570 = 9:30 ... 1410 = 23:30.
-    // Not set = the whole day (how days were saved before hours existed), so old documents still work.
+    // Only 420 (7:00) to 1410 (23:30) can be saved: nothing before 7am can be free or booked.
+    // Not set = the whole day (7am to 12am) (how days were saved before hours existed), so old documents still work.
     // `status` is kept in step: any slots = 'available', none = 'blocked'.
     // slots = [540,570,600, etc....]
     slots: {

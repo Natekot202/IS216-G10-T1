@@ -10,7 +10,7 @@ defineEmits(['select'])
 </script>
 
 <template>
-  <ul class="nav nav-underline mb-4 flex-nowrap overflow-auto">
+  <ul class="nav nav-underline mb-4">
     <li v-for="tab in tabs" :key="tab.key" class="nav-item">
       <button
         type="button"
@@ -32,7 +32,7 @@ defineEmits(['select'])
 .nav-underline .nav-link.active {
   color: #2b2420;
   font-weight: 700;
-  border-bottom-color: #c44f1c;
+  border-bottom-color: var(--accent-deep);
 }
 .tab-count {
   background: #f1ece6;

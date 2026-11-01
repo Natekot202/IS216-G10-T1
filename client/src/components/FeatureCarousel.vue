@@ -84,7 +84,6 @@ function onTouchEnd(e) {
                     <span class="stars">★★★★★ (12)</span>
                     <span class="sub">1.2 km away</span>
                 </span>
-                <span class="rate">S$20<small>/walk</small></span>
                 </div>
                 <div class="panel sitter sitter--dim">
                 <span class="avatar avatar--b">J</span>
@@ -93,7 +92,6 @@ function onTouchEnd(e) {
                     <span class="stars">★★★★☆ (23)</span>
                     <span class="sub">3.4 km away</span>
                 </span>
-                <span class="rate">S$12<small>/groom</small></span>
                 </div>
             </div>
 
@@ -191,8 +189,7 @@ function onTouchEnd(e) {
 <style scoped>
 .fc {
   --ink: #2b2420;
-  --accent: #c47756;
-  --accent-deep: #c44f1c;
+  --accent: var(--accent-main);
   --glow: #e3946f;                
   --muted: #5c524b;                  
   --fc-interval: 6s;
@@ -267,9 +264,6 @@ function onTouchEnd(e) {
     width: 2rem;
     height: 2rem;
   }
-  .rate {
-    font-size: 0.85rem;
-  }
 }
 
 .mock {
@@ -296,7 +290,7 @@ function onTouchEnd(e) {
 .chip {
   padding: 0.15rem 0.6rem;
   border-radius: 999px;
-  border: 1px solid #e6d3c0;
+  border: 1px solid var(--line);
   background: #fff;
   color: var(--ink);
   font-size: 0.75rem;
@@ -343,16 +337,6 @@ function onTouchEnd(e) {
   font-size: 0.75rem;
   color: var(--muted);
 }
-.rate {
-  white-space: nowrap;
-  font-weight: 700;
-  color: var(--ink);
-}
-.rate small {
-  font-weight: 400;
-  color: var(--muted);
-}
-
 .mock-book {
   text-align: center;
 }

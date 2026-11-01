@@ -16,8 +16,10 @@ export function formatTime(time) {
 }
 
 // '21 Oct 2026' for one day, '21 Oct – 23 Oct 2026' for several.
-// With times (bookings made from now on): '21 Oct 2026, 9:00 am – 12:00 pm' or '21 Oct, 9:00 am – 23 Oct 2026, 5:00 pm'.
-export function formatDateRange(start, end, startTime, endTime) {
+// With times (bookings made from now on): '21 Oct 2026, 9:00 am – 12:00 pm', or for several days
+// '21 Oct – 23 Oct 2026, 9:00 am – 5:00 pm each day' (the times are the hours for each day).
+// Old bookings that ran non-stop (overnight, or an end time before the start time): '21 Oct, 9:00 am – 23 Oct 2026, 5:00 pm'.
+export function formatDateRange(start, end, startTime, endTime, overnight = false) {
   const opts = { day: 'numeric', month: 'short' }
   const s = new Date(start).toLocaleDateString('en-SG', opts)
   const e = new Date(end).toLocaleDateString('en-SG', { ...opts, year: 'numeric' })
@@ -28,6 +30,7 @@ export function formatDateRange(start, end, startTime, endTime) {
         ? `${e}, all day`
         : `${e}, ${formatTime(startTime)} – ${formatTime(endTime)}`
     }
+    if (!overnight && endTime > startTime) return `${s} – ${e}, ${formatTime(startTime)} – ${formatTime(endTime)} each day`
     return `${s}, ${formatTime(startTime)} – ${e}, ${formatTime(endTime)}`
   }
   return sameDay ? e : `${s} – ${e}`
