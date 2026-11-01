@@ -2,7 +2,7 @@
 // /bookings/:id: one booking, for the owner or the sitter on it.
 // Shows the pets (tap a pet to see its care checklist, look only, nothing can be ticked), the owner's notes,
 // and a card for the person on the other side, with the buttons to accept / decline / cancel.
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { bookingsApi } from '../services/bookingApi.js'
 import { currentUser, fetchUser } from '../services/auth.js'
@@ -10,6 +10,8 @@ import StatusPill from '../components/StatusPill.vue'
 import ShowStarRating from '../components/ShowStarRating.vue'
 import WalkMap from '../components/WalkMap.vue'
 import CancelBookingModal from '../components/CancelBookingModal.vue'
+import CareDetailsForm from '../components/CareDetailsForm.vue'
+import CareDetailsSummary from '../components/CareDetailsSummary.vue'
 import { formatDateRange, formatPrice } from '../utils/bookingHelpers.js'
 
 const route = useRoute()
@@ -83,6 +85,28 @@ const canCancel = computed(() =>
 )
 const cancelText = computed(() => (status.value === 'confirmed' ? 'Cancel booking' : 'Withdraw request'))
 
+// Care details: the owner adds them once the booking is confirmed. A booking becomes in-progress
+// when the first session starts, so they lock from then on (the server checks this too).
+const detailsSavedAt = ref(null) // null = not saved yet, so the card keeps asking for them
+const detailsFormOpen = ref(false)
+const detailsCard = ref(null)
+const canEditDetails = computed(() => !isSitter.value && status.value === 'confirmed' && tasks.value.length > 0)
+const detailsLocked = computed(() => !isSitter.value && status.value === 'in-progress' && tasks.value.length > 0)
+
+async function openDetailsForm() {
+  detailsFormOpen.value = true
+  await nextTick()
+  const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  detailsCard.value?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' })
+}
+
+function detailsSaved(saved) {
+  tasks.value = saved.items
+  detailsSavedAt.value = saved.detailsSavedAt
+  detailsFormOpen.value = false
+  message.value = 'Care details saved ✅ The sitter can see them on this booking.'
+}
+
 async function respond(newStatus) {
   if (newStatus === 'declined' && status.value === 'accepted' &&
       !window.confirm('Decline this request? You accepted it, but the owner has not confirmed yet. This cannot be undone.')) return
@@ -108,6 +132,7 @@ async function confirmBooking() {
     const updated = await bookingsApi.confirm(booking.value._id)
     booking.value.status = updated.status
     message.value = 'Booking confirmed ✅ It is now final for you and the sitter.'
+    if (canEditDetails.value) await openDetailsForm()
   } catch (err) {
     actionError.value = err.response?.data?.message || 'Could not confirm the booking.'
   } finally {
@@ -149,12 +174,23 @@ onMounted(async () => {
   try {
     if (!currentUser.value) await fetchUser()
     booking.value = await bookingsApi.getOne(route.params.id)
-    tasks.value = (await bookingsApi.getCareTasks(route.params.id)).items
+    const care = await bookingsApi.getCareTasks(route.params.id)
+    tasks.value = care.items
+    detailsSavedAt.value = care.detailsSavedAt
     selectedPetId.value = booking.value.petIds?.[0]?._id || null // start on the first pet
   } catch (err) {
     error.value = err.response?.data?.message || 'Could not load this booking.'
   } finally {
     loading.value = false
+  }
+  // Confirming from My Bookings comes here with ?details=open.
+  // The address is then cleaned up, so refreshing the page doesn't reopen the form.
+  if (route.query.details === 'open') {
+    router.replace({ query: {} })
+    if (canEditDetails.value) {
+      message.value = 'Booking confirmed ✅ Add the care details now, or come back to them later.'
+      await openDetailsForm()
+    }
   }
 })
 // checks if the user is logged in , then gets their booking and careTasks
@@ -251,6 +287,7 @@ onMounted(async () => {
             </label>
             <span v-if="task.dailyFrequency > 1" class="freq-badge">{{ task.dailyFrequency }} times a day</span>
           </div>
+          <CareDetailsSummary :task="task" />
           <!-- the route map, when this viewer is allowed to see the path -->
           <template v-if="task.walkRoute?.path">
             <button type="button" class="btn btn-link btn-sm p-0 route-toggle"
@@ -261,6 +298,29 @@ onMounted(async () => {
                      :planned-route="task.walkRoute.path.coordinates" />
           </template>
         </div>
+      </div>
+
+      <!-- Care details: the owner fills these in after confirming -->
+      <div v-if="canEditDetails || detailsLocked" ref="detailsCard" class="detail-card details-card p-4 mb-3">
+        <h6 class="section-title">Care details</h6>
+        <CareDetailsForm
+          v-if="canEditDetails && detailsFormOpen"
+          :booking-id="booking._id"
+          :tasks="tasks"
+          :close-text="detailsSavedAt ? 'Cancel' : 'Add later'"
+          @saved="detailsSaved"
+          @close="detailsFormOpen = false"
+        />
+        <p v-else-if="detailsLocked" class="text-muted mb-0">Care details are locked because the first session has started.</p>
+        <template v-else>
+          <div v-if="!detailsSavedAt" class="alert alert-warning">
+            <strong>Care details needed.</strong> Tell the sitter things like the food amount, medicine dosage and where the leash is kept.
+          </div>
+          <p v-else class="text-muted">Saved. You can change these until the first session starts.</p>
+          <button type="button" class="btn btn-brand w-100" @click="openDetailsForm">
+            {{ detailsSavedAt ? 'Edit care details' : 'Add care details' }}
+          </button>
+        </template>
       </div>
 
       <div v-if="booking.notes" class="detail-card p-4 mb-3" :class="{ 'opacity-75': booking.status === 'cancelled' }">
@@ -339,6 +399,9 @@ onMounted(async () => {
   background: #fff;
   border: 1px solid #ede3d8;
   border-radius: 12px;
+}
+.details-card {
+  scroll-margin-top: 5rem; /* stops the top bar covering the card when the page scrolls to it */
 }
 .section-title {
   font-size: 0.75rem;
