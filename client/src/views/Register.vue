@@ -1,8 +1,11 @@
 <script setup>
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { authApi } from '../services/api.js'
 import { fetchUser } from "../services/auth.js";
+import PasswordInput from '../components/PasswordInput.vue'
+import PasswordRules from '../components/PasswordRules.vue'
+import { passwordIsValid } from '../utils/passwordChecks.js'
 
 const route = useRoute();
 const router = useRouter();
@@ -11,8 +14,14 @@ const errors = ref([]);
 const startRole = ["owner", "sitter"].includes(route.query.role) ? route.query.role : "owner";
 const form = ref({ username: "", email: "", password: "", confirmPassword: "", role: startRole });
 
+const passwordOk = computed(() => passwordIsValid(form.value.password))
+
 async function submit() {
   errors.value = []
+  if (form.value.password !== form.value.confirmPassword) {
+    errors.value = ["The two passwords don't match."]
+    return
+  }
   try {
     await authApi.register(form.value)
     await fetchUser()
@@ -33,9 +42,9 @@ async function submit() {
 
     <h1 class="landing-title landing-title--form">Create account</h1>
 
-    <div v-if="errors.length" class="alert alert-danger">
-      <ul v-for="e in errors" :key="e" class="mb-0">
-        <li>{{ e }}</li>
+    <div v-if="errors.length" class="alert alert-danger" role="alert">
+      <ul class="mb-0">
+        <li v-for="e in errors" :key="e">{{ e }}</li>
       </ul>
     </div>
 
@@ -49,17 +58,18 @@ async function submit() {
       </div>
       <input v-model="form.username" class="form-control mb-3" placeholder="Username" required />
       <input v-model="form.email" type="email" class="form-control mb-3" placeholder="Email" required />
-      <input v-model="form.password" type="password" class="form-control mb-3" placeholder="Password" required />
-      <input v-model="form.confirmPassword" type="password" class="form-control mb-2" placeholder="Confirm password" required />
+      <PasswordInput v-model="form.password" placeholder="Password" autocomplete="new-password" />
+      <PasswordRules :password="form.password" light />
+      <PasswordInput v-model="form.confirmPassword" placeholder="Confirm password" autocomplete="new-password" class="mb-3" />
 
-      <p style="color:white; margin-bottom:0;">Password Requirements:</p>
+      <!-- <p style="color:white; margin-bottom:0;">Password Requirements:</p>
       <ul style="color:white; margin-bottom:5px;">
         <li>At least 8 characters</li>
         <li>At least 1 uppercase letter</li>
         <li>At least 1 special character (!@#$%^&*)</li>
-      </ul>
+      </ul> -->
 
-      <button class="btn w-100 mb-3 text-white" style="background-color:#c47756;">Sign up</button>
+      <button class="btn w-100 mb-3 text-white" style="background-color:#a85a38;" :disabled="!passwordOk">Sign up</button>
     </form>
 
     <span style="color:white;"> Already have an account? </span>

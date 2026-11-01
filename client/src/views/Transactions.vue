@@ -154,7 +154,7 @@ onMounted(loadTransactions)
       <p v-if="!visibleRows.length" class="text-muted text-center py-5">No transactions here yet 🐾</p>
 
       <template v-else>
-        <div ref="tableEl" class="table-responsive tx-table">
+        <div ref="tableEl" class="table-responsive tx-table pb-3">
           <table class="table align-middle mb-0">
             <thead>
               <tr>
@@ -213,7 +213,6 @@ onMounted(loadTransactions)
   color: #6c757d;
   white-space: nowrap;
 }
-/* same colours as StatusPill */
 .tx-pill {
   display: inline-flex;
   padding: 4px 12px;

@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { bookingsApi } from '../services/bookingApi.js'
 import { currentUser } from '../services/auth.js'
 import { formatTime, formatDateRange, formatPrice } from '../utils/bookingHelpers.js'
+import ProfileChecklistCard from '../components/ProfileChecklistCard.vue'
 
 const bookings = ref([])
 const loading = ref(true)
@@ -66,6 +67,8 @@ onMounted(loadDashboard)
         Review requests ({{ newRequests.length }})
       </router-link>
     </div>
+
+    <ProfileChecklistCard />
 
     <div v-if="error" class="alert alert-warning">{{ error }}</div>
     <div v-else-if="loading" class="text-muted">Loading your dashboard…</div>

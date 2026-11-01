@@ -6,6 +6,7 @@ import { usePhotoPicker } from '../utils/usePhotoPicker.js'
 import StatsBand from './StatsBand.vue'
 import InfoCard from './InfoCard.vue'
 import PillList from './PillList.vue'
+import { confirmDialog } from '../utils/useConfirm.js'
 
 const pets = ref([])
 const loading = ref(true)
@@ -179,7 +180,16 @@ async function submitPet() {
 }
 
 async function deletePet(id) {
-  if (!props.editable || !confirm('Remove this pet?')) {
+  if (!props.editable) {
+    return
+  }
+  const ok = await confirmDialog({
+    title: 'Remove this pet?',
+    message: "This also deletes their photo, and it can't be undone.",
+    confirmText: 'Remove',
+    danger: true
+  })
+  if (!ok) {
     return
   }
   error.value = ''

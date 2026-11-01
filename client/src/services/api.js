@@ -10,7 +10,8 @@ export const authApi = {
   me: () => api.get('/auth/me').then((res) => res.data),
   login: (data) => api.post('/auth/login', data).then((res) => res.data),
   register: (data) => api.post('/auth/register', data).then((res) => res.data),
-  logout: () => api.post('/auth/logout').then((res) => res.data)
+  logout: () => api.post('/auth/logout').then((res) => res.data),
+  changePassword: (data) => api.put('/auth/password', data).then((res) => res.data),
 }
 
 export const petsApi = {
