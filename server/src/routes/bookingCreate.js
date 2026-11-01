@@ -2,7 +2,7 @@ import { Router } from 'express'
 import mongoose from 'mongoose'
 import Availability, { sgtMidnight, toSgtDateString } from '../models/Availability.js'
 import Booking from '../models/bookingModel.js'
-import CareChecklist, { CATEGORIES, FOOD_UNITS } from '../models/CareChecklist.js'
+import CareChecklist, { CATEGORIES, FOOD_UNITS, taskIsOn } from '../models/CareChecklist.js'
 import Pet from '../models/petModel.js'
 import User from '../models/UserModel.js'
 import WalkRoute from '../models/walkRouteModel.js'
@@ -174,11 +174,22 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
       if (result.error) return res.status(400).json({ message: result.error })
       walkRoute = result.walkRoute
     }
-    items.push({ category: t.category, title, dailyFrequency: t.dailyFrequency, petIds: taskPets, walkRoute })
+    // A task is done every day, unless the owner chose some of the booking's days. All of them = every day.
+    const taskDays = Array.isArray(t.days) ? [...new Set(t.days)] : []
+    if (!taskDays.every((d) => days.includes(d))) {
+      return res.status(400).json({ message: `"${title}" is on a day outside this booking.` })
+    }
+    const onSomeDays = taskDays.length > 0 && taskDays.length < days.length
+    items.push({ category: t.category, title, dailyFrequency: t.dailyFrequency, petIds: taskPets, walkRoute, days: onSomeDays ? taskDays : undefined })
+  }
+  // Every booked day needs a task: the price comes from the tasks, so an empty day would hold the sitter's time for nothing
+  const emptyDay = days.find((d) => !items.some((item) => taskIsOn(item, d)))
+  if (emptyDay) {
+    return res.status(400).json({ message: `${emptyDay} has no tasks. Add a task for that day, or remove the day.` })
   }
 
   // 7. Create the booking.
-  // Price = each task's fixed price × times a day × number of days, added up (no overnight stays, so no nights)
+  // Price = each task's fixed price × times a day × its number of days, added up (no overnight stays, so no nights)
   const booking = await Booking.create({
     ownerId,
     sitterId,
@@ -212,7 +223,7 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
 
 // GET /api/bookings/:id/care-tasks
 // The care tasks the owner added to this booking request. Only the booking's owner or sitter can read them.
-// Out: { items: [{ category, title, petIds, dailyFrequency, walkRoute, details }], detailsSavedAt }
+// Out: { items: [{ category, title, petIds, dailyFrequency, days, walkRoute, details }], detailsSavedAt }
 // (an empty list if there are none)
 router.get('/:id/care-tasks', requireLogin, asyncHandler(async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Booking not found.' })

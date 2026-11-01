@@ -8,7 +8,7 @@ import { paymentsApi } from '../services/paymentApi.js'
 import { currentUser } from '../services/auth.js'
 import { sendPaymentNotification } from '../utils/sendNotification.js'
 import { petNames, formatDateRange, formatPrice } from '../utils/bookingHelpers.js'
-import { SERVICE_PRICES, SERVICE_LABELS, OVERNIGHT_FEE, priceForTasks, nightsFor } from '../utils/servicePrices.js'
+import { SERVICE_PRICES, SERVICE_LABELS, OVERNIGHT_FEE, priceForTasks, nightsFor, daysForTask } from '../utils/servicePrices.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -142,7 +142,7 @@ async function pay() {
             <hr />
             <!-- One line per care task, e.g. "Walk: $20 × 2 a day × 1 day   $40.00" -->
             <div v-for="(t, i) in tasks" :key="i" class="d-flex justify-content-between small mb-1">
-              <span>{{ SERVICE_LABELS[t.category] }}: ${{ SERVICE_PRICES[t.category] }} × {{ t.dailyFrequency }} a day × {{ days }} day{{ days === 1 ? '' : 's' }}</span>
+              <span>{{ SERVICE_LABELS[t.category] }}: ${{ SERVICE_PRICES[t.category] }} × {{ t.dailyFrequency }} a day × {{ daysForTask(t, days) }} day{{ daysForTask(t, days) === 1 ? '' : 's' }}</span>
               <span>{{ formatPrice(priceForTasks([t], days)) }}</span>
             </div>
             <div v-if="nights" class="d-flex justify-content-between small mb-1">

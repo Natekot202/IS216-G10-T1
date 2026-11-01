@@ -60,6 +60,7 @@ const taskSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true, maxlength: 120 }, // e.g. "Feed 1 cup kibble"
   petIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Pet' }], // which pets the task is for
   dailyFrequency: { type: Number, required: true, min: 1, max: 10 }, // times per day
+  days: { type: [String], default: undefined }, // 'YYYY-MM-DD' dates it's done on. Empty = every day of the booking
   walkRoute: { type: walkRouteSchema, default: undefined }, // walk tasks only
   details: { type: careDetailsSchema, default: undefined } // added after the booking is confirmed
 })
@@ -75,5 +76,8 @@ const careChecklistSchema = new mongoose.Schema(
   { timestamps: true }
 )
 // because of this referencing, each checklist document contaisn the booking id its "attached " to 
+
+// Is this task done on this date ('YYYY-MM-DD')? A task with no days of its own is done every day.
+export const taskIsOn = (task, date) => !task.days?.length || task.days.includes(date)
 
 export default mongoose.model('CareChecklist', careChecklistSchema, 'carechecklists')

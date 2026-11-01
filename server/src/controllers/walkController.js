@@ -2,7 +2,7 @@ import mongoose from 'mongoose'
 import Walk from '../models/walkModel.js'
 import User from '../models/UserModel.js'
 import Booking from '../models/bookingModel.js'
-import CareChecklist from '../models/CareChecklist.js'
+import CareChecklist, { taskIsOn } from '../models/CareChecklist.js'
 import VisitSession from '../models/VisitSession.js'
 import { notify } from '../utils/notify.js'
 import { HOME_RADIUS_M, isValidPath, isValidPoint, metresBetween, pathLength } from '../utils/walkGeo.js'
@@ -80,6 +80,7 @@ export async function createWalk(req, res) {
   if (!booking || !task || task.category !== 'walk') {
     return res.status(404).json({ message: 'Walk task not found.' })
   }
+  if (!taskIsOn(task, visit.date)) return res.status(400).json({ message: 'This walk is not scheduled for today.' })
 
   // 3. A walk for this task already ready or under way: carry on with that one
   const unfinished = await Walk.findOne({ visit: visit._id, task: task._id, status: { $in: ['ready', 'in-progress'] } })

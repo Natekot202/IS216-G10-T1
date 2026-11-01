@@ -13,6 +13,7 @@ import CancelBookingModal from '../components/CancelBookingModal.vue'
 import CareDetailsForm from '../components/CareDetailsForm.vue'
 import CareDetailsSummary from '../components/CareDetailsSummary.vue'
 import { formatDateRange, formatPrice } from '../utils/bookingHelpers.js'
+import { prettyDate } from '../utils/bookingTimeHelpers.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -283,6 +284,7 @@ onMounted(async () => {
               <small v-if="pets.length > 1" class="d-block text-muted">
                 {{ alsoFor(task).length ? `Also for ${alsoFor(task).join(', ')}` : `Only for ${selectedPet?.name}` }}
               </small>
+              <small v-if="task.days?.length" class="d-block text-muted">Only on {{ task.days.map(prettyDate).join(', ') }}</small>
               <small v-if="task.category === 'walk'" class="d-block text-muted">{{ routeText(task) }}</small>
             </label>
             <span v-if="task.dailyFrequency > 1" class="freq-badge">{{ task.dailyFrequency }} times a day</span>

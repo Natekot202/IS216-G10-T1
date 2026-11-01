@@ -1,6 +1,6 @@
 import mongoose from 'mongoose'
 import Booking from '../models/bookingModel.js'
-import CareChecklist from '../models/CareChecklist.js'
+import CareChecklist, { taskIsOn } from '../models/CareChecklist.js'
 import VisitSession from '../models/VisitSession.js'
 import Walk from '../models/walkModel.js'
 import { sgtMidnight, toSgtDateString } from '../models/Availability.js'
@@ -114,7 +114,7 @@ export async function getTodaySessions(req, res) {
           pets: b.petIds,
           notes: b.notes || ''
         },
-        items: itemsByBooking.get(String(b._id)) ?? [],
+        items: (itemsByBooking.get(String(b._id)) ?? []).filter((item) => taskIsOn(item, today)),
         visit: visitByBooking.get(String(b._id)) ?? null
       }
       session.activeWalk = session.visit ? walkByVisit.get(String(session.visit._id)) ?? null : null
@@ -179,6 +179,9 @@ export async function setTaskCount(req, res) {
   const item = checklist?.items.id(req.params.taskId)
   if (!item) {
     return res.status(404).json({ message: 'Task not found.' })
+  }
+  if (!taskIsOn(item, visit.date)) {
+    return res.status(400).json({ message: 'This task is not scheduled for today.' })
   }
   // walk tasks are ticked by finishing a tracked walk (walkController), not by hand
   if (item.category === 'walk') {
