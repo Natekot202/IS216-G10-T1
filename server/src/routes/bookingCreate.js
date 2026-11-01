@@ -2,7 +2,7 @@ import { Router } from 'express'
 import mongoose from 'mongoose'
 import Availability, { sgtMidnight, toSgtDateString } from '../models/Availability.js'
 import Booking from '../models/bookingModel.js'
-import CareChecklist, { CATEGORIES } from '../models/CareChecklist.js'
+import CareChecklist, { CATEGORIES, FOOD_UNITS } from '../models/CareChecklist.js'
 import Pet from '../models/petModel.js'
 import User from '../models/UserModel.js'
 import WalkRoute from '../models/walkRouteModel.js'
@@ -18,6 +18,50 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 // Booking statuses where the sitter may see a walk task's route (i.e. the owner has confirmed the booking)
 const ROUTE_VISIBLE_STATUSES = ['confirmed', 'in-progress', 'completed', 'paid']
+
+const TASK_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/ // 00:00 to 23:59
+
+// Trims a text field, leaving it out if it's blank
+const text = (value) => String(value ?? '').trim() || undefined
+
+// Works out the care details to save on one task, keeping only the fields its category uses.
+// Returns { details } to save on the task, or { error } with a message for the owner.
+function careDetailsFor(task, input) {
+  const details = { instructions: text(input?.instructions) }
+  if (details.instructions?.length > 1000) return { error: 'Instructions can be up to 1000 characters.' }
+
+  // Times are optional, but if there are any there must be one for each time a day
+  const times = Array.isArray(input?.times) ? input.times.filter(Boolean) : []
+  if (times.some((t) => !TASK_TIME_RE.test(t))) return { error: 'Choose each time as HH:MM.' }
+  if (times.length > 0 && times.length !== task.dailyFrequency) {
+    return { error: `"${task.title}" needs ${task.dailyFrequency} time(s), or none.` }
+  }
+  if (times.length > 0) details.times = times
+
+  if (task.category === 'feed') {
+    details.food = text(input?.food)
+    if (input?.amount !== undefined && input.amount !== null && input.amount !== '') {
+      const amount = Number(input.amount)
+      if (!Number.isFinite(amount) || amount < 0) return { error: 'The amount must be a number, 0 or more.' }
+      details.amount = amount
+    }
+    if (input?.unit) {
+      if (!FOOD_UNITS.includes(input.unit)) return { error: `The unit must be one of: ${FOOD_UNITS.join(', ')}.` }
+      details.unit = input.unit
+    }
+  }
+
+  if (task.category === 'medication') {
+    details.medicationName = text(input?.medicationName)
+    details.dosage = text(input?.dosage)
+    details.withFood = input?.withFood === true
+  }
+
+  if ([details.food, details.medicationName, details.dosage].some((v) => v?.length > 100)) {
+    return { error: 'Food, medicine and dosage can be up to 100 characters.' }
+  }
+  return { details }
+}
 
 // Works out the route for a walk task.
 // choice: the id of one of the owner's routes, or 'instructions' for "follow my instructions".
@@ -173,7 +217,8 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
 
 // GET /api/bookings/:id/care-tasks
 // The care tasks the owner added to this booking request. Only the booking's owner or sitter can read them.
-// Out: { items: [{ category, title, petIds, dailyFrequency }] } (empty list if there are none)
+// Out: { items: [{ category, title, petIds, dailyFrequency, walkRoute, details }], detailsSavedAt }
+// (an empty list if there are none)
 router.get('/:id/care-tasks', requireLogin, asyncHandler(async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Booking not found.' })
   const booking = await Booking.findById(req.params.id)
@@ -197,7 +242,48 @@ router.get('/:id/care-tasks', requireLogin, asyncHandler(async (req, res) => {
       }
     }
   }
-  res.json({ items })
+  res.json({ items, detailsSavedAt: checklist?.detailsSavedAt ?? null })
+}))
+
+// PATCH /api/bookings/:id/care-details
+// The owner adds or changes the care details on a confirmed booking. A booking becomes in-progress when the
+// first session starts, so this also locks the details from then on. Only `details` can change: a task's
+// category and times a day set the price. An empty list is fine: it means the owner has nothing to add.
+// In: { tasks: [{ taskId, details: { instructions, times, food, amount, unit, medicationName, dosage, withFood } }] }
+// Out: { items, detailsSavedAt }
+router.patch('/:id/care-details', requireOwner, asyncHandler(async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Booking not found.' })
+  const booking = await Booking.findById(req.params.id)
+  if (!booking) return res.status(404).json({ message: 'Booking not found.' })
+  if (String(req.session.userId) !== String(booking.ownerId)) {
+    return res.status(403).json({ message: 'This booking is not yours.' })
+  }
+  if (booking.status !== 'confirmed') {
+    return res.status(400).json({ message: 'Care details can only be changed on a confirmed booking, before the first session starts.' })
+  }
+
+  const checklist = await CareChecklist.findOne({ bookingId: booking._id })
+  if (!checklist) return res.status(404).json({ message: 'This booking has no care tasks.' })
+
+  const { tasks } = req.body
+  if (!Array.isArray(tasks) || tasks.length > 20) {
+    return res.status(400).json({ message: 'Send a list of up to 20 tasks.' })
+  }
+
+  // Check everything first, so one bad task doesn't leave the others half saved
+  const changes = []
+  for (const t of tasks) {
+    const task = mongoose.isValidObjectId(t?.taskId) ? checklist.items.id(t.taskId) : null
+    if (!task) return res.status(404).json({ message: 'Task not found.' })
+    const { details, error } = careDetailsFor(task, t.details)
+    if (error) return res.status(400).json({ message: error })
+    changes.push({ task, details })
+  }
+
+  for (const { task, details } of changes) task.details = details
+  checklist.detailsSavedAt = new Date()
+  await checklist.save()
+  res.json({ items: checklist.items, detailsSavedAt: checklist.detailsSavedAt })
 }))
 
 // GET /api/bookings/:id
