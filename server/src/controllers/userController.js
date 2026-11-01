@@ -165,7 +165,17 @@ export async function updateMyProfile(req, res) {
     }
 
     updates['sitterProfile.experienceStart'] = start
-    updates['sitterProfile.petTypes'] = sp.petTypes || []
+    const petTypes = []
+    const seenPetTypes = new Set()
+    for (const value of Array.isArray(sp.petTypes) ? sp.petTypes : []) {
+      if (typeof value !== 'string') continue
+      const type = value.trim().replace(/\s+/g, ' ')
+      const key = type.toLowerCase()
+      if (!type || type.length > 40 || seenPetTypes.has(key)) continue
+      petTypes.push(type)
+      seenPetTypes.add(key)
+    }
+    updates['sitterProfile.petTypes'] = petTypes
     updates['sitterProfile.services'] = sp.services || []
     updates['sitterProfile.serviceArea.label'] = String(sp.serviceArea ?? '').trim()
   }

@@ -4,6 +4,7 @@
 //  - payment records: successful or rejected card attempts
 //  - completed bookings the owner hasn't paid yet: shown as "pending"
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { paymentsApi } from '../services/paymentApi.js'
 import { bookingsApi } from '../services/bookingApi.js'
 import { currentUser, fetchUser } from '../services/auth.js'
@@ -14,6 +15,8 @@ import PaginationBar from '../components/PaginationBar.vue'
 
 const PAGE_SIZE = 5
 const tableEl = ref(null)
+const route = useRoute()
+const router = useRouter()
 
 const FILTERS = [
   { key: 'all', label: 'All' },
@@ -26,7 +29,16 @@ const STATUS_LABELS = { successful: 'Successful', pending: 'Awaiting payment', r
 const rows = ref([])
 const loading = ref(true)
 const error = ref('')
-const activeFilter = ref('all')
+const activeFilter = ref(FILTERS.some((filter) => filter.key === route.query.tab) ? route.query.tab : 'all')
+
+function selectFilter(key) {
+  activeFilter.value = key
+  router.replace({ query: { ...route.query, tab: key } })
+}
+
+watch(() => route.query.tab, (tab) => {
+  activeFilter.value = FILTERS.some((filter) => filter.key === tab) ? tab : 'all'
+})
 
 function petList(pets) {
   return (pets || []).map((p) => p?.name).filter(Boolean).join(', ') || '—'
@@ -149,7 +161,7 @@ onMounted(loadTransactions)
         </div>
       </div>
 
-      <BookingTabs :tabs="tabs" :active-tab="activeFilter" @select="activeFilter = $event" />
+      <BookingTabs :tabs="tabs" :active-tab="activeFilter" @select="selectFilter" />
 
       <p v-if="!visibleRows.length" class="text-muted text-center py-5">No transactions here yet 🐾</p>
 
