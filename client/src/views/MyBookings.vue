@@ -8,6 +8,7 @@ import { sendNotification } from '../utils/sendNotification.js'
 import { currentUser, fetchUser } from '../services/auth.js'
 import BookingTable from '../components/BookingTable.vue'
 import BookingTabs from '../components/BookingTabs.vue'
+import CancelBookingModal from '../components/CancelBookingModal.vue'
 
 const TABS = [
   { key: 'pending', label: 'Pending', statuses: ['pending'] },
@@ -83,35 +84,50 @@ async function confirmBooking(id) {
   }
 }
 
-async function cancelBooking(id) {
-  const booking = bookings.value.find((b) => b._id === id)
+// Cancelling asks for a reason first, in a small window (CancelBookingModal)
+const cancelling = ref(null) // the booking the reason window is open for (null = closed)
+const cancelError = ref('') // why cancelling failed, shown inside the window
+const cancelQuestion = computed(() => cancelling.value?.status === 'confirmed'
+  ? { title: 'Cancel this booking?', text: 'The sitter will see it as cancelled, along with your reason. This cannot be undone.', button: 'Cancel booking' }
+  : { title: 'Withdraw this request?', text: 'The sitter will see that you withdrew it, along with your reason. This cannot be undone.', button: 'Withdraw request' }
+)
+
+function cancelBooking(id) {
+  cancelError.value = ''
+  cancelling.value = bookings.value.find((b) => b._id === id)
+}
+
+// runs when the window sends the reason
+async function sendCancel(reason) {
+  const booking = cancelling.value
+  const id = booking._id
   const wasConfirmed = booking.status === 'confirmed'
-  const question = booking.status === 'confirmed'
-    ? 'Cancel this booking? The sitter will see it as cancelled. This cannot be undone.'
-    : 'Withdraw this request? The sitter will see that you withdrew it. This cannot be undone.'
-  if (!window.confirm(question)) return
   busyId.value = id
   message.value = ''
   actionError.value = ''
+  cancelError.value = ''
   try {
-    const updated = await bookingsApi.cancel(id)
+    const updated = await bookingsApi.cancel(id, reason)
     booking.status = updated.status
     booking.cancelledBy = updated.cancelledBy
+    booking.cancelReason = updated.cancelReason
     sendNotification(
       id,
       'booking-cancelled',
       wasConfirmed
-        ? `${currentUser.value.username} cancelled your booking.`
-        : `${currentUser.value.username} withdrew their booking request.`
+        ? `${currentUser.value.username} cancelled your booking. Reason: ${reason}`
+        : `${currentUser.value.username} withdrew their booking request. Reason: ${reason}`
     )
+    cancelling.value = null
     message.value = 'Done. You can find it under Past.'
   } catch (err) {
-    actionError.value = err.response?.data?.message || 'Could not cancel the booking.'
+    cancelError.value = err.response?.data?.message || 'Could not cancel the booking.'
   } finally {
     busyId.value = null
   }
 }
 
+// (window.confirm is no longer used here: the reason window, CancelBookingModal, replaced it)
 //window.confirm -> built-in browser popup with two buttons: OK and Cancel.
 // if user clicks ok, returns true , so if block runs ; 
 // if user clicks cancel, returns false , if block doesnt run 
@@ -145,5 +161,17 @@ onMounted(loadBookings)
       <BookingTable v-if="visibleBookings.length" :bookings="visibleBookings" viewer="owner" :busy-id="busyId" @confirm="confirmBooking" @cancel="cancelBooking" />
       <!-- cancelBooking runs with the childs payload thats passed up  -->
     </template>
+
+    <!-- asks for the reason before cancelling -->
+    <CancelBookingModal
+      v-if="cancelling"
+      :title="cancelQuestion.title"
+      :text="cancelQuestion.text"
+      :confirm-label="cancelQuestion.button"
+      :busy="busyId === cancelling._id"
+      :error="cancelError"
+      @confirm="sendCancel"
+      @close="cancelling = null"
+    />
   </div>
 </template>

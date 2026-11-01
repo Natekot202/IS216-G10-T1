@@ -9,6 +9,7 @@ import { currentUser, fetchUser } from '../services/auth.js'
 import StatusPill from '../components/StatusPill.vue'
 import ShowStarRating from '../components/ShowStarRating.vue'
 import WalkMap from '../components/WalkMap.vue'
+import CancelBookingModal from '../components/CancelBookingModal.vue'
 import { formatDateRange, formatPrice } from '../utils/bookingHelpers.js'
 
 const route = useRoute()
@@ -114,20 +115,31 @@ async function confirmBooking() {
   }
 }
 
-async function cancelBooking() {
-  const question = status.value === 'confirmed'
-    ? 'Cancel this booking? The other person will see it as cancelled. This cannot be undone.'
-    : 'Withdraw this request? The sitter will see that you withdrew it. This cannot be undone.'
-  if (!window.confirm(question)) return
+// Cancelling asks for a reason first, in a small window (CancelBookingModal)
+const cancelOpen = ref(false)
+const cancelError = ref('') // why cancelling failed, shown inside the window
+const cancelQuestion = computed(() => status.value === 'confirmed'
+  ? { title: 'Cancel this booking?', text: 'The other person will see it as cancelled, along with your reason. This cannot be undone.' }
+  : { title: 'Withdraw this request?', text: 'The sitter will see that you withdrew it, along with your reason. This cannot be undone.' }
+)
+function cancelBooking() {
+  cancelError.value = ''
+  cancelOpen.value = true
+}
+// runs when the window sends the reason
+async function sendCancel(reason) {
   busy.value = true
+  cancelError.value = ''
   actionError.value = ''
   message.value = ''
   try {
-    const updated = await bookingsApi.cancel(booking.value._id)
+    const updated = await bookingsApi.cancel(booking.value._id, reason)
     booking.value.status = updated.status
     booking.value.cancelledBy = updated.cancelledBy
+    booking.value.cancelReason = updated.cancelReason
+    cancelOpen.value = false
   } catch (err) {
-    actionError.value = err.response?.data?.message || 'Could not cancel the booking.'
+    cancelError.value = err.response?.data?.message || 'Could not cancel the booking.'
   } finally {
     busy.value = false
   }
@@ -167,13 +179,14 @@ onMounted(async () => {
         <StatusPill :status="booking.status" />
       </div>
       <p class="text-muted fw-semibold mb-3">
-        {{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime) }} · {{ formatPrice(booking.totalPrice) }}
+        {{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime, booking.overnight) }} · {{ formatPrice(booking.totalPrice) }}
         <span v-if="booking.overnight" class="badge rounded-pill text-bg-light border ms-1">🌙 Sitter stays overnight</span>
       </p>
 
       <div v-if="booking.status === 'cancelled'" class="alert alert-secondary">
         {{ booking.cancelledBy === 'owner' ? 'The owner withdrew or cancelled this booking.' : booking.cancelledBy === 'sitter' ? 'The sitter cancelled this booking.' : 'This booking was cancelled.' }}
         The hours are free on the sitter's calendar again.
+        <div v-if="booking.cancelReason" class="mt-2"><strong>Reason:</strong> “{{ booking.cancelReason }}”</div>
       </div>
       <div v-else-if="booking.status === 'expired'" class="alert alert-secondary">
         This request expired: the start time passed before the owner confirmed it.
@@ -298,6 +311,18 @@ onMounted(async () => {
         </div>
       </div>
     </template>
+
+    <!-- asks for the reason before cancelling -->
+    <CancelBookingModal
+      v-if="cancelOpen"
+      :title="cancelQuestion.title"
+      :text="cancelQuestion.text"
+      :confirm-label="cancelText"
+      :busy="busy"
+      :error="cancelError"
+      @confirm="sendCancel"
+      @close="cancelOpen = false"
+    />
   </div>
 </template>
 

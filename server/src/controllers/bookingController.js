@@ -1,7 +1,7 @@
 import Booking from '../models/bookingModel.js'
 import { notifyBookingOnce } from '../models/notificationModel.js'
 import { syncBookingToGoogle } from '../utils/googleCalendar.js'
-import { bookingRange, findClash, findPetClash, describeBooking } from '../utils/bookingTimes.js'
+import { bookingRange, dailyRanges, findClash, findPetClash, describeBooking } from '../utils/bookingTimes.js'
 
 // GET /api/bookings                         -> all my bookings
 // GET /api/bookings?status=pending,accepted -> only those statuses
@@ -63,7 +63,7 @@ export const updateBookingStatus = async (req, res) => {
   // A sitter can't accept a request that overlaps another booking they already accepted.
   // (Two pending requests may overlap each other, so this is checked again at the moment of accepting.)
   if (status === 'accepted') {
-    const clash = await findClash(booking.sitterId, bookingRange(booking), booking._id)
+    const clash = await findClash(booking.sitterId, dailyRanges(booking), booking._id) // checked day by day: the times are the hours for each day
     if (clash) {
       return res.status(409).json({ message: `You already have a booking ${describeBooking(clash)}, so you can't accept this overlapping request.` })
     }

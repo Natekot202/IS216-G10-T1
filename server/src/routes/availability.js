@@ -3,7 +3,7 @@ import mongoose from 'mongoose'
 import Availability, { sgtMidnight, toSgtDateString } from '../models/Availability.js'
 import Booking from '../models/bookingModel.js'
 import { requireSitter } from '../middleware/authMiddleware.js'
-import { BOOKED_STATUSES, busyRanges, slotsOf } from '../utils/bookingTimes.js'
+import { BOOKED_STATUSES, busyRanges, slotsOf, DAY_START_MIN } from '../utils/bookingTimes.js'
 import asyncHandler from '../middleware/asyncHandler.js'
 
 const router = Router()
@@ -23,7 +23,7 @@ router.get('/me', requireSitter, asyncHandler(async (req, res) => {
 
 // PUT /api/availability/me
 // Body: { changes: [{ date: '2026-10-20', slots: [540, 570, ...] }, { date: '2026-10-21', status: 'blocked' }, ...] }
-//   slots = the free half-hours that day (none = blocked). Without slots, status 'available' means the whole day.
+//   slots = the free half-hours that day, 420 (7am) to 1410 (11:30pm) (none = blocked). Without slots, status 'available' means the whole day (7am to 12am).
 router.put('/me', requireSitter, asyncHandler(async (req, res) => {
   const { changes } = req.body
   if (!Array.isArray(changes) || changes.length === 0) {
@@ -37,10 +37,10 @@ router.put('/me', requireSitter, asyncHandler(async (req, res) => {
     if (date < today) return res.status(400).json({ message: `${date} is in the past.` })
 
     if (slots !== undefined) {
-      // Free half-hours: whole numbers, 0 to 1410, in 30-minute steps, no repeats
-      const ok = Array.isArray(slots) && slots.every((m) => Number.isInteger(m) && m >= 0 && m <= 1410 && m % 30 === 0)
+      // Free half-hours: whole numbers, 420 (7am) to 1410 (11:30pm), in 30-minute steps, no repeats
+      const ok = Array.isArray(slots) && slots.every((m) => Number.isInteger(m) && m >= DAY_START_MIN && m <= 1410 && m % 30 === 0)
       if (!ok || new Set(slots).size !== slots.length) {
-        return res.status(400).json({ message: 'Slots must be half-hour start times between 0 and 1410, with no repeats.' })
+        return res.status(400).json({ message: 'Free time can only be between 7:00 am and 12:00 am, in half-hour steps, with no repeats.' })
       }
       const sorted = [...slots].sort((a, b) => a - b)
       updates.push({ date, set: { status: sorted.length ? 'available' : 'blocked', slots: sorted } })
@@ -75,6 +75,7 @@ router.get('/me/bookings', requireSitter, asyncHandler(async (req, res) => {
     startTime: b.startTime, // undefined for old all-day bookings
     endDate: toSgtDateString(b.endDate),
     endTime: b.endTime,
+    overnight: b.overnight, // only old bookings: they ran non-stop through the night (new ones use the same hours each day)
     status: b.status,
     ownerName: b.ownerId?.username || 'Pet owner',
     petNames: b.petIds.map((pet) => pet.name),

@@ -3,6 +3,7 @@
 // so two times can simply be compared with < and >.
 
 export const DAY_MIN = 24 * 60 // number of minutes in a day
+export const DAY_START_MIN = 7 * 60 // bookings and free time only run from 7am (420) to 12am midnight (DAY_MIN)
 export const SLOT_MS = 30 * 60 * 1000 // one 30-minute slot, in milliseconds
 
 // Turns a Date into 'YYYY-MM-DD' (what the server uses), in local time.
@@ -72,7 +73,8 @@ export function slotFree(busy, date, minutes, slots) {
 
 // purpose : does the day have at least one free slot? if yes, status = avail ; if no, status = unavail 
 export function dayHasFreeSlot(busy, date, slots) {
-  for (let m = 0; m < DAY_MIN; m += 30) if (slotFree(busy, date, m, slots)) return true
+  for (let m = DAY_START_MIN; m < DAY_MIN; m += 30) if (slotFree(busy, date, m, slots)) return true
   return false
 }
 // loops through all slots within the whole day, checks if slotFree returns true for each slot 
+// (the day starts at 7am, nothing before that can be booked)

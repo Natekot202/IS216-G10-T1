@@ -35,7 +35,7 @@ const pets = computed(() => props.booking.pets || props.booking.petNames.map((na
         <div class="bs-main">
           <strong>{{ pets.map((p) => p.name).join(', ') }}</strong>
           <span class="bs-when">
-            {{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime) }}
+            {{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime, booking.overnight) }}
           </span>
         </div>
         <span class="bs-price">${{ booking.totalPrice }}</span>

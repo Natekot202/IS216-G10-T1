@@ -6,6 +6,7 @@ import { sendNotification } from '../utils/sendNotification.js'
 import { bookingsApi } from '../services/bookingApi.js'
 import BookingTable from '../components/BookingTable.vue'
 import BookingTabs from '../components/BookingTabs.vue'
+import CancelBookingModal from '../components/CancelBookingModal.vue'
 
 // /sitter/requests: every booking made with this sitter, sorted into
 // To accept / Awaiting confirmation / Upcoming / Awaiting payment / Past tabs (like the tabs on the owner's My Bookings)
@@ -85,22 +86,33 @@ async function respond(id, status) {
   }
 }
 
-// A sitter can cancel a booking the owner has confirmed (shown under Upcoming)
-async function cancelBooking(id) {
-  if (!window.confirm('Cancel this booking? The owner will see it as cancelled and can book another sitter. This cannot be undone.')) return
+// A sitter can cancel a booking the owner has confirmed (shown under Upcoming).
+// It asks for a reason first, in a small window (CancelBookingModal).
+const cancellingId = ref(null) // the booking the reason window is open for (null = closed)
+const cancelError = ref('') // why cancelling failed, shown inside the window
+function cancelBooking(id) {
+  cancelError.value = ''
+  cancellingId.value = id
+}
+// runs when the window sends the reason
+async function sendCancel(reason) {
+  const id = cancellingId.value
   busyId.value = id
   error.value = ''
   actionError.value = ''
   message.value = ''
+  cancelError.value = ''
   try {
-    const updated = await bookingsApi.cancel(id)
+    const updated = await bookingsApi.cancel(id, reason)
     const booking = bookings.value.find((b) => b._id === id)
     booking.status = updated.status
     booking.cancelledBy = updated.cancelledBy
-    sendNotification(id, 'booking-cancelled', `${currentUser.value.username} cancelled your booking. You can book another sitter.`)
+    booking.cancelReason = updated.cancelReason
+    sendNotification(id, 'booking-cancelled', `${currentUser.value.username} cancelled your booking. Reason: ${reason}. You can book another sitter.`)
+    cancellingId.value = null
     message.value = 'Booking cancelled. The hours are free on your calendar again.'
   } catch (err) {
-    actionError.value = err.response?.data?.message || 'Could not cancel the booking.'
+    cancelError.value = err.response?.data?.message || 'Could not cancel the booking.'
   } finally {
     busyId.value = null
   }
@@ -135,5 +147,15 @@ onMounted(loadRequests)
         @cancel="cancelBooking"
       />
     </template>
+
+    <!-- asks for the reason before cancelling -->
+    <CancelBookingModal
+      v-if="cancellingId"
+      text="The owner will see it as cancelled, along with your reason, and can book another sitter. This cannot be undone."
+      :busy="busyId === cancellingId"
+      :error="cancelError"
+      @confirm="sendCancel"
+      @close="cancellingId = null"
+    />
   </div>
 </template>

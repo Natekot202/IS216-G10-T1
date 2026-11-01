@@ -1,14 +1,15 @@
 <script setup>
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import BookingSheet from './BookingSheet.vue'
 import { formatDateRange } from '../utils/bookingHelpers.js'
-import { toDateString, prettyDate } from '../utils/bookingTimeHelpers.js'
+import { toDateString, prettyDate, DAY_MIN, DAY_START_MIN } from '../utils/bookingTimeHelpers.js'
 import {
   shortTime,
   groupBookingsByDay,
   dayPart,
   chipText,
   isFullyBooked,
+  freeHoursText,
   slotBooked,
   canChangeSlot,
   paintedSlots
@@ -39,7 +40,16 @@ const nowMinutes = now.getHours() * 60 + now.getMinutes() // minutes after midni
 // Phones and tablets can't hover, so there a tap opens a small preview instead of the hover card,
 // and a tap only picks the day (dragging to paint would fight with scrolling the page)
 const canHover = window.matchMedia('(hover: hover)').matches
-const isPhone = window.matchMedia('(max-width: 575.98px)').matches // same width as the phone styles at the bottom
+const phoneQuery = window.matchMedia('(max-width: 575.98px)') // same width as the phone styles at the bottom
+const isPhone = phoneQuery.matches
+// true while the window is phone-sized (also when a desktop window is made narrow): then a tap opens the preview sheet, not the hover card
+const narrow = ref(phoneQuery.matches)
+function onNarrowChange(e) {
+  narrow.value = e.matches
+  if (e.matches) hovered.value = null
+}
+onMounted(() => phoneQuery.addEventListener('change', onNarrowChange))
+onBeforeUnmount(() => phoneQuery.removeEventListener('change', onNarrowChange))
 
 const year = ref(now.getFullYear())
 const month = ref(now.getMonth())
@@ -79,9 +89,9 @@ function dayBookings(date) {
 // returns the actual array of bookings for that date 
 // e.g. returns : [booking1, booking2,...]
 
-// The free half-hours of one day: the unsaved change if there is one, else what the server has, else nothing set (null)
+// The free half-hours of one day: the unsaved change if there is one, else what the server has, else none (unavailable)
 function slotsOf(date) {
-  return props.changes[date] ?? props.saved[date] ?? null
+  return props.changes[date] ?? props.saved[date] ?? []
 }
 // it checks : 
 // 1. props.changes[date] — any unsaved edit the sitter just made 
@@ -94,13 +104,17 @@ function slotsOf(date) {
 function statusOf(date) {
   if (isFullyBooked(dayBookings(date), date)) return 'booked' // no free time left that day
   if (bookedDays.value[date]) return 'partial' // some bookings, but part of the day is still free
-  const slots = slotsOf(date)
-  if (slots === null) return 'unset'
-  return slots.length ? 'available' : 'blocked'
+  return slotsOf(date).length ? 'available' : 'blocked'
 }
 // returns the status of that specific day by checking the bookedDays,changes,saved object
 //  if the bookings cover the whole day: 'booked' ; if there are bookings but free time is left: 'partial'
-//  else if the day has free half-hours: 'available' ; none: 'blocked' ; never set: 'unset'
+//  else if the day has free half-hours: 'available' ; none: 'blocked'
+//  a day the sitter never set counts as 'blocked' (unavailable is the default)
+
+// The free hours written inside an available day's square, e.g. '9am–6pm' (empty for other days)
+function freeText(date) {
+  return statusOf(date) === 'available' ? freeHoursText(slotsOf(date)) : ''
+}
 
 // Past days and days with bookings can't be changed as a whole day (month view).
 function canChange(date) {
@@ -139,7 +153,7 @@ function startDayPaint(date) {
 
 // 
 function paintDay(date) {
-  if (painting.value && canChange(date)) paintRange(date, 0, 24 * 60, mode.value === 'available')
+  if (painting.value && canChange(date)) paintRange(date, DAY_START_MIN, DAY_MIN, mode.value === 'available') // the whole day = 7am to 12am
 }
   
 
@@ -162,7 +176,7 @@ function paintWeekday(weekday) {
   if (!props.editable) return
   for (const week of weeks.value) {
     const d = week[weekday]
-    if (d && canChange(d.date)) paintRange(d.date, 0, 24 * 60, mode.value === 'available')
+    if (d && canChange(d.date)) paintRange(d.date, DAY_START_MIN, DAY_MIN, mode.value === 'available')
   }
 }
 
@@ -194,9 +208,9 @@ const title = computed(() => {
   return `${prettyDate(weekDays.value[0].date)} – ${prettyDate(weekDays.value[6].date)}`
 })
 
-// The week view shows the whole day, 12am to 12am, in half-hour rows (it scrolls)
-const FIRST_MIN = 0
-const LAST_MIN = 24 * 60
+// The week view shows only the hours that can be booked, 7am to 12am, in half-hour rows (it scrolls)
+const FIRST_MIN = DAY_START_MIN
+const LAST_MIN = DAY_MIN
 const ROW_PX = 22 // height of one half-hour row
 const rows = []
 for (let m = FIRST_MIN; m < LAST_MIN; m += 30) rows.push(m)
@@ -245,13 +259,13 @@ function openWeek(date) {
   view.value = 'week'
 }
 
-// The week view scrolls, so open it at 7am (or a little before now, if this week has today in it)
+// The week view scrolls, so open it at the top, 7am (or a little before now, if this week has today in it)
 const weekBox = ref(null)
 function scrollWeek() {
   if (!weekBox.value) return
   const hasToday = weekDays.value.some((d) => d.date === today)
-  const startAt = hasToday ? Math.max(nowMinutes - 3 * 60, 0) : 7 * 60
-  weekBox.value.scrollTop = (startAt / 30) * ROW_PX
+  const startAt = hasToday ? Math.max(nowMinutes - 3 * 60, FIRST_MIN) : FIRST_MIN
+  weekBox.value.scrollTop = ((startAt - FIRST_MIN) / 30) * ROW_PX
 }
 watch([view, weekStart], () => nextTick(scrollWeek))
 onMounted(scrollWeek)
@@ -275,7 +289,7 @@ function placeCard(event) {
   return { left, top }
 }
 function showBooking(b, event) {
-  if (!canHover) return // a tap on a phone also sends mouseenter; the preview sheet is used there instead
+  if (!canHover || narrow.value) return // a tap on a phone also sends mouseenter; the preview sheet is used there instead
   hovered.value = { booking: b, ...placeCard(event) }
 }
 // b-> booking object currently under the mouse 
@@ -303,7 +317,7 @@ const hoverPets = computed(() => {
 // ----- Phones: tapping a booking opens a short preview at the bottom (BookingSheet) -----
 const tapped = ref(null) // the booking being previewed
 function tapBooking(b) {
-  if (!canHover) tapped.value = b
+  if (!canHover || narrow.value) tapped.value = b
 }
 </script>
 
@@ -384,6 +398,8 @@ function tapBooking(b) {
           -->
 
             <span class="num" @click="openWeek(d.date)">{{ d.day }}</span>
+            <!-- the free hours of an available day, e.g. 9am–6pm -->
+            <span v-if="freeText(d.date)" class="free-hours">{{ freeText(d.date) }}</span>
             <!-- up to 2 bookings written inside the square, then "+N more"; hover one for its details -->
             <span
               v-for="b in dayBookings(d.date).slice(0, 2)"
@@ -421,10 +437,9 @@ function tapBooking(b) {
           :key="m"
           class="slot"
           :class="{
-            free: (slotsOf(d.date) || []).includes(m),
+            free: slotsOf(d.date).includes(m),
             off: editable && !canChangeSlot(d.date, m, dayBookings(d.date), today, nowMinutes) && !slotBooked(dayBookings(d.date), d.date, m),
             hour: m % 60 === 0,
-            night: m < 6 * 60 || m >= 22 * 60,
             looking: !editable,
             unsaved: changes[d.date] && (changes[d.date].includes(m) !== (saved[d.date] || []).includes(m))
           }"
@@ -455,11 +470,10 @@ function tapBooking(b) {
     </div>
 
     <div class="legend d-flex flex-wrap gap-3 small mt-3">
-      <span><span class="swatch available"></span> Available</span>
+      <span><span class="swatch available"></span> Free</span>
       <span><span class="swatch blocked"></span> Unavailable</span>
       <span><span class="swatch partial"></span> Partly booked</span>
       <span><span class="swatch booked"></span> Fully booked</span>
-      <span><span class="swatch unset"></span> Not set</span>
     </div>
     <p class="small text-muted mt-2 mb-0">
       <template v-if="editable && !canHover">
@@ -492,7 +506,7 @@ function tapBooking(b) {
         <div class="bc-main">
           <strong>{{ hoverPets.map((p) => p.name).join(', ') }}</strong>
           <span class="bc-when">
-            {{ formatDateRange(hovered.booking.startDate, hovered.booking.endDate, hovered.booking.startTime, hovered.booking.endTime) }}
+            {{ formatDateRange(hovered.booking.startDate, hovered.booking.endDate, hovered.booking.startTime, hovered.booking.endTime, hovered.booking.overnight) }}
           </span>
         </div>
         <span class="bc-price">${{ hovered.booking.totalPrice }}</span>
@@ -507,19 +521,21 @@ function tapBooking(b) {
 </template>
 
 <style scoped>
-/* Colours (the PetSociety brown, orange and cream, with calm green and blue for the days) */
+/* Colours (the PetSociety brown, orange and cream; each kind of day has its own colour:
+   free = green, unavailable = grey, partly booked = amber, fully booked = blue) */
 .avail-cal {
   --ink: #2b2420;
   --muted: #766a60;
   --line: #e4dbd0;
   --accent: #c47756;
-  --open: #e3e9dc;
-  --open-line: #8aa07c;
+  --open: #cfe6c2;
+  --open-line: #5f9150;
   --booked: #bfd0e4;
   --booked-line: #5b7ea6;
   --booked-ink: #1f3550;
-  --partial: #e1e6f1;
-  --blocked: #e6dfd6;
+  --partial: #fbe2a8;
+  --partial-line: #c98a12;
+  --blocked: #eeebe7;
   color: var(--ink);
 }
 .cal-title { font-family: 'Fredoka', 'Nunito', sans-serif; font-size: 1.25rem; font-weight: 600; }
@@ -603,11 +619,12 @@ function tapBooking(b) {
   border-radius: 50%;
   background: var(--accent);
 }
-.available { background: var(--open); }
-.blocked { background: repeating-linear-gradient(45deg, var(--blocked), var(--blocked) 5px, #fffdfa 5px, #fffdfa 10px); }
-.partial { background: var(--partial); }
-.booked { background: var(--booked); }
-.unset { background: #fffdfa; }
+.available { background: var(--open); border-color: var(--open-line); }
+.blocked { background: var(--blocked); }
+.partial { background: var(--partial); border-color: var(--partial-line); }
+.booked { background: var(--booked); border-color: var(--booked-line); }
+.day.blocked .num { color: var(--muted); }
+.free-hours { font-size: 0.66rem; font-weight: 700; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .day.booked .chip { background: #d3e0ee; }
 
 /* ----- week view ----- */
@@ -627,10 +644,9 @@ function tapBooking(b) {
 .time-label { font-size: 0.65rem; color: var(--muted); text-align: right; padding-right: 5px; line-height: 1; transform: translateY(-4px); }
 .time-label:first-child { transform: none; padding-top: 3px; } /* the top label stays inside the grid, so the day names can't cover it */
 .day-col { position: relative; display: grid; grid-auto-rows: 22px; }
-.slot { border-bottom: 1px dotted var(--line); cursor: pointer; background: #fffdfa; }
+.slot { border-bottom: 1px dotted var(--line); cursor: pointer; background: var(--blocked); }
 .slot.looking { cursor: default; }
 .slot.hour { border-bottom: 1px solid var(--line); }
-.slot.night { background: #f7f2ec; } /* before 6am and after 10pm */
 .slot.free { background: var(--open); }
 .slot.off { opacity: 0.5; cursor: not-allowed; }
 .slot.unsaved { box-shadow: inset 0 0 0 2px var(--accent); }
@@ -725,6 +741,7 @@ function tapBooking(b) {
   .chip-text { display: none; }
   .chip-pet { display: block; overflow: hidden; text-overflow: ellipsis; }
   .more { font-size: 0.6rem; }
+  .free-hours { display: none; } /* no room on a phone; the green colour already says the day is free */
   .week-scroll { max-height: 65vh; }
   .week { grid-template-columns: 34px repeat(7, minmax(0, 1fr)); }
   .week-head { font-size: 0.7rem; padding: 4px 0; }

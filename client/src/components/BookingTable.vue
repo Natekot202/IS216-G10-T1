@@ -101,6 +101,7 @@ function showRoute(booking) {
               </div>
               <div v-else-if="b.status === 'cancelled' && b.cancelledBy" class="small text-muted mt-1">
                 by {{ (viewer === 'owner') === (b.cancelledBy === 'owner') ? 'you' : `the ${b.cancelledBy}` }}
+                <div v-if="b.cancelReason" class="cancel-reason">“{{ b.cancelReason }}”</div>
               </div>
             </td>
             <td class="text-end">
@@ -189,6 +190,7 @@ function showRoute(booking) {
 </template>
 
 <style scoped>
+.cancel-reason { font-style: italic; max-width: 16rem; white-space: normal; overflow-wrap: anywhere; } /* the reason someone gave for cancelling */
 .avatar {
   width: 36px;
   height: 36px;
