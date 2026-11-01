@@ -27,6 +27,8 @@ export function checkBookingRequest({ selectedPets, when, tasks, clash, unavaila
     return 'Times a day must be a whole number from 1 to 10.'
   }
   // .some returns true/false for the condition 
+  const noRoute = tasks.find((t) => t.category === 'walk' && !t.walkRouteId)
+  if (noRoute) return `Choose a route for "${noRoute.title.trim()}", or pick "No route – follow my instructions".`
   return ''
 }
 
@@ -47,7 +49,8 @@ export function buildBookingPayload(sitterId, { selectedPets, when, tasks, notes
         category: t.category,
         title: t.title.trim(),
         dailyFrequency: t.dailyFrequency,
-        petIds: chosen.length ? chosen : selectedPets
+        petIds: chosen.length ? chosen : selectedPets,
+        walkRouteId: t.walkRouteId // walk tasks: a route's id, or 'instructions'
       }
     })
   }
