@@ -137,6 +137,7 @@ onMounted(async () => {
 </script>
 
 <template>
+  <div class="nbr">
   <h1 class="h3 fw-bold mb-3">New Booking Request</h1>
 
   <div v-if="loadError" class="alert alert-danger">{{ loadError }}</div>
@@ -155,7 +156,7 @@ onMounted(async () => {
         {{ notificationError }}
         <button type="button" class="btn btn-sm btn-outline-dark ms-2" @click="notifyBookingRequest">Retry</button>
       </div>
-      <router-link to="/owner/bookings" class="btn btn-dark mt-2">View My Bookings</router-link>
+      <router-link to="/owner/bookings" class="btn btn-brand mt-2">View My Bookings</router-link>
     </div>
   </div>
 
@@ -181,7 +182,7 @@ onMounted(async () => {
               v-for="pet in pets"
               :key="pet._id"
               type="button"
-              class="btn btn-sm rounded-pill px-3"
+              class="btn rounded-pill px-3"
               :class="selectedPets.includes(pet._id) ? 'btn-dark' : 'btn-outline-secondary'"
               @click="togglePet(pet._id)"
             >
@@ -236,7 +237,7 @@ onMounted(async () => {
             <span>{{ SERVICE_LABELS[t.category] }}: ${{ SERVICE_PRICES[t.category] }} × {{ t.dailyFrequency || 0 }} a day × {{ chosenDays.length }} day{{ chosenDays.length === 1 ? '' : 's' }}</span>
             <span>${{ priceForTasks([t], chosenDays.length) }}</span>
           </div>
-          <p v-if="tasks.length === 0" class="small text-muted mb-1">Add a care task below to see the price.</p>
+          <p v-if="tasks.length === 0" class="small text-muted mb-1">Add a care task above to see the price.</p>
           <div class="d-flex justify-content-between small"><span>Days</span><span>{{ chosenDays.length || '–' }}</span></div>
           <div v-if="when.startTime && when.endTime" class="d-flex justify-content-between small">
             <span>Time</span><span>{{ formatTime(when.startTime) }} – {{ formatTime(when.endTime) }}{{ chosenDays.length > 1 ? ' each day' : '' }}</span>
@@ -256,14 +257,21 @@ onMounted(async () => {
 
     <div class="col-12">
       <div v-if="error" class="alert alert-danger py-2">{{ error }}</div>
-      <button class="btn btn-dark w-100 py-2 fw-semibold" :disabled="sending || clash" @click="sendRequest">
+      <button class="btn btn-brand w-100 py-2 fw-semibold" :disabled="sending || clash" @click="sendRequest">
         {{ sending ? 'Sending…' : 'Send Booking Request' }}
       </button>
     </div>
   </div>
+  </div>
 </template>
 
 <style scoped>
+/* same centred width idea as the Booking Detail page, so the form doesn't stretch across a big screen */
+.nbr {
+  max-width: 860px;
+  margin-inline: auto;
+  padding: 0.5rem 1.25rem 2.5rem;
+}
 .avatar {
   width: 50px; 
   height: 50px; 
