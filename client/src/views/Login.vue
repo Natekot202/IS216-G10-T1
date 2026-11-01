@@ -37,7 +37,7 @@ async function submit() {
     <form @submit.prevent="submit">
       <input v-model="form.emailOrUser" type="emailOrUser" class="form-control mb-3" placeholder="Email/Username" required />
       <PasswordInput v-model="form.password" placeholder="Password" autocomplete="current-password" class="mb-3" />
-      <button class="btn w-100 mb-3 text-white" style="background-color:#c47756;">Log In</button>
+      <button class="btn w-100 mb-3 text-white" style="background-color:var(--accent-main);">Log In</button>
     </form>
 
     <span style="color:white;"> Don't have an account? </span>

@@ -527,7 +527,7 @@ function tapBooking(b) {
   --ink: #2b2420;
   --muted: #766a60;
   --line: #e4dbd0;
-  --accent: #c47756;
+  --accent: var(--accent-main);
   --open: #cfe6c2;
   --open-line: #5f9150;
   --booked: #bfd0e4;
@@ -699,7 +699,7 @@ function tapBooking(b) {
   border-radius: 50%;
   border: 2px solid #fff;
   margin-left: -12px;
-  background: #c47756;
+  background: var(--accent-main);
   color: #fff;
   display: grid;
   place-items: center;

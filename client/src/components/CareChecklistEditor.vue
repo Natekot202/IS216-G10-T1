@@ -183,7 +183,7 @@ watch(tasks, () => emit('change', tasks.value), { deep: true })
 .cl-x { width: 32px; height: 32px; border-radius: 50%; border: 1px solid #e4dbd0; background: transparent; color: #766a60; }
 .cl-x:hover { border-color: #b3412b; color: #b3412b; }
 .cl-add { border: 1.5px dashed #c9bfb3; background: transparent; border-radius: 10px; padding: 6px 14px; font-weight: 700; font-size: 0.9rem; }
-.cl-add:hover { border-color: #c44f1c; color: #c44f1c; }
+.cl-add:hover { border-color: var(--accent-deep); color: var(--accent-deep); }
 .cl-total { color: #3f8a4a; }
 
 @media (max-width: 640px) { /* phones: each task becomes a small card with its own labels */

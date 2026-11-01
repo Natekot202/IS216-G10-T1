@@ -379,7 +379,7 @@ onMounted(async () => {
   --ink: #2b2420;
   --muted: #766a60;
   --line: #e4dbd0;
-  --accent: #c47756;
+  --accent: var(--accent-main);
   --open: #cfe6c2;
   --open-line: #5f9150;
   --blocked: #e6dfd6;
@@ -415,7 +415,7 @@ onMounted(async () => {
 
 /* ----- Google Calendar switch ----- */
 .google-box { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px 6px 12px; }
-.google-box .form-check-input:checked { background-color: #c44f1c; border-color: #c44f1c; }
+.google-box .form-check-input:checked { background-color: var(--accent-deep); border-color: var(--accent-deep); }
 .info-btn { border: 0; background: none; color: var(--muted); padding: 2px; line-height: 0; border-radius: 50%; }
 .info-btn:hover, .info-btn:focus-visible { color: var(--ink); }
 

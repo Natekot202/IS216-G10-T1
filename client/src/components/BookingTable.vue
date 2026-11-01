@@ -201,7 +201,7 @@ function showRoute(booking) {
   justify-content: center;
   font-weight: 700;
   background: #fde9dd;
-  color: #c44f1c;
+  color: var(--accent-deep);
 }
 .actions-stack {
   width: 132px; /* every stacked button is this wide */

@@ -87,7 +87,7 @@ async function submit() {
 .cp-card {
   padding: 1.25rem 1.35rem;
   border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #e6d3c0;
+  border-top: 4px solid var(--line);
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);
@@ -100,12 +100,12 @@ async function submit() {
 }
 .cp-save {
   border: 0;
-  background: #a85a38;
+  background: var(--accent);
   color: #fff;
   font-weight: 600;
 }
 .cp-save:hover:not(:disabled) {
-  background: #8f4a2c;
+  background: var(--accent-hover);
   color: #fff;
 }
 </style>

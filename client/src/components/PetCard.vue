@@ -67,13 +67,13 @@ const age = computed(() => (props.pet.ageMonths != null ? `${formatAge(props.pet
   height: 100%;
   overflow: hidden;
   border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #e6d3c0;    
+  border-top: 4px solid var(--line);    
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 4px 12px rgba(120, 70, 40, 0.12);
 }
 .pc--editing {
-  box-shadow: 0 0 0 2px #c44f1c, 0 4px 12px rgba(120, 70, 40, 0.12);
+  box-shadow: 0 0 0 2px var(--accent-deep), 0 4px 12px rgba(120, 70, 40, 0.12);
 }
 
 .pc__photo {
@@ -81,7 +81,7 @@ const age = computed(() => (props.pet.ageMonths != null ? `${formatAge(props.pet
   flex: none;
   aspect-ratio: 1 / 1;
   overflow: hidden;
-  background: #f4e4d3;
+  background: var(--sand);
 }
 .pc__photo img {
   position: absolute;
@@ -124,13 +124,13 @@ const age = computed(() => (props.pet.ageMonths != null ? `${formatAge(props.pet
 }
 .pc__icon:hover {
   background: #fff;
-  color: #a85a38;
+  color: var(--accent);
 }
 .pc__icon--danger:hover {
   color: #b3261e;
 }
 .pc__icon:focus-visible {
-  outline: 2px solid #c44f1c;
+  outline: 2px solid var(--accent-deep);
   outline-offset: 2px;
 }
 
@@ -157,7 +157,7 @@ const age = computed(() => (props.pet.ageMonths != null ? `${formatAge(props.pet
 .pc__tag {
   padding: 0.15rem 0.6rem;
   border-radius: 999px;
-  background: #f4e4d3;
+  background: var(--sand);
   color: #2b2420;
   font-weight: 600;
   text-transform: capitalize;

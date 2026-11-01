@@ -101,7 +101,7 @@ const pets = computed(() => props.booking.pets || props.booking.petNames.map((na
   border-radius: 50%;
   border: 2px solid #fff;
   margin-left: -12px;
-  background: #c47756;
+  background: var(--accent-main);
   color: #fff;
   display: grid;
   place-items: center;
@@ -126,6 +126,6 @@ const pets = computed(() => props.booking.pets || props.booking.petNames.map((na
   padding: 1px 8px;
   border-radius: 999px;
 }
-.btn-accent { background: #c47756; border-color: #c47756; color: #fff; padding: 10px; border-radius: 10px; }
+.btn-accent { background: var(--accent-main); border-color: var(--accent-main); color: #fff; padding: 10px; border-radius: 10px; }
 .btn-accent:hover { background: #b06647; border-color: #b06647; color: #fff; }
 </style>

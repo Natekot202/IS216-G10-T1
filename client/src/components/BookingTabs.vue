@@ -32,7 +32,7 @@ defineEmits(['select'])
 .nav-underline .nav-link.active {
   color: #2b2420;
   font-weight: 700;
-  border-bottom-color: #c44f1c;
+  border-bottom-color: var(--accent-deep);
 }
 .tab-count {
   background: #f1ece6;

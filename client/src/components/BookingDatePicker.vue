@@ -280,7 +280,7 @@ watch(
   background: #fffdfa;
   color: #2b2420;
 }
-.month-btn:hover { background: #f3e2d9; border-color: #c44f1c; }
+.month-btn:hover { background: #f3e2d9; border-color: var(--accent-deep); }
 .month-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .month-name { font-weight: 600; min-width: 9.5em; text-align: center; }
 .rgrid {

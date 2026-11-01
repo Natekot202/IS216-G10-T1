@@ -31,15 +31,16 @@ const isNewSitter = computed(() => {
                         ~ {{ sitter.distanceKm.toFixed(1) }} km away
                     </small>
                 </div>
-                
             </div>
-            
-            <span v-for="pet in sitter.sitterProfile.petTypes" class="btn me-3 mb-2 text-white fw-medium" style="background-color: #B55B2F;">{{ pet }}</span>
+            <p v-show="sitter.bio?.trim()" class="fw-medium mb-2">{{ sitter.bio }}</p>
+
+            <div class="d-flex flex-wrap gap-2">
+                <span v-for="pet in sitter.sitterProfile.petTypes" :key="pet" class="pet-tag">{{ pet }}</span>
+            </div>
             <!-- Services offered (prices are fixed per task now, so no hourly rate here) -->
             <p v-if="sitter.sitterProfile.services?.length" class="small text-secondary mb-2">
                 Offers: {{ sitter.sitterProfile.services.join(' · ') }}
             </p>
-            <p v-show="sitter.bio?.trim()" class="fw-medium">"{{ sitter.bio }}"</p>
             <slot></slot>
         </div>
     </div>
@@ -50,9 +51,19 @@ const isNewSitter = computed(() => {
 .card {
   margin-top: 1rem;
   border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #e6d3c0;    
+  border-top: 4px solid var(--line);    
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);
+}
+.pet-tag {
+  padding: 0.15rem 0.7rem;
+  border-radius: 10px;
+  background: var(--accent, #a85a38);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.5;
+  margin-bottom:0.5rem;
 }
 </style>
