@@ -5,8 +5,10 @@ import { visitsApi, reviewsApi } from '../services/api.js'
 import { walkApi } from '../services/walkApi.js'
 import { usePhotoPicker } from '../utils/usePhotoPicker.js'
 import { sendPaymentNotification } from '../utils/sendNotification.js'
+import { medicationIncomplete } from '../utils/careDetails.js'
 import ReviewForm from '../components/ReviewForm.vue'
 import SessionChat from '../components/SessionChat.vue'
+import SessionTask from '../components/SessionTask.vue'
 import WalkMap from '../components/WalkMap.vue'
 
 const props = defineProps({
@@ -51,6 +53,7 @@ const isActive = computed(() => visit.value?.status === 'active')
 const isCompleted = computed(() => visit.value?.status === 'completed')
 const canStart = computed(() => !visit.value && ['confirmed', 'in-progress'].includes(status.value))
 const canChat = computed(() => ['confirmed', 'in-progress'].includes(status.value))
+const missingMedication = computed(() => !visit.value && props.session.items.some(medicationIncomplete))
 
 // The session bar's wording. Today's session, not the booking: it can be finished for today on a multi-day booking.
 const startedText = computed(() => (visit.value ? `Started at ${formatTime(visit.value.startedAt)}` : ''))
@@ -95,24 +98,14 @@ function countFor(item) {
   return visit.value.completedTasks.filter((t) => String(t.task) === String(item._id)).length
 }
 
-function canToggle(item, n) {
-  const c = countFor(item)
-  return n === c + 1 || n === c
-}
-
-async function tick(item, n, event) {
-  const current = countFor(item)
-  if (!props.isSitter || !isActive.value || savingTask.value || !canToggle(item, n)) {
-    event.target.checked = n <= current
-    return
-  }
+async function tick(item, n) {
   savingTask.value = true
   actionError.value = ''
   try {
-    visit.value = await visitsApi.setTask(visit.value._id, item._id, n <= current ? n - 1 : n)
+    visit.value = await visitsApi.setTask(visit.value._id, item._id, n <= countFor(item) ? n - 1 : n)
+    emit('visit-change', visit.value)
   } catch (err) {
     actionError.value = err.response?.data?.message || 'Could not save. Try again.'
-    event.target.checked = n <= current         
   } finally {
     savingTask.value = false
   }
@@ -122,21 +115,9 @@ async function tick(item, n, event) {
 const router = useRouter()
 const startingWalk = ref(null) // id of the walk task being started
 
-const isWalkTask = (item) => item.category === 'walk'
-
 // the walks that ticked this task today: [{ walk: walkId, ... }]
 function walksFor(item) {
   return (visit.value?.completedTasks ?? []).filter((t) => String(t.task) === String(item._id) && t.walk)
-}
-
-// "Block loop · 1.2 km", or how to walk without a route
-function routeText(item) {
-  const r = item.walkRoute
-  if (r?.mode === 'route') {
-    const km = r.distanceM >= 1000 ? `${(r.distanceM / 1000).toFixed(1)} km` : `${r.distanceM} m`
-    return `Route: ${r.name} · ${km}`
-  }
-  return 'No set route: follow the instructions'
 }
 
 // Opens the walk page for this task. The server gives back the walk already under way
@@ -159,9 +140,14 @@ async function startWalk(item) {
   }
 }
 
-// End session: the notes come first, then a check for unticked tasks. (The server refuses while a walk is running.)
+// End session: a walk still running comes first, then the notes, then a check for unticked tasks.
+// (The server refuses while a walk is running too, in case this page is out of date.)
 function endSession() {
   actionError.value = ''
+  if (props.session.activeWalk) {
+    actionError.value = 'Finish or end the walk you are on before submitting the report.'
+    return
+  }
   if (!notes.value.trim()) {
     actionError.value = 'Add your notes for the owner before ending the session.'
     return
@@ -298,7 +284,7 @@ watch(status, async (s) => {
               {{ starting ? 'Starting…' : 'Start session' }}
             </button>
           </template>
-          <span v-else class="sc-bar__text">{{ isActive ? 'Sitter is working' : "The sitter hasn't started today's session yet." }}</span>
+          <span v-else class="sc-bar__text">{{ isActive ? (session.activeWalk ? 'On a walk' : 'Sitter is working') : "The sitter hasn't started today's session yet." }}</span>
         </div>
 
         <div v-if="confirmingEnd" class="sc-panel" role="alert">
@@ -353,44 +339,22 @@ watch(status, async (s) => {
 
         <div v-if="actionError" class="alert alert-warning">{{ actionError }}</div>
 
+        <div v-if="missingMedication" class="alert alert-warning">
+          {{ isSitter ? 'A medication task has no details. Check with the owner before you start.'
+                      : 'A medication task has no details. Add them on the booking page.' }}
+        </div>
+
         <div v-if="session.booking.notes" class="sc-notes-box">
           <strong class="d-block">{{ isSitter ? 'Notes from the owner' : 'Your notes for the sitter' }}</strong>
           <p class="sc-notes">{{ session.booking.notes }}</p>
         </div>
 
         <p v-if="!session.items.length" class="sc-hint mb-0">No care checklist was added to this booking.</p>
-        <div v-else class="sc-tasks">
-          <div v-for="item in session.items" :key="item._id" class="sc-task">
-            <div class="sc-task__boxes">
-              <!-- walk tasks: the boxes only show progress; they're ticked by finishing a walk -->
-              <input v-for="n in item.dailyFrequency" :key="n" type="checkbox"
-                     class="form-check-input mt-0 task-check"
-                     :checked="n <= countFor(item)"
-                     :disabled="isWalkTask(item) || !isSitter || !isActive || savingTask || !canToggle(item, n)"
-                     :aria-label="isWalkTask(item) ? `Walk ${n}, ticked when the walk ends` : undefined"
-                     @change="tick(item, n, $event)" />
-            </div>
-            <div class="sc-task__main">
-              <span class="sc-task__title"
-                    :class="{ 'sc-task__title--done': countFor(item) >= item.dailyFrequency }">{{ item.title }}</span>
-              <template v-if="isWalkTask(item)">
-                <small class="d-block text-muted">{{ routeText(item) }}</small>
-                <!-- the sitter can look back at each walk done for this task -->
-                <small v-if="isSitter && walksFor(item).length" class="d-flex flex-wrap gap-2">
-                  <router-link v-for="(t, i) in walksFor(item)" :key="t._id" class="sc-link"
-                               :to="{ name: 'sitter-walk', params: { id: t.walk } }">View walk {{ i + 1 }}</router-link>
-                </small>
-              </template>
-            </div>
-            <small v-if="item.dailyFrequency > 1" class="sc-task__count">
-              {{ countFor(item) }}/{{ item.dailyFrequency }}
-            </small>
-            <button v-if="isWalkTask(item) && isSitter && isActive && countFor(item) < item.dailyFrequency"
-                    type="button" class="sc-btn sc-btn--small sc-task__walk" :disabled="startingWalk === item._id"
-                    @click="startWalk(item)">
-              {{ startingWalk === item._id ? 'Opening…' : 'Start walk' }}
-            </button>
-          </div>
+        <div v-else>
+          <SessionTask v-for="item in session.items" :key="item._id" :item="item" :count="countFor(item)"
+                       :walks="walksFor(item)" :active-walk="session.activeWalk" :is-sitter="isSitter"
+                       :is-active="isActive" :saving="savingTask" :opening="startingWalk === item._id"
+                       @tick="tick(item, $event)" @start-walk="startWalk(item)" />
         </div>
       </section>
 
@@ -658,11 +622,6 @@ watch(status, async (s) => {
 .sc-btn:disabled {
   opacity: 0.55;
 }
-.sc-btn--small {
-  min-height: 0;
-  padding: 0.35rem 0.8rem;
-  font-size: 0.85rem;
-}
 .sc-btn--start,
 .sc-btn--start:hover:not(:disabled) {
   background: #fff;
@@ -781,58 +740,6 @@ watch(status, async (s) => {
   color: #2b2420;
   white-space: pre-line;
 }
-.sc-task {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 0.4rem 0.75rem;
-  padding: 0.55rem 0;
-}
-.sc-task + .sc-task {
-  border-top: 1px solid var(--line);
-}
-.sc-task__boxes {
-  display: flex;
-  flex: none;
-  gap: 0.35rem;
-  padding-top: 0.2rem;
-}
-.sc-task__main {
-  flex: 1 1 9rem;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.sc-task__count {
-  flex: none;
-  padding-top: 0.2rem;
-  color: #6f6259;
-}
-.sc-task__title--done {
-  color: #6f6259;
-  text-decoration: line-through;
-}
-.form-check-input.task-check {
-  width: 1.2rem;
-  height: 1.2rem;
-  border: 2px solid #2b2420;
-  background-color: #fff;
-  cursor: pointer;
-}
-.form-check-input.task-check:checked {
-  background-color: var(--accent-main);
-  border-color: var(--accent-main);
-}
-.form-check-input.task-check:focus {
-  border-color: var(--accent-deep);
-  box-shadow: 0 0 0 0.2rem rgb(var(--accent-rgb) / 0.25);
-}
-.form-check-input.task-check:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-.form-check-input.task-check:disabled:checked {
-  opacity: 1;
-}
 
 /* report photos */
 .photo-slot {
@@ -922,16 +829,6 @@ fieldset:disabled .photo-slot {
   }
   .sc-bar__text {
     font-size: 0.85rem;
-  }
-  .sc-btn--small {
-    min-height: 44px;
-  }
-  .sc-task__walk {
-    flex: 1 1 100%;
-  }
-  .form-check-input.task-check {
-    width: 1.4rem;
-    height: 1.4rem;
   }
   .sc-link {
     display: inline-block;

@@ -132,7 +132,14 @@ async function seed() {
     makeBooking(owner, sitter2, [luna], -1, '09:00', '12:00', 'expired', 'Owner did not confirm in time', [FEED_TWICE]),
     makeBooking(owner, sitter, [luna], 0, '08:00', '20:00', 'in-progress', 'Session happening today', [FEED_TWICE, MEDS_ONCE]),
     // For testing walks: today, confirmed, so SeedSitter can start the session and press Start walk
-    makeBooking(owner, sitter, [mochi], 0, '20:00', '24:00', 'confirmed', 'Walk test: start the session, then Start walk at SMU', [WALK_ROUTE, WALK_INSTRUCTIONS, FEED_TWICE]),
+    // (it also has care details, and a medication task without any, to show every kind of checklist row)
+    makeBooking(owner, sitter, [mochi], 0, '20:00', '24:00', 'confirmed', 'Walk test: start the session, then Start walk at SMU', [
+      { ...WALK_ROUTE, details: { times: ['20:30', '22:00'], instructions: 'The leash is on the hook by the door.\nPlease avoid the dog park.' } },
+      WALK_INSTRUCTIONS,
+      { ...FEED_TWICE, details: { times: ['20:15', '23:00'], food: 'kibble', amount: 1, unit: 'cup', instructions: 'The food is in the top cupboard. Please top up the water too.' } },
+      { ...MEDS_ONCE, title: 'Heartworm tablet', details: { medicationName: 'Heartworm chewable', dosage: '1 tablet', withFood: true, instructions: 'Hide it in a treat.' } },
+      { ...MEDS_ONCE, title: 'Eye drops' }
+    ]),
     makeBooking(owner, sitter, [mochi], -3, '10:00', '16:00', 'completed', 'Done, waiting for payment', [WALK_TWICE, GROOM_ONCE]),
     makeBooking(owner, sitter, [mochi], -10, '09:00', '17:00', 'paid', 'Done and paid', [WALK_TWICE, FEED_TWICE]),
     makeBooking(owner, sitter, [luna], -5, '10:00', '12:00', 'declined', 'Sitter was not free', [FEED_TWICE])

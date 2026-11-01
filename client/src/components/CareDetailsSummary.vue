@@ -2,28 +2,15 @@
 // The care details the owner added to one task, to read only.
 // Shows nothing if the task has no details.
 import { computed } from 'vue'
+import { feedText as feedFor, medicationText as medicationFor } from '../utils/careDetails.js'
 
 const props = defineProps({
   task: { type: Object, required: true }
 })
 
 const details = computed(() => props.task.details ?? {})
-
-// "1.5 scoops of kibble"
-const feedText = computed(() => {
-  const { amount, unit, food } = details.value
-  if (props.task.category !== 'feed') return ''
-  const hasAmount = amount !== undefined && amount !== null
-  const size = hasAmount ? `${amount} ${unit ?? ''}${amount > 1 && unit !== 'g' ? 's' : ''}`.trim() : ''
-  return size && food ? `${size} of ${food}` : size || food || ''
-})
-
-// "Heartworm chewable, 1 tablet, with food"
-const medicationText = computed(() => {
-  const { medicationName, dosage, withFood } = details.value
-  if (props.task.category !== 'medication') return ''
-  return [medicationName, dosage, withFood ? 'with food' : ''].filter(Boolean).join(', ')
-})
+const feedText = computed(() => feedFor(props.task))
+const medicationText = computed(() => medicationFor(props.task))
 
 const timesText = computed(() => (details.value.times?.length ? `At ${details.value.times.join(', ')}` : ''))
 </script>

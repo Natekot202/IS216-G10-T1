@@ -67,6 +67,11 @@ export async function getTodaySessions(req, res) {
   const visitByBooking = new Map(visits.map((v) => [String(v.booking), v]))
   const itemsByBooking = new Map(checklists.map((c) => [String(c.bookingId), c.items]))
 
+  // Any walk happening now, so the checklist still shows it after the page reloads
+  const walks = await Walk.find({ visit: { $in: visits.map((v) => v._id) }, status: 'in-progress' })
+    .select('visit task startedAt')
+  const walkByVisit = new Map(walks.map((w) => [String(w.visit), w]))
+
   const isSitterViewer = req.session.role === 'sitter'
   const confirmed = (b) => ['confirmed', 'in-progress'].includes(b.status)
 
@@ -112,6 +117,7 @@ export async function getTodaySessions(req, res) {
         items: itemsByBooking.get(String(b._id)) ?? [],
         visit: visitByBooking.get(String(b._id)) ?? null
       }
+      session.activeWalk = session.visit ? walkByVisit.get(String(session.visit._id)) ?? null : null
       // only a booking's sitter gets the address, and only once it is confirmed
       if (isSitterViewer && confirmed(b)) {
         session.ownerAddress = addressByOwner.get(String(b.ownerId?._id)) ?? null
