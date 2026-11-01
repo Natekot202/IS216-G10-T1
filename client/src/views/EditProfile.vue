@@ -7,6 +7,7 @@ import defaultAvatar from '../assets/img/tempProfile.jpg'
 import { usePhotoPicker } from '../utils/usePhotoPicker.js'
 import LocationQuery from '../components/LocationQuery.vue'
 import { useLocationSearch } from '../utils/useLocationSearch.js'
+import { confirmDialog } from '../utils/useConfirm.js'
 
 const router = useRouter()
 
@@ -20,7 +21,13 @@ const { file: picFile, preview, error: picError, input: fileInput, onPick, clear
 const removing = ref(false)
 
 async function removePicture() {
-  if (!confirm('Remove your profile picture?')) {
+  const ok = await confirmDialog({
+    title: 'Remove your profile picture?',
+    message: "You'll go back to the default avatar.",
+    confirmText: 'Remove',
+    danger: true
+  })
+  if (!ok) {
     return
   }
   removing.value = true
@@ -142,7 +149,13 @@ function clearPending(item) {
 }
 
 async function deleteSaved(photo) {
-  if (!confirm('Delete this photo?')) {
+  const ok = await confirmDialog({
+    title: 'Delete this photo?',
+    message: "It will disappear from your profile, and this can't be undone.",
+    confirmText: 'Delete',
+    danger: true
+  })
+  if (!ok) {
     return
   }
   removingId.value = photo._id
@@ -271,6 +284,11 @@ async function save() {
                         placeholder="e.g. Door code 1234"></textarea>
             </template>
           </section>
+
+          <section class="ef-card ef-card--private">
+            <h4 class="ef-card__title">Password</h4>
+            <router-link to="/account/password" class="btn btn-sm mt-2" style="border:1px solid;">Change password</router-link>
+          </section>
         </div>
 
         <!-- main column -->
@@ -362,8 +380,13 @@ async function save() {
             <div class="eg-grid">
               <div v-for="photo in savedGallery" :key="photo._id" class="eg-tile">
                 <img :src="photo.url" alt="One of your photos" />
-                <button type="button" class="btn-close eg-x bg-white p-1" aria-label="Delete photo"
-                        :disabled="removingId === photo._id" @click="deleteSaved(photo)"></button>
+                <button v-if="removingId !== photo._id" type="button" class="btn-close eg-x bg-white p-1"
+                        aria-label="Delete photo" :disabled="removingId !== null" @click="deleteSaved(photo)"></button>
+
+                <div v-else class="eg-deleting" role="status">
+                  <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                  <span>Deleting…</span>
+                </div>
               </div>
 
               <div v-for="item in pending" :key="item.id" class="eg-tile">
@@ -609,5 +632,18 @@ async function save() {
 .ef-save:hover:not(:disabled) {
   background: #8f4a2c;
   color: #fff;
+}
+.eg-deleting {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background: rgba(43, 36, 32, 0.6);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 </style>

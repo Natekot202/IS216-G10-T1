@@ -19,6 +19,7 @@ import SitterWalk from '../views/SitterWalk.vue'
 import Notifications from '../views/Notifications.vue'
 import PaymentGateway from '../views/PaymentGateway.vue'
 import Transactions from '../views/Transactions.vue'
+import ChangePassword from '../views/ChangePassword.vue'
 
 const routes = [
 { path: '/', name: 'welcome', component: RolePicker, meta: { hideElem: true } }, // landing page 
@@ -42,6 +43,7 @@ const routes = [
 { path: '/owner/routes/:id/record', name: 'rerecord-route', component: RecordRoute, meta: { role: 'owner' } },
 { path: '/sitter/walks/:id', name: 'sitter-walk', component: SitterWalk, meta: { role: 'sitter' } },
 { path: '/notifications', name: 'notifications', component: Notifications, meta: { auth:true } },
+{ path: '/account/password', name: 'change-password', component: ChangePassword, meta: { auth: true } }
 ]
 
 // connects a url path to the vue page which shd be displayed, tgt with the components it needs 
