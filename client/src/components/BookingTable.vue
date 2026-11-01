@@ -26,7 +26,7 @@ function toggleDetails(id) {
 
 const tableEl = ref(null)
 
-const { page, pageItems, goPage } = usePagination(toRef(props, 'bookings'), {
+const { page, pageItems, goPage, reset } = usePagination(toRef(props, 'bookings'), {
   pageSize: props.pageSize,
   scrollRef: tableEl
 })
@@ -36,6 +36,8 @@ const rows = computed(() => (props.paginate ? pageItems.value : props.bookings))
 watch(page, () => {
   openId.value = null
 })
+
+watch(() => props.bookings, reset)
 
 // the person on the other side of the booking
 function otherPerson(booking) {
