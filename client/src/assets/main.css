@@ -12,6 +12,12 @@
   --page-bg: #fffaf5;
   --bar-track: #efe3d6;
   --bar-fill: var(--accent-main);
+  --accent-deep-hover: #a8421a;
+  --accent-deep-active: #8f3816;
+  --accent-main-hover: #a9603f;
+  --accent-main-active: #8e4f33;
+  --accent-deep-rgb: 196, 79, 28;
+  --accent-main-rgb: 196, 119, 86;
 }
 
 :root[data-role='sitter'] {
@@ -27,6 +33,12 @@
   --page-bg: #fff6f9;
   --bar-track: #f9e1ea;   
   --bar-fill: #e07aa1;
+  --accent-deep-hover: #9c2f58;
+  --accent-deep-active: #82264a;
+  --accent-main-hover: #bd5679;
+  --accent-main-active: #a24565;
+  --accent-deep-rgb: 184, 59, 107;
+  --accent-main-rgb: 211, 106, 143;
 }
 
 body {
@@ -423,37 +435,37 @@ body {
   border-color: var(--accent-main);
 }
  
-/* Orange brand buttons.*/
+/* buttons.*/
 .btn.btn-brand {
   --bs-btn-color: #fff;
   --bs-btn-bg: var(--accent-deep);
   --bs-btn-border-color: var(--accent-deep);
   --bs-btn-hover-color: #fff;
-  --bs-btn-hover-bg: #a8421a;
-  --bs-btn-hover-border-color: #a8421a;
+  --bs-btn-hover-bg: var(--accent-deep-hover);
+  --bs-btn-hover-border-color: var(--accent-deep-hover);
   --bs-btn-active-color: #fff;
-  --bs-btn-active-bg: #8f3816;
-  --bs-btn-active-border-color: #8f3816;
+  --bs-btn-active-bg: var(--accent-deep-active);
+  --bs-btn-active-border-color: var(--accent-deep-active);
   --bs-btn-disabled-color: #fff;
   --bs-btn-disabled-bg: var(--accent-deep);
   --bs-btn-disabled-border-color: var(--accent-deep);
-  --bs-btn-focus-shadow-rgb: 196, 79, 28;
+  --bs-btn-focus-shadow-rgb: var(--accent-deep-rgb);
 }
- 
+
 .btn.btn-brand-light {
   --bs-btn-color: #fff;
   --bs-btn-bg: var(--accent-main);
   --bs-btn-border-color: var(--accent-main);
   --bs-btn-hover-color: #fff;
-  --bs-btn-hover-bg: #a9603f;
-  --bs-btn-hover-border-color: #a9603f;
+  --bs-btn-hover-bg: var(--accent-main-hover);
+  --bs-btn-hover-border-color: var(--accent-main-hover);
   --bs-btn-active-color: #fff;
-  --bs-btn-active-bg: #8e4f33;
-  --bs-btn-active-border-color: #8e4f33;
+  --bs-btn-active-bg: var(--accent-main-active);
+  --bs-btn-active-border-color: var(--accent-main-active);
   --bs-btn-disabled-color: #fff;
   --bs-btn-disabled-bg: var(--accent-main);
   --bs-btn-disabled-border-color: var(--accent-main);
-  --bs-btn-focus-shadow-rgb: 196, 119, 86;
+  --bs-btn-focus-shadow-rgb: var(--accent-main-rgb);
 }
  
 /* handling page widths */

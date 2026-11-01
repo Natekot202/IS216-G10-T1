@@ -42,6 +42,7 @@ const tabsWithCounts = computed(() => TABS.map((t) => ({ key: t.key, label: t.la
 
 function selectTab(key) {
   activeTab.value = key
+  sortBy.value = '' 
   router.replace({ query: { tab: key } })
 }
 
@@ -118,6 +119,27 @@ async function sendCancel(reason) {
   }
 }
 
+// sorting based on price
+const sortBy = ref('')   
+const sortedBookings = computed(() => {
+  const list = [...visibleBookings.value]
+  const start = (b) => new Date(b.startDate).getTime()
+  const startTime = (b) => b.startTime || '00:00'
+  if (sortBy.value === 'dateSoonest') {
+    return list.sort((a, b) => start(a) - start(b) || startTime(a).localeCompare(startTime(b)))
+  }
+  if (sortBy.value === 'dateLatest') {
+    return list.sort((a, b) => start(b) - start(a) || startTime(b).localeCompare(startTime(a)))
+  }
+  if (sortBy.value === 'priceHigh') {
+    return list.sort((a, b) => Number(b.totalPrice) - Number(a.totalPrice))
+  }
+  if (sortBy.value === 'priceLow') {
+    return list.sort((a, b) => Number(a.totalPrice) - Number(b.totalPrice))
+  }
+  return list
+})
+
 onMounted(loadRequests)
 </script>
 
@@ -134,12 +156,28 @@ onMounted(loadRequests)
     <template v-else-if="!error">
       <BookingTabs :tabs="tabsWithCounts" :active-tab="activeTab" @select="selectTab" />
 
+      <div v-if="visibleBookings.length > 1" class="d-flex justify-content-end align-items-center gap-2 mb-2">
+        <button v-if="sortBy" type="button" class="btn btn-sm p-0" style="color:#bd5679;" @click="sortBy = ''">Clear sort</button>
+        <label for="reqSort" class="visually-hidden">Sort requests</label>
+        <select id="reqSort" v-model="sortBy" class="form-select form-select-sm w-auto">
+          <option value="" disabled>Sort by…</option>
+          <optgroup label="Date">
+            <option value="dateSoonest">Earliest first</option>
+            <option value="dateLatest">Latest first</option>
+          </optgroup>
+          <optgroup label="Price">
+            <option value="priceHigh">High to low</option>
+            <option value="priceLow">Low to high</option>
+          </optgroup>
+        </select>
+      </div>
+
       <p v-if="!visibleBookings.length" class="text-center text-muted py-5">
         {{ activeTab === 'pending' ? 'No new requests right now 🐾' : 'Nothing here yet.' }}
       </p>
       <BookingTable
         v-else
-        :bookings="visibleBookings"
+        :bookings="sortedBookings"
         viewer="sitter"
         :busy-id="busyId"
         @accept="respond($event, 'accepted')"

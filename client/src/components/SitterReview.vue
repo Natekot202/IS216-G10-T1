@@ -170,7 +170,7 @@ watch([ratingFilter, commentsOnly, sortBy], () => {
           <label for="commentsOnly" class="form-check-label small">With comments only</label>
         </div>
         <button v-if="filtersActive" type="button" class="btn btn-link btn-sm p-0 mt-2 text-decoration-none"
-                style="color: #a75836;" @click="clearFilters">
+                style="color: #bd5679;" @click="clearFilters">
           Clear filters
         </button>
       </aside>
