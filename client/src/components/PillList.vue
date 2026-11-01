@@ -22,7 +22,7 @@ defineProps({
 .pill-list li {
   padding: 0.3rem 0.8rem;
   border-radius: 100px;
-  background: #fbf1e6;
+  background: var(--tint-soft);
   color: #2b2420;
   font-size: 0.9rem;
   font-weight: 600;

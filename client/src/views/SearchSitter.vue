@@ -14,13 +14,13 @@ import { currentUser } from "../services/auth.js";
         A community platform for pet lovers - find, list, and connect
         over pets that need a home. 
       </p>
-      <router-link v-if='!currentUser' class="btn btn-lg text-white" style="background-color:#c47756;" to="/login">
+      <router-link v-if='!currentUser' class="btn btn-lg text-white" style="background-color:var(--accent-main);" to="/login">
         Get Started
       </router-link>
-      <router-link v-else-if="currentUser.role === 'owner'" class="btn btn-lg text-white" style="background-color:#c47756;" to="/pets">
+      <router-link v-else-if="currentUser.role === 'owner'" class="btn btn-lg text-white" style="background-color:var(--accent-main);" to="/pets">
         Browse Pets
       </router-link>
-      <router-link v-else-if="currentUser.role === 'sitter'" class="btn btn-lg text-white" style="background-color:#c47756;" to="/">
+      <router-link v-else-if="currentUser.role === 'sitter'" class="btn btn-lg text-white" style="background-color:var(--accent-main);" to="/">
         See Schedule
       </router-link>
     </div>

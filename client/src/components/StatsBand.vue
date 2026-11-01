@@ -19,9 +19,9 @@ defineProps({
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #e6d3c0;
+  border-top: 4px solid var(--line);
   border-radius: 20px;
-  background: #fbf1e6;
+  background: var(--tint-soft);
   box-shadow: 0 8px 20px rgba(120, 70, 40, 0.14);
 }
 .stat-item {
@@ -45,7 +45,7 @@ defineProps({
   color: rgba(43, 36, 32, 0.35);
 }
 .stat-stars {
-  color: #c44f1c;
+  color: var(--accent-deep);
   font-size: 1rem;
 }
 .stat-sub {

@@ -60,7 +60,7 @@ const show = ref(false)
   color: #2b2420;
 }
 .pw__toggle:focus-visible {
-  outline: 2px solid #c44f1c;
+  outline: 2px solid var(--accent-deep);
   outline-offset: -2px;
   border-radius: 0.375rem;
 }

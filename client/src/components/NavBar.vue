@@ -107,13 +107,13 @@ async function handleLogout() {
             <li v-if="currentUser?.role === 'owner'" class="nav-item">
               <router-link class="nav-link" to="/owner/routes">🏞 My Routes</router-link>
             </li>
-            <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
-              <router-link class="nav-link d-flex align-items-center gap-1" to="/owner/notifications"
+            <!-- <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
+              <router-link class="nav-link d-flex align-items-center gap-1" to="/notifications"
                            :aria-label="unreadCount ? `Notifications, ${unreadCount} unread` : 'Notifications'">
                 🕭 Notifications
                 <span v-if="unreadCount" class="badge rounded-pill bg-danger">{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
               </router-link>
-            </li>
+            </li> -->
             <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
               <router-link class="nav-link" to="/sitter/calendar">𝄜 Calendar</router-link>
             </li>

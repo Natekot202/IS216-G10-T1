@@ -92,7 +92,7 @@ const pageNumbers = computed(() => {
   padding: 0 0.6rem;
   display: grid;
   place-items: center;
-  border: 1px solid #e6d3c0;
+  border: 1px solid var(--line);
   border-radius: 10px;
   background: #fff;
   color: #2b2420;
@@ -102,11 +102,11 @@ const pageNumbers = computed(() => {
 }
 .pg__btn:hover:not(:disabled):not(.pg__btn--on) {
   background: rgba(196, 119, 86, 0.16);
-  border-color: #c47756;
+  border-color: var(--accent-main);
 }
 .pg__btn--on {
-  background: #a85a38;
-  border-color: #a85a38;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
 }
 .pg__btn:disabled {
@@ -119,7 +119,7 @@ const pageNumbers = computed(() => {
   cursor: default;
 }
 .pg__btn:focus-visible {
-  outline: 2px solid #c44f1c;
+  outline: 2px solid var(--accent-deep);
   outline-offset: 2px;
 }
 </style>

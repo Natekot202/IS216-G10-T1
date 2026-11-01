@@ -234,7 +234,7 @@ watch([ratingFilter, commentsOnly, sortBy], () => {
   gap: 1rem;
   margin-bottom: 1rem;
   padding-bottom: 0.6rem;
-  border-bottom: 1px solid #e6d3c0;
+  border-bottom: 1px solid var(--line);
 }
 .sr-title {
   margin: 0;
@@ -286,20 +286,20 @@ watch([ratingFilter, commentsOnly, sortBy], () => {
   opacity: 0.45;
 }
 .sr-bar:focus-visible {
-  outline: 2px solid #c44f1c;
+  outline: 2px solid var(--accent-deep);
   outline-offset: 2px;
 }
 .sr-bar__track {
   height: 0.5rem;
   overflow: hidden;
   border-radius: 999px;
-  background: #ead9c8;
+  background: var(--bar-track);
 }
 .sr-bar__fill {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: #c47756;
+  background: var(--bar-fill);
 }
 .sr-bar__count {
   text-align: right;
@@ -347,7 +347,7 @@ watch([ratingFilter, commentsOnly, sortBy], () => {
   color: #5c524b;
 }
 .sr-stars {
-  color: #c44f1c;
+  color: var(--accent-deep);
   letter-spacing: 0.05em;
 }
 .sr-none {
@@ -369,7 +369,7 @@ watch([ratingFilter, commentsOnly, sortBy], () => {
   place-items: center;
   overflow: hidden;
   border-radius: 50%;
-  background: #a85a38;
+  background: var(--accent);
   color: #fff;
   font-size: 0.8rem;
   font-weight: 700;
@@ -385,11 +385,11 @@ watch([ratingFilter, commentsOnly, sortBy], () => {
   text-decoration: none;
 }
 .sr-by__link:hover {
-  color: #a85a38;
+  color: var(--accent);
   text-decoration: underline;
 }
 .sr-by__link:focus-visible {
-  outline: 2px solid #c44f1c;
+  outline: 2px solid var(--accent-deep);
   outline-offset: 2px;
   border-radius: 4px;
 }

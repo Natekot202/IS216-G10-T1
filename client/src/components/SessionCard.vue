@@ -16,10 +16,10 @@ const props = defineProps({
 })
 
 const ACCENTS = [
-  { main: '#c47756', tint: '#f6e3d6' },     
-  { main: '#6f8f5a', tint: '#e6eedd' }, 
-  { main: '#5f84a2', tint: '#e1ebf3' },    
-  { main: '#8e6b8f', tint: '#eee3ef' }      
+  { main: 'var(--accent-main)', tint: 'var(--tint)' },     
+  { main: '#6f8f5a', tint: '#e1eedd' },
+  { main: '#5f84a2', tint: '#e1ebf3' },
+  { main: '#8e6b8f', tint: '#eee3ef' }    
 ]
 const accent = computed(() => ACCENTS[props.index % ACCENTS.length])
 const STATUS_LABELS = { confirmed: 'Confirmed', paid: 'Paid', 'in-progress': 'In progress', completed: 'Completed' }
@@ -431,7 +431,7 @@ watch(status, async (s) => {
   border: 1px solid rgba(43, 36, 32, 0.12);
   border-radius: 20px;
   background: var(--bk-tint);
-  box-shadow: 0 10px 24px rgba(120, 70, 40, 0.14);
+  box-shadow: 0 10px 24px rgb(var(--accent-rgb) / 0.18);
 }
 
 .sc-head {
@@ -442,7 +442,8 @@ watch(status, async (s) => {
   padding: 1rem 1.25rem;
   background: #2b2420;
   color: #fff;
-  border-bottom: 4px solid var(--bk);        
+  border-bottom: 4px solid var(--bk);  
+  box-shadow: 0 4px 12px rgb(var(--accent-rgb) / 0.1);      
 }
 .sc-instructions {
   margin: 0 0 0.6rem;
@@ -525,7 +526,8 @@ watch(status, async (s) => {
   font-weight: 700;
 }
 .sc-status--in-progress {
-  background: #e3946f;
+  background: var(--accent-main);                              
+  color: #fff;
 }
 .sc-status--completed {
   background: #cfe0c0;
@@ -577,13 +579,13 @@ watch(status, async (s) => {
   padding: 0.6rem 1rem;
   border: 0;
   border-radius: 10px;
-  background: #a85a38;
+  background: var(--accent);
   color: #fff;
   font-weight: 700;
   transition: background 0.2s;
 }
 .sc-btn:hover:not(:disabled) {
-  background: #8f4a2c;
+  background: var(--accent-hover);
 }
 .sc-btn:disabled {
   opacity: 0.55;
@@ -625,17 +627,17 @@ watch(status, async (s) => {
   margin-bottom: 0.6rem;
   overflow: hidden;
   border-radius: 999px;
-  background: #efe3d6;
+  background: var(--bar-track);
 }
 .sc-progress span {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: var(--bk);
+  background: var(--bar-fill);
   transition: width 0.4s ease;
 }
 .sc-task + .sc-task {
-  border-top: 1px solid #f0e3d4;
+  border-top: 1px solid var(--line);
 }
 .sc-task__title--done {
   color: #5c524b;
@@ -650,17 +652,20 @@ watch(status, async (s) => {
   justify-content: center;
   aspect-ratio: 1;
   overflow: hidden;
-  border: 2px dashed #c9a98f;
+  border: 2px dashed rgb(var(--accent-rgb) / 0.5);
   border-radius: 10px;
-  background: #f8eee3;
+  background: var(--tint-soft);
   color: #5c524b;
   font-size: 0.85rem;
   cursor: pointer;
 }
 .photo-slot:hover {
-  border-color: #c47756;
+  border-color: var(--accent-main);
+  background: var(--sand);
 }
 .photo-slot__img {
+  outline: 2px solid var(--accent-deep);
+  outline-offset: 2px;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -692,12 +697,12 @@ fieldset:disabled .photo-slot {
   cursor: pointer;
 }
 .form-check-input.task-check:checked {
-  background-color: #c47756;
-  border-color: #c47756;
+  background-color: var(--accent-main);
+  border-color: var(--accent-main);
 }
 .form-check-input.task-check:focus {
-  border-color: #c44f1c;
-  box-shadow: 0 0 0 0.2rem rgba(196, 79, 28, 0.25);
+  border-color: var(--accent-deep);
+  box-shadow: 0 0 0 0.2rem rgb(var(--accent-rgb) / 0.25);
 }
 .form-check-input.task-check:disabled {
   opacity: 0.7;
@@ -716,7 +721,7 @@ fieldset:disabled .photo-slot {
   overflow-wrap: anywhere;
 }
 .sc-link {
-  color: #a85a38;
+  color: var(--accent);
   font-weight: 700;
 }
 .sc-notes {

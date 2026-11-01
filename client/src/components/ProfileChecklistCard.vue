@@ -49,7 +49,7 @@ const show = computed(
   margin-bottom: 1.25rem;
   padding: 1.15rem 1.3rem;
   border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #c47756;
+  border-top: 4px solid var(--accent-main);
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);
@@ -75,20 +75,20 @@ const show = computed(
 .pc-count {
   font-size: 0.9rem;
   font-weight: 700;
-  color: #a85a38;
+  color: var(--accent);
 }
 .pc-progress {
   height: 0.45rem;
   margin: 0.9rem 0;
   overflow: hidden;
   border-radius: 999px;
-  background: #efe3d6;
+  background: var(--bar-track);
 }
 .pc-progress span {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: #c47756;
+  background: var(--bar-fill);
   transition: width 0.4s ease;
 }
 .pc-steps {
@@ -132,17 +132,17 @@ const show = computed(
   display: inline-block;
   padding: 0.4rem 1.1rem;
   border-radius: 10px;
-  background: #a85a38;
+  background: var(--accent);
   color: #fff;
   font-weight: 700;
   text-decoration: none;
 }
 .pc-btn:hover {
-  background: #8f4a2c;
+  background: var(--accent-hover);
   color: #fff;
 }
 .pc-btn:focus-visible {
-  outline: 2px solid #c44f1c;
+  outline: 2px solid var(--accent-deep);
   outline-offset: 2px;
 }
 

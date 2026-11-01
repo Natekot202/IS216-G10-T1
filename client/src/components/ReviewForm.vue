@@ -38,7 +38,7 @@ async function submit() {
   <form @submit.prevent="submit">
     <div class="mb-2" role="radiogroup" aria-label="Rating">
       <button v-for="n in 5" :key="n" type="button" class="btn btn-link p-0 me-1 fs-3"
-              style="color:#c44f1c; text-decoration: none;"
+              style="color:var(--accent-deep); text-decoration: none;"
               :aria-label="`${n} star${n === 1 ? '' : 's'}`" @click="rating = n">
         {{ n <= rating ? '★' : '☆' }}
       </button>
@@ -49,7 +49,7 @@ async function submit() {
 
     <div v-if="error" class="alert alert-warning py-1">{{ error }}</div>
 
-    <button type="submit" class="btn btn-sm text-white" style="background-color:#c47756;" :disabled="submitting">
+    <button type="submit" class="btn btn-sm text-white" style="background-color:var(--accent-main);" :disabled="submitting">
       <span v-if="submitting" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
       {{ submitting ? 'Submitting…' : 'Submit review' }}
     </button>

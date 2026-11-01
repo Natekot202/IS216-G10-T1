@@ -98,7 +98,7 @@ onBeforeUnmount(() => {
   overflow-y: auto;
   padding: 1.5rem;
   border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #e6d3c0;
+  border-top: 4px solid var(--line);
   border-radius: 18px;
   background: #fff;
   box-shadow: 0 24px 60px rgba(43, 36, 32, 0.35);
@@ -138,11 +138,11 @@ onBeforeUnmount(() => {
   background: #f8eee3;
 }
 .cd-btn--primary {
-  background: #a85a38;
+  background: var(--accent);
   color: #fff;
 }
 .cd-btn--primary:hover {
-  background: #8f4a2c;
+  background: var(--accent-hover);
 }
 .cd-btn--danger {
   background: #b3261e;
@@ -152,7 +152,7 @@ onBeforeUnmount(() => {
   background: #96201a;
 }
 .cd-btn:focus-visible {
-  outline: 2px solid #c44f1c;
+  outline: 2px solid var(--accent-deep);
   outline-offset: 2px;
 }
 

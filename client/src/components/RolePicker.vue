@@ -92,19 +92,19 @@ const router = useRouter();
 }
 .role-card:hover {
   background: rgb(228, 222, 222);
-  border-color: #c47756;
+  border-color: var(--accent-main);
 }
 .role-card--primary {
-  background: #a85a38;
-  border-color: #a85a38;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
 }
 .role-card--primary:hover {
   background: #914e32;
-  border-color: #8f4a2c;
+  border-color: var(--accent-hover);
 }
 .role-card:focus-visible {
-  outline: 2px solid #c44f1c;
+  outline: 2px solid var(--accent-deep);
   outline-offset: 2px;
 }
 .role-card__title {

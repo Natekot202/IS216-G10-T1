@@ -75,7 +75,7 @@ const isListed = computed(() =>
   <div class="sd">
     <div v-if="editable && !isListed" class="sd-nudge">
       <p class="mb-2">Owners can’t find you yet. Add your experience, the pets you look after and your services.</p>
-      <router-link to="/editProfile" class="btn btn-sm text-white" style="background-color:#a85a38;">
+      <router-link to="/editProfile" class="btn btn-sm text-white" style="background-color:var(--accent);">
         Add your details
       </router-link>
     </div>
@@ -112,7 +112,7 @@ const isListed = computed(() =>
 
     <div v-else-if="editable" class="sd-nudge">
       <p class="mb-2">Add photos of yourself so owners know who is coming to their home.</p>
-      <router-link to="/editProfile" class="btn btn-sm text-white" style="background-color:#a85a38;">
+      <router-link to="/editProfile" class="btn btn-sm text-white" style="background-color:var(--accent);">
         Add photos
       </router-link>
     </div>   
@@ -123,9 +123,9 @@ const isListed = computed(() =>
 .sd-nudge {
   margin: 1.25rem 0;
   padding: 1rem 1.15rem;
-  border: 1px dashed #e6d3c0;
+  border: 1px dashed var(--line);
   border-radius: 12px;
-  background: #fbf1e6;               
+  background: var(--tint);               
   color: #2b2420;
 }
 
@@ -141,7 +141,7 @@ const isListed = computed(() =>
 }
 .sd-area svg {
   flex: 0 0 auto;
-  color: #c44f1c;
+  color: var(--accent-deep);
 }
 
 .sd-groups {

@@ -404,8 +404,8 @@ onBeforeUnmount(() => {
 .owner-home .btn-outline-danger:focus-visible:not(:disabled),
 .owner-home :deep(.filter-panel button:not(.btn-link):not(.btn-close):hover:not(:disabled)),
 .owner-home :deep(.filter-panel button:not(.btn-link):not(.btn-close):focus-visible:not(:disabled)) {
-  background-color: #8f4a2c !important;
-  border-color: #8f4a2c !important;
+  background-color: var(--accent-hover) !important;
+  border-color: var(--accent-hover) !important;
   color: #fff !important;
 }
 
@@ -413,7 +413,7 @@ onBeforeUnmount(() => {
 .owner-home .btn-link:focus-visible,
 .owner-home :deep(.filter-panel .btn-link:hover),
 .owner-home :deep(.filter-panel .btn-link:focus-visible) {
-  color: #8f4a2c !important;
+  color: var(--accent-hover) !important;
 }
 
 .map-panel {

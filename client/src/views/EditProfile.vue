@@ -439,7 +439,7 @@ async function save() {
   aspect-ratio: 1;
   overflow: hidden;
   border-radius: 12px;
-  background: #f4e4d3;
+  background: var(--sand);
 }
 .eg-tile img {
   width: 100%;
@@ -467,18 +467,18 @@ async function save() {
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
-  border: 2px dashed #c9a98f;
-  background: #f8eee3;
-  color: #5c524b;
+  border: 2px dashed rgb(var(--accent-rgb) / 0.5);
+  background: var(--tint-soft);
+  color: var(--accent);
   font-size: 0.85rem;
   cursor: pointer;
 }
 .eg-add:hover {
-  border-color: #c47756;
-  background: #f4e4d3;
+  border-color: var(--accent-main);
+  background: var(--sand);
 }
 .eg-add:focus-within {
-  outline: 2px solid #c44f1c;
+  outline: 2px solid var(--accent-deep);
   outline-offset: 2px;
 }
 
@@ -486,7 +486,7 @@ async function save() {
   margin-bottom: 1.5rem;
   padding: 1.25rem 1.35rem;
   border: 1px solid rgba(196, 119, 86, 0.3);
-  border-top: 4px solid #e6d3c0;    
+  border-top: 4px solid var(--line);    
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);
@@ -506,7 +506,7 @@ async function save() {
   color: #5c524b;
 }
 .ef-card--private {
-  background: #fbf1e6;
+  background: var(--tint-soft);
 }
 
 .ef-who {
@@ -526,7 +526,7 @@ async function save() {
   height: 150px;
   overflow: hidden;
   border-radius: 20px;
-  background: #f4e4d3;
+  background: var(--sand);
 }
 .ef-avatar img {
   width: 100%;
@@ -550,7 +550,7 @@ async function save() {
   background: rgba(43, 36, 32, 0.88);
 }
 .ef-avatar:focus-within {
-  outline: 2px solid #c44f1c;
+  outline: 2px solid var(--accent-deep);
   outline-offset: 2px;
 }
 .ef-avatar__actions {
@@ -586,18 +586,18 @@ async function save() {
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 .ef-chip input:hover + span {
-  border-color: #c47756;
+  border-color: var(--accent-main);
 }
 .ef-chip input:checked + span {
-  background: #a85a38;
-  border-color: #a85a38;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
 }
 .ef-chip input:checked + span::before {
   content: '✓ ';
 }
 .ef-chip input:focus-visible + span {
-  outline: 2px solid #c44f1c;
+  outline: 2px solid var(--accent-deep);
   outline-offset: 2px;
 }
 
@@ -612,8 +612,8 @@ async function save() {
   gap: 0.6rem;
   margin-top: 0.5rem;
   padding: 0.8rem 0;
-  border-top: 1px solid #e6d3c0;
-  background: rgba(255, 250, 245, 0.94);
+  border-top: 1px solid var(--line);
+  background: var(--tint-soft);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
@@ -625,12 +625,12 @@ async function save() {
 .ef-save {
   padding: 0.5rem 1.5rem;
   border: 0;
-  background: #a85a38;
+  background: var(--accent);
   color: #fff;
   font-weight: 600;
 }
 .ef-save:hover:not(:disabled) {
-  background: #8f4a2c;
+  background: var(--accent-hover);
   color: #fff;
 }
 .eg-deleting {

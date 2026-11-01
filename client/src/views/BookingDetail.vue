@@ -361,10 +361,10 @@ onMounted(async () => {
   cursor: pointer;
 }
 .pet-card:hover {
-  border-color: #c47756;
+  border-color: var(--accent-main);
 }
 .pet-card.active {
-  border-color: #c47756;
+  border-color: var(--accent-main);
   box-shadow: 0 0 0 3px #f6e3d9;
   background: #fff;
 }
@@ -379,7 +379,7 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #c47756;
+  background: var(--accent-main);
   color: #fff;
   font-family: 'Fredoka', sans-serif;
   font-size: 1.5rem;
@@ -400,7 +400,7 @@ onMounted(async () => {
   border-top: 1px solid #f1ece6;
 }
 .route-toggle {
-  color: #c44f1c;
+  color: var(--accent-deep);
   font-weight: 600;
 }
 .route-map {
@@ -411,7 +411,7 @@ onMounted(async () => {
 }
 .freq-badge {
   background: #f6e3d9;
-  color: #c47756;
+  color: var(--accent-main);
   border-radius: 999px;
   padding: 0.1rem 0.7rem;
   font-weight: 800;
@@ -430,6 +430,6 @@ onMounted(async () => {
   font-weight: 700;
   font-size: 1.3rem;
   background: #fde9dd;
-  color: #c44f1c;
+  color: var(--accent-deep);
 }
 </style>

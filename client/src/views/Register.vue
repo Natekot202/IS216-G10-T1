@@ -69,7 +69,7 @@ async function submit() {
         <li>At least 1 special character (!@#$%^&*)</li>
       </ul> -->
 
-      <button class="btn w-100 mb-3 text-white" style="background-color:#a85a38;" :disabled="!passwordOk">Sign up</button>
+      <button class="btn w-100 mb-3 text-white" style="background-color:var(--accent);" :disabled="!passwordOk">Sign up</button>
     </form>
 
     <span style="color:white;"> Already have an account? </span>
