@@ -179,6 +179,7 @@ async function tick(item, n) {
 // ---- Walk tasks: ticked by doing a tracked walk, not by hand ----
 const router = useRouter()
 const startingWalk = ref(null) // id of the walk task being started
+const WALK_IN_PROGRESS = "You can't start another walk while a walk is in progress."
 
 // the walks that ticked this task today: [{ walk: walkId, ... }]
 function walksFor(item) {
@@ -187,9 +188,16 @@ function walksFor(item) {
 
 // Opens the walk page for this task. The server gives back the walk already under way
 // for this task if there is one, so pressing this again carries on with the same walk.
+// Only one walk can be under way, so a different task's walk is refused here (and by the server).
 async function startWalk(item) {
+  const walking = props.session.activeWalk
+  const isThisWalk = String(walking?.task) === String(item._id)
+  if (walking && !isThisWalk) {
+    actionError.value = WALK_IN_PROGRESS
+    return
+  }
   // the walk under way carries on, whatever location is doing; only a new one needs it
-  if (blocked.value && String(props.session.activeWalk?.task) !== String(item._id)) {
+  if (blocked.value && !isThisWalk) {
     actionError.value = 'Walks need location switched on.'
     return
   }
@@ -199,12 +207,8 @@ async function startWalk(item) {
     const walk = await walkApi.create({ visitId: visit.value._id, taskId: item._id })
     router.push({ name: 'sitter-walk', params: { id: walk._id } })
   } catch (err) {
-    if (err.response?.status === 409 && err.response.data.walkId) {
-      // already on another walk: go back to that one
-      router.push({ name: 'sitter-walk', params: { id: err.response.data.walkId } })
-      return
-    }
-    actionError.value = err.response?.data?.message || 'Could not start the walk.'
+    // (409: a walk has started that this page doesn't know about yet)
+    actionError.value = err.response?.status === 409 ? WALK_IN_PROGRESS : err.response?.data?.message || 'Could not start the walk.'
   } finally {
     startingWalk.value = null
   }

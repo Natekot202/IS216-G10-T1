@@ -81,9 +81,9 @@ onMounted(async () => {
     return
   }
 
+  home.value = walk.value.home.coordinates
   if (isFinished.value) return   // just show the summary
 
-  home.value = walk.value.home.coordinates
   await resumeTracking()
   startGps()
 
@@ -152,10 +152,12 @@ async function endWalkEarly() {
       <p v-if="isWalking" class="small text-body-secondary mb-0">Keep this app open: locking your phone leaves gaps in the path.</p>
     </header>
 
-    <!-- The walk task's text from the owner. For an 'instructions' walk this is the whole plan. -->
-    <div v-if="walk?.instructions" class="info-card">
+    <!-- The walk task's text from the owner, then anything they added after confirming (like where the leash is).
+         For an 'instructions' walk this is the whole plan. -->
+    <div v-if="walk?.instructions || walk?.ownerNotes" class="info-card">
       <div class="section-label">Owner's instructions</div>
       <div>{{ walk.instructions }}</div>
+      <div v-if="walk.ownerNotes" class="owner-notes">{{ walk.ownerNotes }}</div>
       <div v-if="!hasRoute" class="small text-body-secondary mt-1">
         This walk is tracked, but not checked against a route.
       </div>
@@ -308,6 +310,10 @@ async function endWalkEarly() {
 </template>
 
 <style scoped>
+.owner-notes {
+  white-space: pre-line; /* keeps the owner's line breaks */
+  overflow-wrap: anywhere;
+}
 /* PetSociety design system */
 .page-title {
   font-size: 32px;

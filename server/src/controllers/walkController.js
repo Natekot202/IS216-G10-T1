@@ -135,6 +135,7 @@ export async function createWalk(req, res) {
     task: task._id,
     mode: hasRoute ? 'route' : 'instructions',
     instructions: task.title,
+    ownerNotes: task.details?.instructions ?? '',
     route: hasRoute ? plan.route : null,
     routeName: hasRoute ? plan.name : '',
     plannedPath: hasRoute ? plan.path : undefined,
@@ -143,11 +144,12 @@ export async function createWalk(req, res) {
   res.status(201).json(walk)
 }
 
-// GET /api/walks/:id -> one walk, for its sitter or its owner
+// GET /api/walks/:id -> one walk, for its sitter, or for its owner once it's finished
 export async function getWalk(req, res) {
   const walk = await Walk.findById(req.params.id)
   const me = String(req.session.userId)
-  if (!walk || (me !== String(walk.sitter) && me !== String(walk.owner))) {
+  const ownerCanSee = me === String(walk?.owner) && ['completed', 'ended-early'].includes(walk?.status)
+  if (!walk || (me !== String(walk.sitter) && !ownerCanSee)) {
     return res.status(404).json({ message: 'Walk not found.' })
   }
   res.json(walk)

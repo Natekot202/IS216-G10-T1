@@ -3,6 +3,8 @@
 // Normal tasks have one button per time a day. Walk tasks have one control, because they are ticked
 // by doing the walk, never by hand.
 import { computed, ref, watch } from 'vue'
+import WalkSummary from './WalkSummary.vue'
+import { walkApi } from '../services/walkApi.js'
 import { SERVICE_LABELS } from '../utils/servicePrices.js'
 import { feedText, hasDetails, medicationIncomplete, medicationText } from '../utils/careDetails.js'
 
@@ -72,6 +74,26 @@ function formatTime(d) {
   return new Date(d).toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit' })
 }
 
+// The owner's "View walk" links open a read-only summary inside the row
+const openWalkId = ref(null)
+const openWalk = ref(null) // the walk, once it has loaded
+const walkError = ref('')
+
+async function toggleWalk(id) {
+  openWalk.value = null
+  walkError.value = ''
+  if (openWalkId.value === id) {
+    openWalkId.value = null
+    return
+  }
+  openWalkId.value = id
+  try {
+    openWalk.value = await walkApi.getById(id)
+  } catch (err) {
+    walkError.value = err.response?.data?.message || 'Could not load this walk.'
+  }
+}
+
 // The instructions open and close inside the row. Medication starts open until it's done,
 // because the sitter shouldn't have to look for how to give it.
 const detailsOpen = ref(props.item.category === 'medication' && !allDone.value)
@@ -99,6 +121,10 @@ watch(allDone, (done) => {
           <small v-if="isSitter && walks.length" class="d-flex flex-wrap gap-2">
             <router-link v-for="(t, i) in walks" :key="t._id" class="task-link"
                          :to="{ name: 'sitter-walk', params: { id: t.walk } }">View walk {{ i + 1 }}</router-link>
+          </small>
+          <small v-else-if="walks.length" class="d-flex flex-wrap gap-2">
+            <button v-for="(t, i) in walks" :key="t._id" type="button" class="task-walk-link"
+                    :aria-expanded="openWalkId === t.walk" @click="toggleWalk(t.walk)">View walk {{ i + 1 }}</button>
           </small>
         </template>
         <small v-if="noDetails && !medicationWarning" class="task-line">No details added, check with the owner</small>
@@ -131,6 +157,12 @@ watch(allDone, (done) => {
         </template>
       </div>
     </div>
+
+    <template v-if="openWalkId">
+      <WalkSummary v-if="openWalk" :walk="openWalk" />
+      <p v-else-if="walkError" class="task-line mt-1 mb-0">{{ walkError }}</p>
+      <p v-else class="task-line mt-1 mb-0">Loading walk…</p>
+    </template>
 
     <div v-if="medicationWarning" class="task-warning" role="note">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -195,6 +227,15 @@ watch(allDone, (done) => {
 .task-link {
   color: var(--accent);
   font-weight: 700;
+}
+.task-walk-link {
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: underline;
 }
 .task-controls {
   display: flex;
@@ -378,6 +419,9 @@ watch(allDone, (done) => {
   .task-link {
     display: inline-block;
     padding: 0.35rem 0;
+  }
+  .task-walk-link {
+    min-height: 44px;
   }
 }
 </style>
