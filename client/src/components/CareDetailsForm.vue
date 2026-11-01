@@ -10,7 +10,7 @@ const props = defineProps({
   tasks: { type: Array, required: true }, // the booking's care tasks
   closeText: { type: String, default: 'Add later' }
 })
-const emit = defineEmits(['saved', 'close'])
+const emit = defineEmits(['saved', 'close', 'photos-changed'])
 
 const UNITS = ['cup', 'g', 'scoop', 'can']
 
@@ -37,12 +37,62 @@ const forms = ref(props.tasks.map((task) => {
     unit: saved.unit ?? 'cup',
     medicationName: saved.medicationName ?? '',
     dosage: saved.dosage ?? '',
-    withFood: saved.withFood ?? false
+    withFood: saved.withFood ?? false,
+    referencePhotos: (saved.referencePhotos ?? []).map(({ _id, url, caption }) => ({ _id, url, caption: caption ?? '' }))
   }
 }))
 
 const saving = ref(false)
 const error = ref('')
+const photoBusy = ref(null) // id of the task whose photos are changing
+
+const MAX_PHOTOS = 3
+const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const MAX_PHOTO_BYTES = 2 * 1024 * 1024
+
+// Photos save straight away. Any captions being typed are kept, and the page is told about the change.
+function photosChanged(form, saved) {
+  const updated = saved.items.find((t) => t._id === form.taskId)?.details?.referencePhotos ?? []
+  form.referencePhotos = updated.map(({ _id, url, caption }) => ({
+    _id, url, caption: form.referencePhotos.find((p) => p._id === _id)?.caption ?? caption ?? ''
+  }))
+  emit('photos-changed', saved)
+}
+
+async function addPhoto(form, event) {
+  const file = event.target.files[0]
+  event.target.value = '' // so the same file can be chosen again
+  if (!file) return
+  error.value = ''
+  if (!PHOTO_TYPES.includes(file.type)) {
+    error.value = 'Please choose a JPG, PNG or WebP image.'
+    return
+  }
+  if (file.size > MAX_PHOTO_BYTES) {
+    error.value = 'Image must be under 2 MB.'
+    return
+  }
+  photoBusy.value = form.taskId
+  try {
+    photosChanged(form, await bookingsApi.addCarePhoto(props.bookingId, form.taskId, file))
+  } catch (err) {
+    error.value = err.response?.data?.message || 'Could not add the photo.'
+  } finally {
+    photoBusy.value = null
+  }
+}
+
+async function removePhoto(form, photo) {
+  error.value = ''
+  photoBusy.value = form.taskId
+  try {
+    photosChanged(form, await bookingsApi.removeCarePhoto(props.bookingId, form.taskId, photo._id))
+  } catch (err) {
+    error.value = err.response?.data?.message || 'Could not remove the photo.'
+  } finally {
+    photoBusy.value = null
+  }
+}
 
 async function save() {
   saving.value = true
@@ -119,6 +169,24 @@ async function save() {
       <label :for="`instructions-${i}`" class="form-label small mb-1">Instructions</label>
       <textarea :id="`instructions-${i}`" v-model="forms[i].instructions" class="form-control form-control-sm" rows="2"
                 maxlength="1000" :placeholder="INSTRUCTION_HINTS[task.category]"></textarea>
+
+      <span class="form-label small mt-2 mb-1 d-block">Reference photos (up to {{ MAX_PHOTOS }})</span>
+      <div class="care-photos">
+        <div v-for="photo in forms[i].referencePhotos" :key="photo._id" class="care-photo">
+          <div class="care-photo__frame">
+            <img :src="photo.url" alt="Reference photo" />
+            <button type="button" class="btn-close bg-white p-1 care-photo__remove" aria-label="Remove photo"
+                    :disabled="photoBusy === task._id" @click="removePhoto(forms[i], photo)"></button>
+          </div>
+          <input v-model="photo.caption" class="form-control form-control-sm mt-1" maxlength="80"
+                 placeholder="Caption" aria-label="Photo caption" />
+        </div>
+        <label v-if="forms[i].referencePhotos.length < MAX_PHOTOS" class="care-photo__add">
+          {{ photoBusy === task._id ? 'Adding…' : '+ photo' }}
+          <input type="file" class="d-none" accept="image/jpeg,image/png,image/webp"
+                 :disabled="photoBusy === task._id" @change="addPhoto(forms[i], $event)" />
+        </label>
+      </div>
     </fieldset>
 
     <div v-if="error" class="alert alert-warning mt-3 mb-0">{{ error }}</div>
@@ -144,6 +212,44 @@ async function save() {
   margin-bottom: 0.5rem;
   font-size: 1rem;
   font-weight: 700;
+}
+.care-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.care-photo {
+  width: 7rem;
+}
+.care-photo__frame {
+  position: relative;
+  height: 6rem;
+}
+.care-photo__frame img {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  object-fit: cover;
+}
+.care-photo__remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+.care-photo__add {
+  display: grid;
+  width: 7rem;
+  height: 6rem;
+  place-items: center;
+  border: 2px dashed rgb(var(--accent-rgb) / 0.5);
+  border-radius: 10px;
+  background: var(--tint-soft);
+  color: #5c524b;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.care-photo__add:hover {
+  border-color: var(--accent-main);
 }
 .care-time {
   width: auto;

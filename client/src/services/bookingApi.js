@@ -34,5 +34,16 @@ export const bookingsApi = {
   saveCareDetails: async (id, tasks) => {
     const res = await api.patch(`/bookings/${id}/care-details`, { tasks })
     return res.data
+  },
+  // Reference photos are added and removed one at a time. Both send back { items, detailsSavedAt }.
+  addCarePhoto: async (id, taskId, file) => {
+    const form = new FormData()
+    form.append('photo', file)
+    const res = await api.post(`/bookings/${id}/care-details/${taskId}/photos`, form)
+    return res.data
+  },
+  removeCarePhoto: async (id, taskId, photoId) => {
+    const res = await api.delete(`/bookings/${id}/care-details/${taskId}/photos/${photoId}`)
+    return res.data
   }
 }

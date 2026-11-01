@@ -311,6 +311,7 @@ onMounted(async () => {
           :tasks="tasks"
           :close-text="detailsSavedAt ? 'Cancel' : 'Add later'"
           @saved="detailsSaved"
+          @photos-changed="tasks = $event.items"
           @close="detailsFormOpen = false"
         />
         <p v-else-if="detailsLocked" class="text-muted mb-0">Care details are locked because the first session has started.</p>

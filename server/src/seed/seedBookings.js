@@ -177,7 +177,10 @@ async function seed() {
       { ...WALK_ROUTE, details: { times: ['20:30', '22:00'], instructions: 'The leash is on the hook by the door.\nPlease avoid the dog park.' } },
       WALK_INSTRUCTIONS,
       { ...FEED_TWICE, details: { times: ['20:15', '23:00'], food: 'kibble', amount: 1, unit: 'cup', instructions: 'The food is in the top cupboard. Please top up the water too.' } },
-      { ...MEDS_ONCE, title: 'Heartworm tablet', details: { medicationName: 'Heartworm chewable', dosage: '1 tablet', withFood: true, instructions: 'Hide it in a treat.' } },
+      { ...MEDS_ONCE, title: 'Heartworm tablet', details: {
+        medicationName: 'Heartworm chewable', dosage: '1 tablet', withFood: true, instructions: 'Hide it in a treat.',
+        referencePhotos: [{ url: 'https://placehold.co/600x400/png?text=Heartworm+tablets', caption: 'The blue box in the top drawer' }]
+      } },
       EYE_DROPS, WASH_BOWLS, PLAY_FETCH, WIPE_PAWS
     ]),
     makeBooking(owner, sitter, [mochi], -3, '10:00', '16:00', 'completed', 'Done, waiting for payment', [WALK_ROUTE, GROOM_ONCE, FEED_ONCE, PLAY_FETCH]),

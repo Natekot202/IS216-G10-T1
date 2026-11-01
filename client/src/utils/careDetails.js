@@ -24,5 +24,5 @@ export function medicationIncomplete(task) {
 // Has the owner added anything to this task? (a "with food" box left unticked doesn't count)
 export function hasDetails(task) {
   const d = task.details ?? {}
-  return Boolean(d.instructions || d.times?.length || feedText(task) || medicationText(task))
+  return Boolean(d.instructions || d.times?.length || d.referencePhotos?.length || feedText(task) || medicationText(task))
 }

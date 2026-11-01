@@ -4,6 +4,7 @@
 // by doing the walk, never by hand.
 import { computed, ref, watch } from 'vue'
 import WalkSummary from './WalkSummary.vue'
+import TaskPhotos from './TaskPhotos.vue'
 import { walkApi } from '../services/walkApi.js'
 import { SERVICE_LABELS } from '../utils/servicePrices.js'
 import { feedText, hasDetails, medicationIncomplete, medicationText } from '../utils/careDetails.js'
@@ -34,6 +35,8 @@ const isWalk = computed(() => props.item.category === 'walk')
 const allDone = computed(() => props.count >= props.item.dailyFrequency)
 const details = computed(() => props.item.details ?? {})
 const times = computed(() => details.value.times ?? [])
+const photos = computed(() => details.value.referencePhotos ?? [])
+const preview = computed(() => details.value.instructions || `${photos.value.length} photo${photos.value.length === 1 ? '' : 's'}`)
 const walkingHere = computed(() => String(props.activeWalk?.task ?? '') === String(props.item._id))
 const noDetails = computed(() => !hasDetails(props.item))
 const medicationWarning = computed(() => medicationIncomplete(props.item))
@@ -172,13 +175,16 @@ watch(allDone, (done) => {
       No details added, check with the owner
     </div>
 
-    <template v-if="details.instructions">
+    <template v-if="details.instructions || photos.length">
       <button type="button" class="task-more" :aria-expanded="detailsOpen" @click="detailsOpen = !detailsOpen">
         <span aria-hidden="true">{{ detailsOpen ? '▾' : '▸' }}</span>
         <strong>Details</strong>
-        <span v-if="!detailsOpen" class="task-preview">{{ details.instructions }}</span>
+        <span v-if="!detailsOpen" class="task-preview">{{ preview }}</span>
       </button>
-      <p v-if="detailsOpen" class="task-instructions">{{ details.instructions }}</p>
+      <template v-if="detailsOpen">
+        <p v-if="details.instructions" class="task-instructions">{{ details.instructions }}</p>
+        <TaskPhotos v-if="photos.length" :photos="photos" />
+      </template>
     </template>
   </div>
 </template>

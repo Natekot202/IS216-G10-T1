@@ -2,7 +2,8 @@
 // The care details the owner added to one task, to read only.
 // Shows nothing if the task has no details.
 import { computed } from 'vue'
-import { feedText as feedFor, medicationText as medicationFor } from '../utils/careDetails.js'
+import { feedText as feedFor, hasDetails, medicationText as medicationFor } from '../utils/careDetails.js'
+import TaskPhotos from './TaskPhotos.vue'
 
 const props = defineProps({
   task: { type: Object, required: true }
@@ -16,11 +17,12 @@ const timesText = computed(() => (details.value.times?.length ? `At ${details.va
 </script>
 
 <template>
-  <div v-if="feedText || medicationText || timesText || details.instructions" class="care-summary small">
+  <div v-if="hasDetails(task)" class="care-summary small">
     <div v-if="feedText">{{ feedText }}</div>
     <div v-if="medicationText">{{ medicationText }}</div>
     <div v-if="timesText">{{ timesText }}</div>
     <div v-if="details.instructions" class="care-summary__text">{{ details.instructions }}</div>
+    <TaskPhotos v-if="details.referencePhotos?.length" :photos="details.referencePhotos" />
   </div>
 </template>
 

@@ -7,6 +7,8 @@ import Pet from '../models/petModel.js'
 import User from '../models/UserModel.js'
 import WalkRoute from '../models/walkRouteModel.js'
 import { requireOwner, requireLogin } from '../middleware/authMiddleware.js'
+import { uploadPhoto } from '../middleware/upload.js'
+import { uploadImage, deleteImage } from '../config/cloudinary.js'
 import { bookingRange, dailyRanges, findClash, describeBooking, toMinutes, slotsOf, slotsCover, START_TIME_RE, END_TIME_RE } from '../utils/bookingTimes.js'
 import asyncHandler from '../middleware/asyncHandler.js'
 import { removeBookingFromGoogle } from '../utils/googleCalendar.js'
@@ -20,6 +22,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const ROUTE_VISIBLE_STATUSES = ['confirmed', 'in-progress', 'completed', 'paid']
 
 const TASK_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/ // 00:00 to 23:59
+const MAX_REFERENCE_PHOTOS = 3
 
 // Trims a text field, leaving it out if it's blank
 const text = (value) => String(value ?? '').trim() || undefined
@@ -29,6 +32,14 @@ const text = (value) => String(value ?? '').trim() || undefined
 function careDetailsFor(task, input) {
   const details = { instructions: text(input?.instructions) }
   if (details.instructions?.length > 1000) return { error: 'Instructions can be up to 1000 characters.' }
+
+  // Photos are added and removed one at a time (the routes below), so saving only updates their captions
+  const captions = Array.isArray(input?.referencePhotos) ? input.referencePhotos : []
+  details.referencePhotos = (task.details?.referencePhotos ?? []).map((photo) => {
+    const sent = captions.find((c) => String(c?._id) === String(photo._id))
+    return { _id: photo._id, url: photo.url, publicId: photo.publicId, caption: sent ? text(sent.caption) : photo.caption }
+  })
+  if (details.referencePhotos.some((p) => p.caption?.length > 80)) return { error: 'Photo captions can be up to 80 characters.' }
 
   // Times are optional, but if there are any there must be one for each time a day
   const times = Array.isArray(input?.times) ? input.times.filter(Boolean) : []
@@ -251,25 +262,39 @@ router.get('/:id/care-tasks', requireLogin, asyncHandler(async (req, res) => {
   res.json({ items, detailsSavedAt: checklist?.detailsSavedAt ?? null })
 }))
 
+// The booking and checklist the owner can add care details to, or sends the reason they can't and returns null.
+// A booking becomes in-progress when the first session starts, so this also locks the details from then on.
+async function loadEditableChecklist(req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    res.status(404).json({ message: 'Booking not found.' })
+    return null
+  }
+  const booking = await Booking.findById(req.params.id)
+  if (!booking) {
+    res.status(404).json({ message: 'Booking not found.' })
+    return null
+  }
+  if (String(req.session.userId) !== String(booking.ownerId)) {
+    res.status(403).json({ message: 'This booking is not yours.' })
+    return null
+  }
+  if (booking.status !== 'confirmed') {
+    res.status(400).json({ message: 'Care details can only be changed on a confirmed booking, before the first session starts.' })
+    return null
+  }
+  const checklist = await CareChecklist.findOne({ bookingId: booking._id })
+  if (!checklist) res.status(404).json({ message: 'This booking has no care tasks.' })
+  return checklist
+}
+
 // PATCH /api/bookings/:id/care-details
-// The owner adds or changes the care details on a confirmed booking. A booking becomes in-progress when the
-// first session starts, so this also locks the details from then on. Only `details` can change: a task's
+// The owner adds or changes the care details on a confirmed booking. Only `details` can change: a task's
 // category and times a day set the price. An empty list is fine: it means the owner has nothing to add.
 // In: { tasks: [{ taskId, details: { instructions, times, food, amount, unit, medicationName, dosage, withFood } }] }
 // Out: { items, detailsSavedAt }
 router.patch('/:id/care-details', requireOwner, asyncHandler(async (req, res) => {
-  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Booking not found.' })
-  const booking = await Booking.findById(req.params.id)
-  if (!booking) return res.status(404).json({ message: 'Booking not found.' })
-  if (String(req.session.userId) !== String(booking.ownerId)) {
-    return res.status(403).json({ message: 'This booking is not yours.' })
-  }
-  if (booking.status !== 'confirmed') {
-    return res.status(400).json({ message: 'Care details can only be changed on a confirmed booking, before the first session starts.' })
-  }
-
-  const checklist = await CareChecklist.findOne({ bookingId: booking._id })
-  if (!checklist) return res.status(404).json({ message: 'This booking has no care tasks.' })
+  const checklist = await loadEditableChecklist(req, res)
+  if (!checklist) return
 
   const { tasks } = req.body
   if (!Array.isArray(tasks) || tasks.length > 20) {
@@ -289,6 +314,51 @@ router.patch('/:id/care-details', requireOwner, asyncHandler(async (req, res) =>
   for (const { task, details } of changes) task.details = details
   checklist.detailsSavedAt = new Date()
   await checklist.save()
+  res.json({ items: checklist.items, detailsSavedAt: checklist.detailsSavedAt })
+}))
+
+// POST /api/bookings/:id/care-details/:taskId/photos   multipart: photo
+// Adds one reference photo to a task, up to 3. Out: { items, detailsSavedAt }
+router.post('/:id/care-details/:taskId/photos', requireOwner, uploadPhoto, asyncHandler(async (req, res) => {
+  const checklist = await loadEditableChecklist(req, res)
+  if (!checklist) return
+  const task = mongoose.isValidObjectId(req.params.taskId) ? checklist.items.id(req.params.taskId) : null
+  if (!task) return res.status(404).json({ message: 'Task not found.' })
+  if ((task.details?.referencePhotos?.length ?? 0) >= MAX_REFERENCE_PHOTOS) {
+    return res.status(400).json({ message: `A task can have up to ${MAX_REFERENCE_PHOTOS} photos.` })
+  }
+  if (!req.file) return res.status(400).json({ message: 'Choose a photo first.' })
+
+  const uploaded = await uploadImage(req.file.buffer, {
+    folder: 'petsociety/care-details',
+    transformation: [{ width: 1200, height: 1200, crop: 'limit' }]
+  })
+  try {
+    if (!task.details) task.details = {}
+    if (!task.details.referencePhotos) task.details.referencePhotos = []
+    task.details.referencePhotos.push({ url: uploaded.secure_url, publicId: uploaded.public_id })
+    await checklist.save()
+  } catch (err) {
+    await deleteImage(uploaded.public_id)
+    throw err
+  }
+  res.status(201).json({ items: checklist.items, detailsSavedAt: checklist.detailsSavedAt })
+}))
+
+// DELETE /api/bookings/:id/care-details/:taskId/photos/:photoId
+// Removes one reference photo from a task. Out: { items, detailsSavedAt }
+router.delete('/:id/care-details/:taskId/photos/:photoId', requireOwner, asyncHandler(async (req, res) => {
+  const checklist = await loadEditableChecklist(req, res)
+  if (!checklist) return
+  const task = mongoose.isValidObjectId(req.params.taskId) ? checklist.items.id(req.params.taskId) : null
+  const photos = task?.details?.referencePhotos
+  const photo = mongoose.isValidObjectId(req.params.photoId) ? photos?.id(req.params.photoId) : null
+  if (!photo) return res.status(404).json({ message: 'Photo not found.' })
+
+  const { publicId } = photo
+  photos.pull(photo._id)
+  await checklist.save()
+  await deleteImage(publicId)
   res.json({ items: checklist.items, detailsSavedAt: checklist.detailsSavedAt })
 }))
 
