@@ -339,14 +339,14 @@ function tapBooking(b) {
         </button>
       </div>
       <div class="d-flex flex-wrap align-items-center gap-3">
-        <div class="btn-group btn-group-sm" role="group" aria-label="Calendar view">
+        <div class="btn-group" role="group" aria-label="Calendar view">
           <button type="button" class="btn" :class="view === 'month' ? 'btn-accent' : 'btn-outline-secondary'" @click="view = 'month'">Month</button>
           <button type="button" class="btn" :class="view === 'week' ? 'btn-accent' : 'btn-outline-secondary'" @click="view = 'week'">Week</button>
         </div>
         <!-- dragging only works with a mouse, so phones and tablets don't get these buttons -->
         <div v-if="editable && canHover" class="d-flex align-items-center gap-2 small text-muted">
           Drag to
-          <div class="btn-group btn-group-sm" role="group" aria-label="What dragging does">
+          <div class="btn-group" role="group" aria-label="What dragging does">
             <button type="button" class="btn" :class="mode === 'available' ? 'btn-accent' : 'btn-outline-secondary'" @click="mode = 'available'">Make available</button>
             <button type="button" class="btn" :class="mode === 'blocked' ? 'btn-accent' : 'btn-outline-secondary'" @click="mode = 'blocked'">Make unavailable</button>
           </div>
@@ -598,13 +598,13 @@ function tapBooking(b) {
   background: var(--booked);
   border-left: 3px solid var(--booked-line);
   color: var(--booked-ink);
-  font-size: 0.66rem;
+  font-size: 0.72rem;
   line-height: 1.35;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.more { margin-top: 1px; font-size: 0.62rem; color: var(--muted); }
+.more { margin-top: 1px; font-size: 0.7rem; color: var(--muted); }
 .day.past { opacity: 0.45; }
 .day.today { outline: 2px solid var(--accent); outline-offset: -1px; }
 .day.asked { outline: 2px dashed var(--accent); outline-offset: -2px; } /* days of the request being looked at */
@@ -624,7 +624,7 @@ function tapBooking(b) {
 .partial { background: var(--partial); border-color: var(--partial-line); }
 .booked { background: var(--booked); border-color: var(--booked-line); }
 .day.blocked .num { color: var(--muted); }
-.free-hours { font-size: 0.66rem; font-weight: 700; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.free-hours { font-size: 0.72rem; font-weight: 700; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .day.booked .chip { background: #d3e0ee; }
 
 /* ----- week view ----- */
@@ -641,7 +641,7 @@ function tapBooking(b) {
 .week-head.today { color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); }
 .week-num { display: block; font-family: 'Fredoka', sans-serif; font-size: 1.05rem; }
 .time-col { display: grid; grid-auto-rows: 22px; }
-.time-label { font-size: 0.65rem; color: var(--muted); text-align: right; padding-right: 5px; line-height: 1; transform: translateY(-4px); }
+.time-label { font-size: 0.7rem; color: var(--muted); text-align: right; padding-right: 5px; line-height: 1; transform: translateY(-4px); }
 .time-label:first-child { transform: none; padding-top: 3px; } /* the top label stays inside the grid, so the day names can't cover it */
 .day-col { position: relative; display: grid; grid-auto-rows: 22px; }
 .slot { border-bottom: 1px dotted var(--line); cursor: pointer; background: var(--blocked); }
@@ -660,7 +660,7 @@ function tapBooking(b) {
   color: var(--booked-ink);
   border-radius: 4px;
   padding: 1px 5px;
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   line-height: 1.25;
   overflow: hidden;
   display: flex;
@@ -737,16 +737,16 @@ function tapBooking(b) {
 
 @media (max-width: 575.98px) { /* phones: squares are small, so each booking is a tappable chip with just the pet's name */
   .day { min-height: 4.4rem; padding: 2px; }
-  .chip { min-height: 22px; line-height: 22px; padding: 0 2px; border-left-width: 2px; font-size: 0.62rem; font-weight: 700; }
+  .chip { min-height: 22px; line-height: 22px; padding: 0 2px; border-left-width: 2px; font-size: 0.68rem; font-weight: 700; }
   .chip-text { display: none; }
   .chip-pet { display: block; overflow: hidden; text-overflow: ellipsis; }
-  .more { font-size: 0.6rem; }
+  .more { font-size: 0.66rem; }
   .free-hours { display: none; } /* no room on a phone; the green colour already says the day is free */
   .week-scroll { max-height: 65vh; }
   .week { grid-template-columns: 34px repeat(7, minmax(0, 1fr)); }
-  .week-head { font-size: 0.7rem; padding: 4px 0; }
-  .time-label { font-size: 0.58rem; padding-right: 3px; }
-  .block { left: 1px; right: 1px; padding: 1px 2px; font-size: 0.6rem; border-left-width: 3px; }
+  .week-head { font-size: 0.75rem; padding: 4px 0; }
+  .time-label { font-size: 0.62rem; padding-right: 3px; }
+  .block { left: 1px; right: 1px; padding: 1px 2px; font-size: 0.66rem; border-left-width: 3px; }
   .block span { display: none; }
 }
 </style>

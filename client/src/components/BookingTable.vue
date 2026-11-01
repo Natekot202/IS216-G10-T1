@@ -65,12 +65,12 @@ function showRoute(booking) {
 
 <template>
   <div ref="tableEl" class="data-table-wrap">
-    <table class="table align-middle mb-0">
+    <table class="table align-middle mb-0 booking-table">
       <thead>
         <tr>
           <th>{{ viewer === 'sitter' ? 'Owner' : 'Sitter' }}</th>
           <th>Dates</th>
-          <th class="d-none d-md-table-cell">Price</th>
+          <th class="d-none d-lg-table-cell">Price</th>
           <th>Status</th>
           <th class="text-end">Actions</th>
         </tr>
@@ -92,8 +92,11 @@ function showRoute(booking) {
                 </div>
               </div>
             </td>
-            <td class="text-nowrap">{{ formatDateRange(b.startDate, b.endDate, b.startTime, b.endTime) }}</td>
-            <td class="d-none d-md-table-cell">{{ formatPrice(b.totalPrice) }}</td>
+            <td class="dates-cell">
+              {{ formatDateRange(b.startDate, b.endDate, b.startTime, b.endTime) }}
+              <div class="small text-muted d-lg-none">{{ formatPrice(b.totalPrice) }}</div>
+            </td>
+            <td class="d-none d-lg-table-cell">{{ formatPrice(b.totalPrice) }}</td>
             <td>
               <StatusPill :status="b.status" />
               <div v-if="b.status === 'accepted'" class="small text-muted mt-1">
@@ -104,10 +107,10 @@ function showRoute(booking) {
                 <div v-if="b.cancelReason" class="cancel-reason">“{{ b.cancelReason }}”</div>
               </div>
             </td>
-            <td class="text-end">
+            <td class="text-end actions-cell">
               <!-- sitters get their buttons stacked top to bottom, all the same width (Accept, Decline, View details); owners keep them in a row -->
               <div
-                class="d-flex gap-2"
+                class="d-flex gap-2 row-actions"
                 :class="viewer === 'sitter' ? 'flex-column align-items-stretch actions-stack' : 'flex-wrap justify-content-end align-items-center'"
               >
                 <template v-if="viewer === 'sitter' && b.status === 'pending'">
@@ -169,7 +172,6 @@ function showRoute(booking) {
                 <div class="col-12 col-lg-4">
                   <h6 class="small text-uppercase text-muted mb-2">Booking</h6>
                   <p class="small mb-1"><strong>Pets:</strong> {{ petNames(b) }}</p>
-                  <p class="small mb-1 d-md-none"><strong>Price:</strong> {{ formatPrice(b.totalPrice) }}</p>
                   <p v-if="b.notes" class="small mb-2"><strong>Notes:</strong> "{{ b.notes }}"</p>
                   <div class="d-flex flex-wrap gap-2 mt-2">
                     <router-link class="btn btn-sm btn-outline-secondary" :to="`/bookings/${b._id}`">Booking page</router-link>
@@ -214,5 +216,27 @@ function showRoute(booking) {
 }
 .details-row td {
   background: #fffaf6;
+}
+/* easier to press than Bootstrap's small buttons */
+.row-actions .btn, .details-row .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+}
+.dates-cell { white-space: nowrap; }
+
+/* phones and narrow windows: each booking becomes a card, so nothing runs off the screen */
+@media (max-width: 991.98px) {
+  .booking-table thead { display: none; }
+  .booking-table, .booking-table tbody, .booking-table tr, .booking-table td { display: block; width: 100%; }
+  .booking-table tr { padding: 0.75rem 0; border-bottom: 1px solid #ede3d8; }
+  .booking-table tr:last-child { border-bottom: 0; }
+  .booking-table td { padding: 0.25rem 0; border: 0; text-align: left; }
+  .booking-table .details-row td { padding: 0.5rem; }
+  .dates-cell { white-space: normal; }
+  .actions-cell { padding-top: 0.5rem !important; }
+  .row-actions { flex-direction: row !important; flex-wrap: wrap; width: 100%; margin-left: 0; justify-content: flex-start !important; }
+  .row-actions .btn { flex: 1 1 0; white-space: nowrap; }
 }
 </style>

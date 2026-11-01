@@ -307,13 +307,13 @@ onMounted(async () => {
             <div class="row g-2 my-2">
               <div class="col-6">
                 <label class="form-label small mb-1" for="day-start">From</label>
-                <select id="day-start" v-model="dayStart" class="form-select form-select-sm">
+                <select id="day-start" v-model="dayStart" class="form-select">
                   <option v-for="m in fromOptions" :key="m" :value="m">{{ shortTime(m) }}</option>
                 </select>
               </div>
               <div class="col-6">
                 <label class="form-label small mb-1" for="day-end">Until</label>
-                <select id="day-end" v-model="dayEnd" class="form-select form-select-sm">
+                <select id="day-end" v-model="dayEnd" class="form-select">
                   <option v-for="m in toOptions" :key="m" :value="m">{{ shortTime(m) }}{{ m === 1440 ? ' (end of day)' : '' }}</option>
                 </select>
               </div>
@@ -346,19 +346,19 @@ onMounted(async () => {
             <div class="row g-2 mb-2">
               <div class="col-6">
                 <label class="form-label small mb-1" for="pat-start">From</label>
-                <select id="pat-start" v-model="patStartMinutes" class="form-select form-select-sm">
+                <select id="pat-start" v-model="patStartMinutes" class="form-select">
                   <option v-for="m in fromOptions" :key="m" :value="m">{{ shortTime(m) }}</option>
                 </select>
               </div>
               <div class="col-6">
                 <label class="form-label small mb-1" for="pat-end">Until</label>
-                <select id="pat-end" v-model="patEndMinutes" class="form-select form-select-sm">
+                <select id="pat-end" v-model="patEndMinutes" class="form-select">
                   <option v-for="m in toOptions" :key="m" :value="m">{{ shortTime(m) }}{{ m === 1440 ? ' (end of day)' : '' }}</option>
                 </select>
               </div>
             </div>
             <label class="form-label small mb-1" for="pat-weeks">For the next</label>
-            <select id="pat-weeks" v-model="patWeeks" class="form-select form-select-sm mb-3">
+            <select id="pat-weeks" v-model="patWeeks" class="form-select mb-3">
               <option v-for="w in 12" :key="w" :value="w">{{ w }} week{{ w === 1 ? '' : 's' }}</option>
             </select>
             <div class="d-flex gap-2">
@@ -416,7 +416,7 @@ onMounted(async () => {
 /* ----- Google Calendar switch ----- */
 .google-box { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px 6px 12px; }
 .google-box .form-check-input:checked { background-color: var(--accent-deep); border-color: var(--accent-deep); }
-.info-btn { border: 0; background: none; color: var(--muted); padding: 2px; line-height: 0; border-radius: 50%; }
+.info-btn { border: 0; background: none; color: var(--muted); padding: 8px; line-height: 0; border-radius: 50%; }
 .info-btn:hover, .info-btn:focus-visible { color: var(--ink); }
 
 
@@ -434,9 +434,9 @@ onMounted(async () => {
   background: var(--blocked);
   color: var(--muted);
   border-radius: 2px;
-  padding: 8px 0 5px;
+  padding: 11px 0 8px;
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
 }
 .free-day.on { background: var(--open); color: var(--ink); border-bottom-color: var(--open-line); }
 
