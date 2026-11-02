@@ -75,28 +75,25 @@ onMounted(loadDashboard)
       <div class="row g-3 mb-4">
         <div class="col-12 col-md-4">
           <router-link to="/sitter/requests" class="card h-100 text-decoration-none text-body stat-tile">
-            <div class="card-body">
-              <div class="text-muted small">New requests</div>
-              <div class="fs-2 fw-bold stat-number">{{ newRequests.length }}</div>
-              <div class="text-muted small">Waiting for your reply</div>
+            <div class="card-body slim-tile">
+              <div class="fs-3 fw-bold stat-number">{{ newRequests.length }}</div>
+              <div class="tile-label">New requests<span class="text-muted small d-none d-md-block">Waiting for your reply</span></div>
             </div>
           </router-link>
         </div>
         <div class="col-6 col-md-4">
           <div class="card h-100">
-            <div class="card-body">
-              <div class="text-muted small">Upcoming bookings</div>
-              <div class="fs-2 fw-bold stat-number">{{ upcoming.length }}</div>
-              <div class="text-muted small">Accepted or paid</div>
+            <div class="card-body slim-tile">
+              <div class="fs-3 fw-bold stat-number">{{ upcoming.length }}</div>
+              <div class="tile-label">Upcoming<span class="text-muted small d-none d-md-block">Accepted or paid</span></div>
             </div>
           </div>
         </div>
         <div class="col-6 col-md-4">
           <div class="card h-100">
-            <div class="card-body">
-              <div class="text-muted small">Today</div>
-              <div class="fs-2 fw-bold stat-number">{{ todayCount }}</div>
-              <div class="text-muted small">Bookings today</div>
+            <div class="card-body slim-tile">
+              <div class="fs-3 fw-bold stat-number">{{ todayCount }}</div>
+              <div class="tile-label">Today<span class="text-muted small d-none d-md-block">Bookings today</span></div>
             </div>
           </div>
         </div>
@@ -122,7 +119,8 @@ onMounted(loadDashboard)
                     <div class="fw-semibold">{{ formatPrice(nextBooking.totalPrice) }}</div>
                   </div>
                 </div>
-                <router-link :to="`/bookings/${nextBooking._id}`" class="btn text-white main-btn">View booking details</router-link>
+                <router-link v-if="nextBooking.status === 'in-progress'" to="/session" class="btn text-white main-btn">Go to session</router-link>
+                <router-link v-else :to="`/bookings/${nextBooking._id}`" class="btn text-white main-btn">View booking details</router-link>
               </template>
               <p v-else class="text-muted mb-0">No upcoming bookings yet.</p>
             </div>
@@ -130,11 +128,14 @@ onMounted(loadDashboard)
 
           <section v-if="alsoComingUp.length" class="card">
             <div class="card-body p-4">
-              <h2 class="h5 fw-bold mb-2">Also coming up</h2>
+              <h2 class="h5 fw-bold mb-2">Upcoming</h2>
               <ul class="list-unstyled mb-2">
-                <li v-for="b in alsoComingUp" :key="b._id" class="d-flex justify-content-between align-items-center gap-2 py-2 border-top">
-                  <span><strong>{{ petNames(b) }}</strong> · {{ formatDate(b.startDate) }}{{ b.startTime ? ', ' + formatTime(b.startTime) : '' }}</span>
-                  <span class="small text-muted">{{ b.status }}</span>
+                <li v-for="b in alsoComingUp" :key="b._id" class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 border-top">
+                  <span>
+                    <strong>{{ petNames(b) }}</strong> · {{ formatDate(b.startDate) }}{{ b.startTime ? ', ' + formatTime(b.startTime) : '' }}
+                    <span class="d-block small text-muted">{{ b.status }}</span>
+                  </span>
+                  <router-link :to="`/bookings/${b._id}`" class="btn btn-sm text-white main-btn">View booking details</router-link>
                 </li>
               </ul>
               <router-link to="/sitter/calendar" class="fw-semibold see-all">See all in My Calendar</router-link>
@@ -242,7 +243,21 @@ onMounted(loadDashboard)
   background-color: var(--accent-deep);
 }
 .see-all {
-  color: #a8431a;
+  color: var(--accent-deep);
+}
+/* Slim stat tiles: number beside the label instead of stacked */
+.slim-tile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+}
+.slim-tile .stat-number {
+  line-height: 1;
+}
+.tile-label {
+  font-weight: 700;
+  line-height: 1.2;
 }
 .availability-card {
   --av-ink: #343434;

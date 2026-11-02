@@ -341,14 +341,15 @@ onMounted(async () => {
       <!-- The other person, with the buttons at the end of the page -->
       <div class="detail-card p-4 mb-3">
         <h6 class="section-title">{{ isSitter ? 'Owner' : 'Sitter' }}</h6>
-        <div class="d-flex align-items-center gap-3">
+        <!-- flex-wrap: on narrow phones View profile moves under the name instead of pushing the page wider -->
+        <div class="d-flex flex-wrap align-items-center gap-3">
           <img v-if="personPicture" :src="personPicture" :alt="personName" class="avatar" />
           <span v-else class="avatar">{{ personName.charAt(0).toUpperCase() }}</span>
           <div class="flex-grow-1">
             <div class="fw-bold fs-5">{{ personName }}</div>
             <div class="small text-muted">{{ isSitter ? 'Pet owner' : 'Pet sitter' }}</div>
             <!-- stars from the sitter's profile (owners have no ratings yet, so the sitter doesn't see this row) -->
-            <div v-if="!isSitter" class="d-flex align-items-center gap-2 mt-1">
+            <div v-if="!isSitter" class="d-flex flex-wrap align-items-center gap-2 mt-1">
               <template v-if="ratingCount">
                 <ShowStarRating :modelValue="Math.round(ratingAvg)" :maxStars="5" />
                 <span class="small"><strong>{{ ratingAvg.toFixed(1) }}</strong> from {{ ratingCount }} review{{ ratingCount === 1 ? '' : 's' }}</span>

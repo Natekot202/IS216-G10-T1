@@ -218,7 +218,7 @@ function reRecord(walkRoute) {
 }
 .route-actions {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr)); /* three equal buttons in a row; on very narrow screens they wrap */
   gap: 0.5rem;
 }
 .route-map {
