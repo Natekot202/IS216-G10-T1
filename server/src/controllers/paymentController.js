@@ -151,7 +151,7 @@ export const getMyPayments = async (req, res) => {
   const payments = await Payment.find({ [field]: req.session.userId, status: { $ne: 'pending' } })
     .populate({
       path: 'bookingId',
-      select: 'startDate endDate startTime endTime petIds',
+      select: 'startDate endDate startTime endTime dayTimes petIds',
       populate: { path: 'petIds', select: 'name' }
     })
     .populate('ownerId', 'username')

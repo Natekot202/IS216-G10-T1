@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { formatDateRange } from '../utils/bookingHelpers.js'
+import { formatBookingWhen } from '../utils/bookingHelpers.js'
 
 // A short preview of one booking that slides up from the bottom of the screen.
 // The calendar shows it on phones, where there is no mouse to hover with.
@@ -35,7 +35,7 @@ const pets = computed(() => props.booking.pets || props.booking.petNames.map((na
         <div class="bs-main">
           <strong>{{ pets.map((p) => p.name).join(', ') }}</strong>
           <span class="bs-when">
-            {{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime, booking.overnight) }}
+            {{ formatBookingWhen(booking) }}
           </span>
         </div>
         <span class="bs-price">${{ booking.totalPrice }}</span>

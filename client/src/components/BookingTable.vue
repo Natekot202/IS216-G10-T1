@@ -3,7 +3,7 @@ import { ref, computed, toRef, watch } from 'vue'
 import StatusPill from './StatusPill.vue'
 import BookingTasks from './BookingTasks.vue'
 import defaultAvatar from '../assets/img/tempProfile.jpg'
-import { formatDateRange, formatPrice } from '../utils/bookingHelpers'
+import { formatPrice, formatBookingWhen } from '../utils/bookingHelpers'
 import { usePagination } from '../utils/usePagination.js'
 import PaginationBar from '../components/PaginationBar.vue'
 
@@ -87,15 +87,12 @@ function showRoute(booking) {
                 <span class="avatar">{{ otherPerson(b).charAt(0).toUpperCase() }}</span>
                 <div>
                   <div class="fw-semibold">{{ otherPerson(b) }}</div>
-                    <div class="small text-muted">
-                    {{ petNames(b) }}
-                    <span v-if="b.overnight" class="badge rounded-pill text-bg-light border ms-1">🌙 Overnight</span>
-                  </div>
+                  <div class="small text-muted">{{ petNames(b) }}</div>
                 </div>
               </div>
             </td>
             <td class="dates-cell">
-              {{ formatDateRange(b.startDate, b.endDate, b.startTime, b.endTime) }}
+              {{ formatBookingWhen(b) }}
               <div class="small text-muted d-lg-none">{{ formatPrice(b.totalPrice) }}</div>
             </td>
             <td class="d-none d-lg-table-cell">{{ formatPrice(b.totalPrice) }}</td>
@@ -138,6 +135,12 @@ function showRoute(booking) {
                   class="btn btn-sm btn-brand"
                   :to="`/bookings/${b._id}/pay`"
                 >Pay now</router-link>
+                <!-- Owners can review the sitter once the sitter has finished (before or after paying) -->
+                <router-link
+                  v-if="viewer === 'owner' && ['completed', 'paid'].includes(b.status)"
+                  class="btn btn-sm btn-outline-secondary"
+                  :to="`/bookings/${b._id}?review=1`"
+                >Review sitter</router-link>
                 <button
                   v-if="canCancel(b)" 
                   type="button"

@@ -7,8 +7,8 @@ import { bookingsApi } from '../services/bookingApi.js'
 import { paymentsApi } from '../services/paymentApi.js'
 import { currentUser } from '../services/auth.js'
 import { sendPaymentNotification } from '../utils/sendNotification.js'
-import { petNames, formatDateRange, formatPrice } from '../utils/bookingHelpers.js'
-import { SERVICE_PRICES, SERVICE_LABELS, OVERNIGHT_FEE, priceForTasks, nightsFor } from '../utils/servicePrices.js'
+import { petNames, formatPrice, formatBookingWhen } from '../utils/bookingHelpers.js'
+import { SERVICE_PRICES, SERVICE_LABELS, priceForTasks } from '../utils/servicePrices.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -36,9 +36,6 @@ const days = computed(() => {
   if (!b) return 0
   return Math.round((new Date(b.endDate) - new Date(b.startDate)) / 86400000) + 1
 })
-
-// Nights the sitter stayed over (0 if this wasn't an overnight booking)
-const nights = computed(() => (booking.value ? nightsFor(days.value, booking.value.overnight) : 0))
 
 // 'visa' → 'Visa', 'mastercard' → 'Mastercard', 'paynow' → 'Paynow'
 function brandLabel(brand) {
@@ -135,7 +132,7 @@ async function pay() {
               <dt class="col-4">Pets</dt>
               <dd class="col-8">{{ petNames(booking) }}</dd>
               <dt class="col-4">When</dt>
-              <dd class="col-8">{{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime) }}</dd>
+              <dd class="col-8">{{ formatBookingWhen(booking) }}</dd>
               <dt class="col-4">Days</dt>
               <dd class="col-8">{{ days }}</dd>
             </dl>
@@ -144,10 +141,6 @@ async function pay() {
             <div v-for="(t, i) in tasks" :key="i" class="d-flex justify-content-between small mb-1">
               <span>{{ SERVICE_LABELS[t.category] }}: ${{ SERVICE_PRICES[t.category] }} × {{ t.dailyFrequency }} a day × {{ days }} day{{ days === 1 ? '' : 's' }}</span>
               <span>{{ formatPrice(priceForTasks([t], days)) }}</span>
-            </div>
-            <div v-if="nights" class="d-flex justify-content-between small mb-1">
-              <span>🌙 Overnight: ${{ OVERNIGHT_FEE }} × {{ nights }} night{{ nights === 1 ? '' : 's' }}</span>
-              <span>{{ formatPrice(OVERNIGHT_FEE * nights) }}</span>
             </div>
             <hr />
             <div class="d-flex justify-content-between fw-bold fs-5">

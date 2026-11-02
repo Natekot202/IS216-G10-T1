@@ -396,7 +396,7 @@ watch(status, async (s) => {
           <SessionChat :booking-id="session.booking._id" :is-sitter="isSitter" />
 
           <!-- owner: optional review -->
-          <section v-if="!isSitter && status === 'completed' && reviewLoaded" class="sc-card">
+            <section v-if="!isSitter && ['completed', 'paid'].includes(status) && reviewLoaded" class="sc-card">
             <h4 class="sc-title">Review your sitter (optional)</h4>
 
             <template v-if="review">
@@ -409,7 +409,7 @@ watch(status, async (s) => {
           </section>
 
           <!-- sitter: the owner's review -->
-          <section v-if="isSitter && status === 'completed' && reviewLoaded" class="sc-card">
+          <section v-if="isSitter && ['completed', 'paid'].includes(status) && reviewLoaded" class="sc-card">
             <h4 class="sc-title">Owner's review</h4>
 
             <template v-if="review">

@@ -8,7 +8,7 @@ import { paymentsApi } from '../services/paymentApi.js'
 import { bookingsApi } from '../services/bookingApi.js'
 import { currentUser, fetchUser } from '../services/auth.js'
 import BookingTabs from '../components/BookingTabs.vue'
-import { formatDateRange, formatPrice } from '../utils/bookingHelpers.js'
+import { formatPrice, formatBookingWhen } from '../utils/bookingHelpers.js'
 import { usePagination } from '../utils/usePagination.js'
 import PaginationBar from '../components/PaginationBar.vue'
 
@@ -73,7 +73,7 @@ async function loadTransactions() {
       owner: p.ownerId?.username || 'Unknown',
       pets: petList(p.bookingId?.petIds),
       session: p.bookingId
-        ? formatDateRange(p.bookingId.startDate, p.bookingId.endDate, p.bookingId.startTime, p.bookingId.endTime)
+        ? formatBookingWhen(p.bookingId)
         : '—',
       amount: p.amount,
       status: p.status,
@@ -88,7 +88,7 @@ async function loadTransactions() {
       date: b.endDate,
       owner: b.ownerId?.username || 'Unknown',
       pets: petList(b.petIds),
-      session: formatDateRange(b.startDate, b.endDate, b.startTime, b.endTime),
+      session: formatBookingWhen(b),
       amount: b.totalPrice,
       status: 'pending',
       method: '—'
@@ -160,24 +160,24 @@ onMounted(loadTransactions)
               <tr>
                 <th>Date</th>
                 <th>Owner</th>
-                <th class="d-none d-md-table-cell">Session</th>
+                <th>Session</th>
                 <th class="text-end">Amount</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="r in pageItems" :key="r.key">
-                <td class="text-nowrap">{{ shortDate(r.date) }}</td>
-                <td>
+                <td class="text-nowrap tx-date">{{ shortDate(r.date) }}</td>
+                <td class="tx-owner">
                   <div class="fw-semibold">{{ r.owner }}</div>
                   <div class="small text-muted">{{ r.pets }}</div>
                 </td>
-                <td class="d-none d-md-table-cell small">{{ r.session }}</td>
-                <td class="text-end text-nowrap">
+                <td class="small tx-session">{{ r.session }}</td>
+                <td class="text-end text-nowrap tx-amount">
                   <div class="fw-semibold">{{ formatPrice(r.amount) }}</div>
                   <div class="small text-muted">{{ r.method }}</div>
                 </td>
-                <td><span class="tx-pill" :class="`tx-${r.status}`">{{ STATUS_LABELS[r.status] }}</span></td>
+                <td class="tx-status"><span class="tx-pill" :class="`tx-${r.status}`">{{ STATUS_LABELS[r.status] }}</span></td>
               </tr>
             </tbody>
           </table>
@@ -223,6 +223,29 @@ onMounted(loadTransactions)
   white-space: nowrap;
 }
 .tx-successful { background: #e6f5ee; border-color: #9fd8c0; color: #1f7a53; }
+
+/* Phones: each transaction becomes a small card instead of a table row, so nothing scrolls sideways
+   (same idea as BookingTable). Row 1: date ... status. Then the owner, the session, and the amount. */
+@media (max-width: 767.98px) {
+  .tx-table { overflow-x: visible; }
+  .tx-table thead { display: none; }
+  .tx-table table, .tx-table tbody { display: block; width: 100%; }
+  .tx-table tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    column-gap: 0.75rem;
+    row-gap: 0.25rem;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid #ede3d8;
+  }
+  .tx-table tr:last-child { border-bottom: 0; }
+  .tx-table td { display: block; padding: 0; border: 0; }
+  .tx-date { grid-column: 1; grid-row: 1; color: #6c757d; font-size: 0.875rem; }
+  .tx-status { grid-column: 2; grid-row: 1; justify-self: end; }
+  .tx-owner { grid-column: 1 / -1; grid-row: 2; }
+  .tx-session { grid-column: 1 / -1; grid-row: 3; color: #6c757d; }
+  .tx-amount { grid-column: 1 / -1; grid-row: 4; text-align: left !important; white-space: normal !important; }
+}
 .tx-pending { background: #fdf1dc; border-color: #f0c987; color: #8a5a14; }
 .tx-rejected { background: #fbeaea; border-color: #efb6b6; color: #b23c3c; }
 </style>

@@ -18,12 +18,7 @@ export const SERVICE_PRICES = {
   play: 12
 }
 
-// Overnight stay: the sitter sleeps at the owner's place. Same fixed fee for every sitter, per night.
-// (Real Singapore house-sitting listings are mostly about $42-$87 a night. Ours is a bit below the
-//  middle because the care tasks are still charged on top.)
-export const OVERNIGHT_FEE = 60
-
-// Price of the care tasks = for every task: price × times a day × number of days, all added up.
+// Price of a booking = for every task: price × times a day × number of days, all added up.
 // e.g. walk ($20) × 2 a day × 3 days = $120
 export function priceForTasks(tasks, days) {
   let total = 0
@@ -31,15 +26,4 @@ export function priceForTasks(tasks, days) {
     total += (SERVICE_PRICES[task.category] ?? 0) * task.dailyFrequency * days
   }
   return Math.round(total * 100) / 100 // rounded to cents
-}
-
-// Number of nights in a booking: a 3-day booking (Mon, Tue, Wed) has 2 nights (Mon night, Tue night).
-// No overnight stay = 0 nights.
-export function nightsFor(days, overnight) {
-  return overnight ? Math.max(days - 1, 0) : 0
-}
-
-// The whole booking price = care tasks + overnight fee for every night
-export function bookingPrice(tasks, days, overnight) {
-  return Math.round((priceForTasks(tasks, days) + OVERNIGHT_FEE * nightsFor(days, overnight)) * 100) / 100
 }

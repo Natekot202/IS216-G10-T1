@@ -14,7 +14,7 @@ import WalkRoute from '../models/walkRouteModel.js'
 import Walk from '../models/walkModel.js'
 import VisitSession from '../models/VisitSession.js'
 import Notification from '../models/notificationModel.js'
-import { bookingPrice } from '../utils/servicePrices.js'
+import { priceForTasks } from '../utils/servicePrices.js'
 import { pathLength } from '../utils/walkGeo.js'
 
 const SEED_OWNER_EMAIL = 'seed.owner@petsociety.com'
@@ -44,9 +44,15 @@ const SMU_HOME = [103.8500, 1.2965]
 // A small loop around SMU that starts and ends at the home, for testing walks
 const SMU_LOOP = [SMU_HOME, [103.8508, 1.2972], [103.8500, 1.2980], [103.8492, 1.2973], SMU_HOME]
 
-// One booking from `day` days from today, lasting `length` days (1 = a single day), from startTime to endTime.
-// Price = each task's fixed price × times a day × days (+ $60 a night if overnight).
-function makeBooking(owner, sitter, pets, day, startTime, endTime, status, notes, tasks, length = 1, overnight = false) {
+// One booking from `day` days from today, lasting `length` days (1 = a single day).
+// Every day runs from startTime to endTime, unless `hoursByDay` gives each day its own hours: [['10:00', '24:00'], ['07:00', '09:00']].
+// Price = each task's fixed price × times a day × days.
+function makeBooking(owner, sitter, pets, day, startTime, endTime, status, notes, tasks, length = 1, hoursByDay = null) {
+  const dayTimes = Array.from({ length }, (_, i) => {
+    const [s, e] = hoursByDay ? hoursByDay[i] : [startTime, endTime]
+    const date = daysFromToday(day + i).toLocaleDateString('en-CA', { timeZone: 'Asia/Singapore' }) // 'YYYY-MM-DD'
+    return { date, startTime: s, endTime: e }
+  })
   return {
     booking: {
       ownerId: owner._id,
@@ -54,11 +60,11 @@ function makeBooking(owner, sitter, pets, day, startTime, endTime, status, notes
       petIds: pets.map((p) => p._id),
       startDate: daysFromToday(day),
       endDate: daysFromToday(day + length - 1),
-      startTime,
-      endTime,
+      startTime: dayTimes[0].startTime, // the first day's start
+      endTime: dayTimes[dayTimes.length - 1].endTime, // the last day's end
+      dayTimes,
       notes: `${SEED_TAG} ${notes}`,
-      overnight,
-      totalPrice: bookingPrice(tasks, length, overnight),
+      totalPrice: priceForTasks(tasks, length),
       status
     },
     tasks: tasks.map((t) => ({ ...t, petIds: pets.map((p) => p._id) }))
@@ -123,8 +129,9 @@ async function seed() {
 
   // Flow: pending -> accepted (sitter) -> confirmed (owner) -> in-progress -> completed (owner pays now) -> paid
   const plan = [
-    // 3 days with an overnight stay (2 nights): tasks × 3 days + $60 × 2 nights
-    makeBooking(owner, sitter, [mochi], 20, '09:00', '17:00', 'pending', 'Away for the weekend, please stay over', [WALK_TWICE, FEED_TWICE], 3, true),
+    // 3 days with different hours each day: Fri 10am–12am, Sat all day (7am–12am), Sun 7am–9am
+    makeBooking(owner, sitter, [mochi], 20, null, null, 'pending', 'Away for the weekend', [WALK_TWICE, FEED_TWICE], 3,
+      [['10:00', '24:00'], ['07:00', '24:00'], ['07:00', '09:00']]),
     makeBooking(owner, sitter2, [mochi], 22, '08:00', '12:00', 'pending', 'Morning walks', [WALK_TWICE]),
     makeBooking(owner, sitter, [luna], 14, '10:00', '14:00', 'pending', 'Afternoon with Luna', [FEED_TWICE, CLEAN_ONCE, PLAY_ONCE]),
     makeBooking(owner, sitter, [mochi, luna], 5, '09:00', '18:00', 'confirmed', 'Starts in 5 days', [FEED_TWICE, WALK_TWICE]),

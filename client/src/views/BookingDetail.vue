@@ -2,7 +2,7 @@
 // /bookings/:id: one booking, for the owner or the sitter on it.
 // Shows the pets (tap a pet to see its care checklist, look only, nothing can be ticked), the owner's notes,
 // and a card for the person on the other side, with the buttons to accept / decline / cancel.
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { bookingsApi } from '../services/bookingApi.js'
 import { currentUser, fetchUser } from '../services/auth.js'
@@ -10,7 +10,9 @@ import StatusPill from '../components/StatusPill.vue'
 import ShowStarRating from '../components/ShowStarRating.vue'
 import WalkMap from '../components/WalkMap.vue'
 import CancelBookingModal from '../components/CancelBookingModal.vue'
-import { formatDateRange, formatPrice } from '../utils/bookingHelpers.js'
+import { formatPrice, formatBookingWhen, hoursVary, dayTimesList } from '../utils/bookingHelpers.js'
+import { reviewsApi } from '../services/api.js'
+import ReviewForm from '../components/ReviewForm.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -145,16 +147,32 @@ async function sendCancel(reason) {
   }
 }
 
+// Review: once the sitter has finished (completed, or paid after that), the owner can rate the sitter here.
+// The sitter sees the owner's review here too. (Same review as on the Sessions page; a booking has at most one.)
+const review = ref(null)
+const reviewLoaded = ref(false)
+const canSeeReview = computed(() => ['completed', 'paid'].includes(booking.value?.status))
+const reviewStars = computed(() => (review.value ? '★'.repeat(review.value.rating) + '☆'.repeat(5 - review.value.rating) : ''))
+
 onMounted(async () => {
   try {
     if (!currentUser.value) await fetchUser()
     booking.value = await bookingsApi.getOne(route.params.id)
     tasks.value = (await bookingsApi.getCareTasks(route.params.id)).items
     selectedPetId.value = booking.value.petIds?.[0]?._id || null // start on the first pet
+    if (canSeeReview.value) {
+      review.value = await reviewsApi.getForBooking(route.params.id).catch(() => null)
+      reviewLoaded.value = true
+    }
   } catch (err) {
     error.value = err.response?.data?.message || 'Could not load this booking.'
   } finally {
     loading.value = false
+  }
+  // Came from the "Review sitter" button on My Bookings: scroll down to the review
+  if (route.query.review && reviewLoaded.value) {
+    await nextTick()
+    document.getElementById('review')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 })
 // checks if the user is logged in , then gets their booking and careTasks
@@ -179,9 +197,12 @@ onMounted(async () => {
         <StatusPill :status="booking.status" />
       </div>
       <p class="text-muted fw-semibold mb-3">
-        {{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime, booking.overnight) }} · {{ formatPrice(booking.totalPrice) }}
-        <span v-if="booking.overnight" class="badge rounded-pill text-bg-light border ms-1">🌙 Sitter stays overnight</span>
+        {{ formatBookingWhen(booking) }} · {{ formatPrice(booking.totalPrice) }}
       </p>
+      <!-- Different hours on different days: list them, e.g. "Fri 6 Nov: 10:00 am – 12:00 am" -->
+      <ul v-if="hoursVary(booking)" class="small text-muted mb-3 ps-3">
+        <li v-for="line in dayTimesList(booking)" :key="line">{{ line }}</li>
+      </ul>
 
       <div v-if="booking.status === 'cancelled'" class="alert alert-secondary">
         {{ booking.cancelledBy === 'owner' ? 'The owner withdrew or cancelled this booking.' : booking.cancelledBy === 'sitter' ? 'The sitter cancelled this booking.' : 'This booking was cancelled.' }}
@@ -309,6 +330,18 @@ onMounted(async () => {
             <p class="small text-muted mt-2 mb-0">You can cancel until the booking starts. Once it is paid, it can't be cancelled here.</p>
           </template>
         </div>
+      </div>
+
+      <!-- Review: the owner rates the sitter (or sees their review); the sitter sees the owner's review -->
+      <div v-if="canSeeReview && reviewLoaded" id="review" class="detail-card p-4 mb-3">
+        <h6 class="section-title">{{ isSitter ? "Owner's review" : 'Review your sitter' }}</h6>
+        <template v-if="review">
+          <div class="fs-5" style="color:#FFD700;">{{ reviewStars }}</div>
+          <p v-if="review.comment" class="mb-1 text-break">{{ review.comment }}</p>
+          <p v-if="!isSitter" class="small text-muted mb-0">Thanks, your review has been posted.</p>
+        </template>
+        <p v-else-if="isSitter" class="small text-muted mb-0">The owner hasn't left a review yet.</p>
+        <ReviewForm v-else :booking-id="booking._id" @saved="review = $event" />
       </div>
     </template>
 

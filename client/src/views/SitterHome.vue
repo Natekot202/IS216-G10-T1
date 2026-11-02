@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { bookingsApi } from '../services/bookingApi.js'
 import { currentUser } from '../services/auth.js'
-import { formatTime, formatDateRange, formatPrice } from '../utils/bookingHelpers.js'
+import { formatTime, formatPrice, formatBookingWhen } from '../utils/bookingHelpers.js'
 import ProfileChecklistCard from '../components/ProfileChecklistCard.vue'
 
 const bookings = ref([])
@@ -63,9 +63,6 @@ onMounted(loadDashboard)
         <h1 class="h2 fw-bold mb-1">Welcome back, {{ currentUser?.username }} 🐾</h1>
         <p class="text-muted mb-0">Here's what's happening with your bookings.</p>
       </div>
-      <router-link v-if="newRequests.length" to="/sitter/requests" class="btn text-white main-btn">
-        Review requests ({{ newRequests.length }})
-      </router-link>
     </div>
 
     <ProfileChecklistCard />
@@ -121,7 +118,7 @@ onMounted(loadDashboard)
                   <div>
                     <div class="fs-5 fw-bold">{{ petNames(nextBooking) }}</div>
                     <div class="text-muted">Owner: {{ ownerName(nextBooking) }}</div>
-                    <div>{{ formatDateRange(nextBooking.startDate, nextBooking.endDate, nextBooking.startTime, nextBooking.endTime) }}</div>
+                    <div>{{ formatBookingWhen(nextBooking) }}</div>
                     <div class="fw-semibold">{{ formatPrice(nextBooking.totalPrice) }}</div>
                   </div>
                 </div>
@@ -186,19 +183,32 @@ onMounted(loadDashboard)
 </template>
 
 <style scoped>
+.sh {
+  /* One shadow for every card on this page: a soft edge all the way round + a deeper shadow underneath */
+  --card-shadow: 0 0 0 1px rgba(120, 70, 40, 0.06), 0 2px 6px rgba(120, 70, 40, 0.12), 0 10px 24px rgba(120, 70, 40, 0.14);
+}
 .card {
   margin-top: 1rem;
   border: 1px solid rgba(196, 119, 86, 0.3);
   border-top: 4px solid var(--line);    
   border-radius: 16px;
   background: #fff;
-  box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);
+  box-shadow: var(--card-shadow);
+}
+/* The profile checklist card at the top is its own component, so give it the same shadow from here */
+.sh :deep(.pc) {
+  box-shadow: var(--card-shadow);
 }
 .stat-number {
   color: var(--accent-deep);
 }
+.stat-tile {
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
 .stat-tile:hover {
   border-color: var(--accent-deep);
+  transform: translateY(-2px); /* the clickable tile lifts a little */
+  box-shadow: 0 0 0 1px rgba(120, 70, 40, 0.08), 0 4px 10px rgba(120, 70, 40, 0.16), 0 14px 30px rgba(120, 70, 40, 0.18);
 }
 .main-btn {
   background-color: var(--accent-deep);
@@ -243,7 +253,7 @@ onMounted(loadDashboard)
   border-radius: 16px;
   background-color: #f1d1db;
   color: var(--av-ink);
-  box-shadow: 0 10px 24px rgb(var(--accent-rgb) / 0.35);
+  box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.12), 0 2px 6px rgb(var(--accent-rgb) / 0.2), 0 10px 24px rgb(var(--accent-rgb) / 0.3); /* same all-round shadow, in the accent colour */
 }
 .availability-card h2 {
   color: var(--av-ink);

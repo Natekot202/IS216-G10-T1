@@ -10,7 +10,7 @@ import { requireOwner, requireLogin } from '../middleware/authMiddleware.js'
 import { bookingRange, dailyRanges, findClash, describeBooking, toMinutes, slotsOf, slotsCover, START_TIME_RE, END_TIME_RE } from '../utils/bookingTimes.js'
 import asyncHandler from '../middleware/asyncHandler.js'
 import { removeBookingFromGoogle } from '../utils/googleCalendar.js'
-import { bookingPrice } from '../utils/servicePrices.js'
+import { priceForTasks } from '../utils/servicePrices.js'
 
 const router = Router()
 
@@ -42,13 +42,15 @@ function daysBetween(start, end) {
 }
 
 // POST /api/bookings
-// Body: { sitterId, petIds: [id], startDate: 'YYYY-MM-DD', startTime: '09:00', endDate: 'YYYY-MM-DD', endTime: '17:30', notes, tasks }
-// Times are Singapore time in 30-minute steps from 07:00 to 24:00 (24:00 = end of the day).
-// The times are the hours for EACH day: 3 Nov to 5 Nov, 09:00 to 17:00 = 9am to 5pm on each of the three days.
+// Body: { sitterId, petIds: [id], startDate: 'YYYY-MM-DD', endDate: 'YYYY-MM-DD', notes, tasks,
+//         dayTimes: [{ date: 'YYYY-MM-DD', startTime: '10:00', endTime: '24:00' }, ...] }   (one entry per day)
+// Each day has its own hours, e.g. Mon 10am–12am, Tue 7am–9am. Times are Singapore time in 30-minute steps
+// from 07:00 to 24:00 (24:00 = end of the day). An older page may send just startTime/endTime instead of
+// dayTimes: then those hours are used for every day.
 // Nothing runs overnight, so there are no overnight stays any more (an `overnight` sent by an old page is ignored).
 // Creates a 'pending' booking if every check passes.
 router.post('/', requireOwner, asyncHandler(async (req, res) => {
-  const { sitterId, petIds, startDate, startTime, endDate, endTime, notes = '', tasks = [] } = req.body
+  const { sitterId, petIds, startDate, startTime, endDate, endTime, dayTimes, notes = '', tasks = [] } = req.body
   const ownerId = req.session.userId
 
   // 1. Input checks
@@ -61,16 +63,28 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
   if (startDate < toSgtDateString(new Date())) return res.status(400).json({ message: 'Start date cannot be in the past.' })
   if (end < start) return res.status(400).json({ message: 'End date must be on or after the start date.' })
 
-  // Times are compulsory: HH:00 or HH:30, between 7am and 12am midnight. (An all-day booking is 07:00 to 24:00.)
-  if (!START_TIME_RE.test(startTime || '') || !END_TIME_RE.test(endTime || '') || endTime === '07:00') {
-    return res.status(400).json({ message: 'Choose a start time and an end time between 7:00 am and 12:00 am (in 30-minute steps).' })
+  // The hours for each day: sent per day (dayTimes), or the same startTime/endTime for every day
+  const days = daysBetween(start, end)
+  const hours = Array.isArray(dayTimes) && dayTimes.length
+    ? dayTimes
+    : days.map((date) => ({ date, startTime, endTime }))
+  if (hours.length !== days.length || hours.some((h, i) => h?.date !== days[i])) {
+    return res.status(400).json({ message: 'Choose the hours for each day of the booking.' })
   }
-  if (toMinutes(endTime) <= toMinutes(startTime)) {
-    return res.status(400).json({ message: 'End time must be after the start time (the times are the hours for each day).' })
+  // Times are compulsory: HH:00 or HH:30, between 7am and 12am midnight. (A whole day is 07:00 to 24:00.)
+  for (const h of hours) {
+    if (!START_TIME_RE.test(h.startTime || '') || !END_TIME_RE.test(h.endTime || '') || h.endTime === '07:00') {
+      return res.status(400).json({ message: `Choose a start and end time between 7:00 am and 12:00 am for ${h.date} (in 30-minute steps).` })
+    }
+    if (toMinutes(h.endTime) <= toMinutes(h.startTime)) {
+      return res.status(400).json({ message: `On ${h.date}, the end time must be after the start time.` })
+    }
   }
-  const range = bookingRange({ startDate: start, endDate: end, startTime, endTime }) // first start and last end
-  const ranges = dailyRanges({ startDate: start, endDate: end, startTime, endTime }) // the exact hours on each day
-  if (range.start <= Date.now()) return res.status(400).json({ message: 'The start time has already passed.' })
+  const schedule = hours.map((h) => ({ date: h.date, startTime: h.startTime, endTime: h.endTime })) // only keep these 3 fields
+  const ranges = dailyRanges({ dayTimes: schedule }) // the exact hours on each day
+  if (bookingRange({ dayTimes: schedule }).start <= Date.now()) {
+    return res.status(400).json({ message: 'The start time has already passed.' })
+  }
 
   // 2. The sitter exists
   const sitter = await User.findById(sitterId)
@@ -81,16 +95,15 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
   if (pets.length !== petIds.length) return res.status(400).json({ message: 'You can only book for your own pets.' })
 
   // 4. The sitter is available on every day, and for the hours asked for on each day
-  const days = daysBetween(start, end)
   const saved = await Availability.find({ sitterId, date: { $gte: start, $lte: end } })
   const byDay = Object.fromEntries(saved.map((a) => [toSgtDateString(a.date), a]))
   const missing = days.filter((d) => byDay[d]?.status !== 'available')
   if (missing.length) {
     return res.status(409).json({ message: `The sitter is not available on ${missing.join(', ')}.` })
   }
-  const wrongHours = days.filter((d) => {
-    return !slotsCover(slotsOf(byDay[d]), toMinutes(startTime), toMinutes(endTime)) // the same hours on every day
-  })
+  const wrongHours = schedule
+    .filter((h) => !slotsCover(slotsOf(byDay[h.date]), toMinutes(h.startTime), toMinutes(h.endTime))) // that day's own hours
+    .map((h) => h.date)
   if (wrongHours.length) {
     return res.status(409).json({ message: `The sitter is not available at those times on ${wrongHours.join(', ')}.` })
   }
@@ -134,18 +147,18 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
   }
 
   // 7. Create the booking.
-  // Price = each task's fixed price × times a day × number of days, added up (no overnight stays, so no nights)
+  // Price = each task's fixed price × times a day × number of days, added up
   const booking = await Booking.create({
     ownerId,
     sitterId,
     petIds,
     startDate: start,
-    startTime,
+    startTime: schedule[0].startTime, // the first day's start
     endDate: end,
-    endTime,
+    endTime: schedule[schedule.length - 1].endTime, // the last day's end
+    dayTimes: schedule, // the hours for each day
     notes,
-    overnight: false,
-    totalPrice: bookingPrice(items, days.length, false),
+    totalPrice: priceForTasks(items, days.length),
     status: 'pending'
   })
 
@@ -158,8 +171,8 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     startTime: booking.startTime,
     endDate: toSgtDateString(booking.endDate),
     endTime: booking.endTime,
+    dayTimes: booking.dayTimes,
     days: days.length,
-    nights: 0, // no overnight stays any more
     totalPrice: booking.totalPrice,
     status: booking.status,
     tasks: items.length

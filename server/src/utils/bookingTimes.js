@@ -1,5 +1,5 @@
 import Booking from '../models/bookingModel.js'
-import { toSgtDateString } from '../models/Availability.js'
+import { sgtMidnight, toSgtDateString } from '../models/Availability.js'
 
 // Time maths for bookings. A booking runs from startDate + startTime to endDate + endTime (Singapore time).
 // Everything is turned into "milliseconds since 1970" so two bookings can be compared with < and >.
@@ -44,6 +44,11 @@ export function slotsCover(slots, startMinutes, endMinutes) {
 // The exact start and end of a booking, in milliseconds.
 // startDate / endDate are stored as midnight Singapore time. A booking with no times counts as all-day.
 export function bookingRange(booking) {
+  // Bookings with hours for each day: from the first day's start to the last day's end
+  if (booking.dayTimes?.length) {
+    const days = dailyRanges(booking)
+    return { start: days[0].start, end: days[days.length - 1].end }
+  }
   const startMinutes = booking.startTime ? toMinutes(booking.startTime) : 0
   const endMinutes = booking.endTime ? toMinutes(booking.endTime) : 24 * 60
   return {
@@ -56,6 +61,13 @@ export function bookingRange(booking) {
 // A booking's times are the hours for every day, e.g. 3 Nov to 5 Nov, 09:00 to 17:00 = three ranges of 9am to 5pm.
 // Old bookings that ran non-stop (overnight stays, no times, or an end time before the start time) stay one range.
 export function dailyRanges(booking) {
+  // Bookings made from now on store the hours for each day (they can be different every day)
+  if (booking.dayTimes?.length) {
+    return booking.dayTimes.map((d) => {
+      const midnight = sgtMidnight(d.date).getTime()
+      return { start: midnight + toMinutes(d.startTime) * MINUTE_MS, end: midnight + toMinutes(d.endTime) * MINUTE_MS }
+    })
+  }
   if (booking.overnight || !booking.startTime || !booking.endTime) return [bookingRange(booking)]
   const startMinutes = toMinutes(booking.startTime)
   const endMinutes = toMinutes(booking.endTime)
@@ -65,6 +77,12 @@ export function dailyRanges(booking) {
     ranges.push({ start: day + startMinutes * MINUTE_MS, end: day + endMinutes * MINUTE_MS })
   }
   return ranges
+}
+
+// True when a booking's days don't all have the same hours (e.g. Mon 10am–12am, Tue 7am–9am)
+export function hoursVary(booking) {
+  const days = booking.dayTimes || []
+  return days.some((d) => d.startTime !== days[0].startTime || d.endTime !== days[0].endTime)
 }
 
 // Does any range in list `a` overlap any range in list `b`?
@@ -147,6 +165,10 @@ export function describeBooking(booking) {
   }
   if (toSgtDateString(booking.startDate) === toSgtDateString(booking.endDate)) {
     return `${formatDay(booking.startDate)}, ${formatTime(booking.startTime)} – ${formatTime(booking.endTime)}`
+  }
+  if (hoursVary(booking)) {
+    return `${formatDay(booking.startDate)} – ${formatDay(booking.endDate)} (${booking.dayTimes
+      .map((d) => `${formatTime(d.startTime)} – ${formatTime(d.endTime)}`).join(', ')})`
   }
   if (dailyRanges(booking).length > 1) {
     return `${formatDay(booking.startDate)} – ${formatDay(booking.endDate)}, ${formatTime(booking.startTime)} – ${formatTime(booking.endTime)} each day`

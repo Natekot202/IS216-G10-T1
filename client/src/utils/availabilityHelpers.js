@@ -38,6 +38,9 @@ export function groupBookingsByDay(bookings) {
 // The part of this day (in minutes after midnight) that one booking takes up: [startMinutes, endMinutes]
 // The first day uses the start time, the last day the end time; days in between are all day.
 export function dayPart(b, date) {
+  // Bookings made from now on store each day's own hours (e.g. Fri 10am–12am, Sat 7am–12am, Sun 7am–9am)
+  const own = b.dayTimes?.find((d) => d.date === date)
+  if (own) return [toMinutes(own.startTime), toMinutes(own.endTime)]
   // The times are the hours for EACH day (e.g. 9am to 5pm on every day from 3 Nov to 5 Nov)
   if (sameHoursEachDay(b)) return [toMinutes(b.startTime), toMinutes(b.endTime)]
   // Old bookings that ran non-stop (overnight stays): the first day from the start time, the last day to the end time
