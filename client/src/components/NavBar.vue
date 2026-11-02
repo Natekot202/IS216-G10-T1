@@ -168,10 +168,13 @@ async function handleLogout() {
                 <img v-if="currentUser.profilePicture?.url" :src="currentUser.profilePicture.url" alt="" />
                 <template v-else>{{ currentUser.username.charAt(0).toUpperCase() }}</template>
               </span>
-              <span class="nav-user__name d-none d-sm-inline">{{ currentUser.username }}</span>
+              <!-- hidden under 560px, cut short up to 899px, in full from 900px (main.css) -->
+              <span class="nav-user__name">{{ currentUser.username }}</span>
               <span class="nav-user__caret" aria-hidden="true">▾</span>
             </button>
             <div v-if="accountOpen" class="nav-account-menu">
+              <!-- phones only: the name, since the button shows just the avatar there -->
+              <div class="nav-account-menu__name">{{ currentUser.username }}</div>
               <router-link to="/profile" class="nav-link">
                 <span class="nav-icon" aria-hidden="true">☺︎</span>Profile
               </router-link>
