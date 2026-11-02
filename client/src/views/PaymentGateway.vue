@@ -37,9 +37,6 @@ const days = computed(() => {
   return Math.round((new Date(b.endDate) - new Date(b.startDate)) / 86400000) + 1
 })
 
-// Nights the sitter stayed over (0 if this wasn't an overnight booking)
-const nights = computed(() => (booking.value ? nightsFor(days.value, booking.value.overnight) : 0))
-
 // 'visa' → 'Visa', 'mastercard' → 'Mastercard', 'paynow' → 'Paynow'
 function brandLabel(brand) {
   if (!brand) return 'Card'
@@ -144,10 +141,6 @@ async function pay() {
             <div v-for="(t, i) in tasks" :key="i" class="d-flex justify-content-between small mb-1">
               <span>{{ SERVICE_LABELS[t.category] }}: ${{ SERVICE_PRICES[t.category] }} × {{ t.dailyFrequency }} a day × {{ daysForTask(t, days) }} day{{ daysForTask(t, days) === 1 ? '' : 's' }}</span>
               <span>{{ formatPrice(priceForTasks([t], days)) }}</span>
-            </div>
-            <div v-if="nights" class="d-flex justify-content-between small mb-1">
-              <span>🌙 Overnight: ${{ OVERNIGHT_FEE }} × {{ nights }} night{{ nights === 1 ? '' : 's' }}</span>
-              <span>{{ formatPrice(OVERNIGHT_FEE * nights) }}</span>
             </div>
             <hr />
             <div class="d-flex justify-content-between fw-bold fs-5">

@@ -12,7 +12,7 @@ import { uploadImage, deleteImage } from '../config/cloudinary.js'
 import { bookingRange, dailyRanges, findClash, describeBooking, toMinutes, slotsOf, slotsCover, START_TIME_RE, END_TIME_RE } from '../utils/bookingTimes.js'
 import asyncHandler from '../middleware/asyncHandler.js'
 import { removeBookingFromGoogle } from '../utils/googleCalendar.js'
-import { bookingPrice } from '../utils/servicePrices.js'
+import { priceForTasks } from '../utils/servicePrices.js'
 
 const router = Router()
 
@@ -206,12 +206,12 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     sitterId,
     petIds,
     startDate: start,
-    startTime,
+    startTime: schedule[0].startTime, // the first day's start
     endDate: end,
-    endTime,
+    endTime: schedule[schedule.length - 1].endTime, // the last day's end
+    dayTimes: schedule, // the hours for each day
     notes,
-    overnight: false,
-    totalPrice: bookingPrice(items, days.length, false),
+    totalPrice: priceForTasks(items, days.length),
     status: 'pending'
   })
 
@@ -224,8 +224,8 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     startTime: booking.startTime,
     endDate: toSgtDateString(booking.endDate),
     endTime: booking.endTime,
+    dayTimes: booking.dayTimes,
     days: days.length,
-    nights: 0, // no overnight stays any more
     totalPrice: booking.totalPrice,
     status: booking.status,
     tasks: items.length
