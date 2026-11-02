@@ -8,6 +8,8 @@ import BookingTable from '../components/BookingTable.vue'
 import BookingTabs from '../components/BookingTabs.vue'
 import CancelBookingModal from '../components/CancelBookingModal.vue'
 import MessageBar from '../components/MessageBar.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { confirmDialog } from '../utils/useConfirm.js'
 
 // /sitter/requests: every booking made with this sitter, sorted into
 // To accept / Awaiting confirmation / Upcoming / Awaiting payment / Past tabs (like the tabs on the owner's My Bookings)
@@ -62,8 +64,25 @@ async function loadRequests() {
 async function respond(id, status) {
   const booking = bookings.value.find((b) => b._id === id)
   // declining a request you already accepted: check first
-  if (status === 'declined' && booking.status === 'accepted' &&
-      !window.confirm('Decline this request? You accepted it, but the owner has not confirmed yet. This cannot be undone.')) return
+  const ok = await confirmDialog(
+    status === 'accepted'
+      ? {
+          title: 'Accept this request?',
+          message: 'The hours will be held for the owner while they confirm. You can still decline later if you need to.',
+          confirmText: 'Accept'
+        }
+      : {
+          title: 'Decline this request?',
+          message: booking.status === 'accepted'
+            ? 'You accepted it, but the owner has not confirmed yet. This cannot be undone.'
+            : 'The owner will be told you declined. This cannot be undone.',
+          confirmText: 'Decline',
+          danger: true
+        }
+  )
+  if (!ok) {
+    return
+  }
   busyId.value = id
   error.value = ''
   actionError.value = ''

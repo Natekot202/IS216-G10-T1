@@ -10,6 +10,7 @@ import BookingTable from '../components/BookingTable.vue'
 import BookingTabs from '../components/BookingTabs.vue'
 import CancelBookingModal from '../components/CancelBookingModal.vue'
 import MessageBar from '../components/MessageBar.vue'
+import { confirmDialog } from '../utils/useConfirm.js'
 
 const TABS = [
   { key: 'pending', label: 'Pending', statuses: ['pending'] },
@@ -69,6 +70,15 @@ async function loadBookings() {
 
 // The owner confirms a booking the sitter accepted. Only then is it final for both of them.
 async function confirmBooking(id) {
+  const booking = bookings.value.find((b) => b._id === id)
+  const ok = await confirmDialog({
+    title: 'Confirm this booking?',
+    message: `This locks in ${booking?.sitterId?.username || 'the sitter'} for these dates. You can still cancel later, but the sitter will be notified.`,
+    confirmText: 'Confirm booking'
+  })
+  if (!ok) {
+    return
+  }
   busyId.value = id
   message.value = ''
   actionError.value = ''

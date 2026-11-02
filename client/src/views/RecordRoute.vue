@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { length, lineString, simplify } from '@turf/turf'
 import WalkMap from '../components/WalkMap.vue'
 import { useGeoTracker } from '../utils/useGeoTracker.js'
@@ -102,12 +102,27 @@ async function save() {
     saving.value = false
   }
 }
+const router = useRouter()
+function goBack() {
+  if (window.history.state?.back) {
+    router.back()
+  } else {
+    router.push(currentUser.value ? '/home' : '/browse')
+  }
+}
 </script>
 
 <template>
   <div class="d-flex flex-column vh-100 p-3 gap-3">
     <header>
-      <router-link :to="{ name: 'my-routes' }" class="btn btn-link text-secondary p-0 mb-1">← My routes</router-link>
+      <!-- <router-link :to="{ name: 'my-routes' }" class="btn btn-link text-secondary p-0 mb-1">← My routes</router-link> -->
+      <button type="button" class="pf-back" @click="goBack">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        My routes
+      </button>
       <h1 class="page-title mb-1">{{ existingRoute ? `Re-record "${existingRoute.name}"` : 'Record a walking route' }}</h1>
       <p class="text-body-secondary mb-0">
         Walk the route with your phone. It must start and finish at your home.

@@ -7,6 +7,7 @@ import AvailabilityCalendar from '../components/AvailabilityCalendar.vue'
 import { availabilityApi } from '../services/availabilityApi.js'
 import { toDateString, DAY_MIN, DAY_START_MIN } from '../utils/bookingTimeHelpers.js'
 import { ALL_DAY, shortTime, groupBookingsByDay, chipText, paintedSlots, replacedSlots } from '../utils/availabilityHelpers.js'
+import { confirmDialog } from '../utils/useConfirm.js'
 
 // Same setup as services/bookingApi.js: Vite forwards /api to the server, and
 // withCredentials sends the login cookie. (Only the Google Calendar calls use it here.)
@@ -175,9 +176,21 @@ async function disconnectGoogle() {
 }
 
 // The switch: off -> on goes to Google's permission screen, on -> off asks first
-function toggleGoogle() {
-  if (!google.value.connected) connectGoogle()
-  else if (window.confirm('Turn off Google Calendar sync? New bookings will not be added. Bookings already in your Google Calendar stay there.')) disconnectGoogle()
+async function toggleGoogle() {
+  if (!google.value.connected) {
+    connectGoogle()
+    return
+  }
+  const ok = await confirmDialog({
+    title: 'Turn off Google Calendar Sync?',
+    message: 'New bookings will not be added. Bookings already in your Google Calendar stay there.',
+    confirmText: 'Turn off',
+    danger: true
+  })  
+  if (!ok) {
+    return 
+  }
+  disconnectGoogle()
 }
 
 // The small (i) button next to the switch shows a Bootstrap popover when hovered or focused.

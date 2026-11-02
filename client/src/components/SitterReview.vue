@@ -277,7 +277,7 @@ watch([ratingFilter, commentsOnly, sortBy], () => {
   text-align: left;
 }
 .sr-bar:hover:not(:disabled) {
-  background: rgba(196, 119, 86, 0.12);
+  background: var(--line);
 }
 .sr-bar--on {
   background: rgba(196, 119, 86, 0.2);
