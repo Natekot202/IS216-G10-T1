@@ -13,13 +13,14 @@ import SessionChat from '../components/SessionChat.vue'
 import SessionTask from '../components/SessionTask.vue'
 import WalkMap from '../components/WalkMap.vue'
 import OwnerLiveLocation from '../components/OwnerLiveLocation.vue'
+import CareDetailsForm from '../components/CareDetailsForm.vue'
 
 const props = defineProps({
   session: { type: Object, required: true },    
   isSitter: { type: Boolean, default: false },
   active: { type: Boolean, default: true } // false while another session is showing
 })
-const emit = defineEmits(['visit-change', 'unread', 'walk-ended'])
+const emit = defineEmits(['visit-change', 'unread', 'walk-ended', 'items-change'])
 
 const initial = computed(() => (other.value?.username || '?').trim().charAt(0).toUpperCase())
 
@@ -286,6 +287,17 @@ const showSharing = computed(() => props.isSitter && isActive.value)
 // the tracker ended a walk by itself at the sharing cutoff, so this page is out of date
 watch(walkEndedCount, () => emit('walk-ended'))
 
+// Owner: tasks with no details get an "Add details" link, which opens the same care details form
+// as the booking page. The server only takes details before the first session starts.
+const canAddDetails = computed(() => !props.isSitter && status.value === 'confirmed' && !visit.value)
+const detailsFormOpen = ref(false)
+
+// the form sends back the whole checklist; copy the new details onto today's tasks
+function detailsSaved(saved) {
+  const byId = new Map(saved.items.map((t) => [String(t._id), t]))
+  emit('items-change', props.session.items.map((it) => ({ ...it, details: byId.get(String(it._id))?.details ?? it.details })))
+}
+
 const showWhere = computed(() => props.session.ownerAddress !== undefined && ['confirmed', 'in-progress'].includes(status.value))
 watch(visit, (v) => {
   if (v) whereOpen.value = false
@@ -492,12 +504,18 @@ watch(status, async (s) => {
           <p class="sc-notes">{{ session.booking.notes }}</p>
         </div>
 
+        <CareDetailsForm v-if="detailsFormOpen && canAddDetails" class="mb-3"
+                         :booking-id="session.booking._id" :tasks="session.items" close-text="Cancel"
+                         @saved="detailsSaved($event); detailsFormOpen = false"
+                         @photos-changed="detailsSaved" @close="detailsFormOpen = false" />
+
         <p v-if="!session.items.length" class="sc-hint mb-0">No care checklist was added to this booking.</p>
         <div v-else>
           <SessionTask v-for="item in session.items" :key="item._id" :item="item" :count="countFor(item)"
                        :walks="walksFor(item)" :active-walk="session.activeWalk" :is-sitter="isSitter"
                        :is-active="isActive" :saving="savingTask" :opening="startingWalk === item._id"
-                       @tick="tick(item, $event)" @start-walk="startWalk(item)" />
+                       :can-add-details="canAddDetails"
+                       @tick="tick(item, $event)" @start-walk="startWalk(item)" @add-details="detailsFormOpen = true" />
         </div>
       </section>
 
@@ -669,7 +687,7 @@ watch(status, async (s) => {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: #2f6f62;
+  background: var(--bar-fill); /* theme colour: orange for owners, pink for sitters */
   transition: width 0.4s ease;
 }
 

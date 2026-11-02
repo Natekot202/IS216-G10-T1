@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed, toRef, watch } from 'vue'
 import StatusPill from './StatusPill.vue'
-import BookingTasks from './BookingTasks.vue'
 import defaultAvatar from '../assets/img/tempProfile.jpg'
 import { formatPrice, formatBookingWhen } from '../utils/bookingHelpers'
 import { usePagination } from '../utils/usePagination.js'
@@ -18,12 +17,6 @@ const props = defineProps({
 
 defineEmits(['accept', 'decline', 'confirm', 'cancel'])
 
-// only one details row open at a time
-const openId = ref(null)
-function toggleDetails(id) {
-  openId.value = openId.value === id ? null : id
-}
-
 const tableEl = ref(null)
 
 const { page, pageItems, goPage, reset } = usePagination(toRef(props, 'bookings'), {
@@ -32,10 +25,6 @@ const { page, pageItems, goPage, reset } = usePagination(toRef(props, 'bookings'
 })
 
 const rows = computed(() => (props.paginate ? pageItems.value : props.bookings))
-
-watch(page, () => {
-  openId.value = null
-})
 
 watch(() => props.bookings, reset)
 
@@ -60,8 +49,13 @@ function canCancel(booking) {
 // for owners, returns true if request is pending/accepted/confirmed ; "Withdraw" a request, or "Cancel" a confirmed booking
 // for sitters, returns true if booking is confirmed ; before that they decline instead
 
-function showRoute(booking) {
-  return ['confirmed', 'in-progress'].includes(booking.status)
+// Past bookings (owner): Rebook opens that sitter's profile instead of View details
+const PAST = ['paid', 'declined', 'cancelled', 'expired']
+function isPast(booking) {
+  return props.viewer === 'owner' && PAST.includes(booking.status)
+}
+function sitterIdOf(booking) {
+  return booking.sitterId?._id || booking.sitterId
 }
 </script>
 
@@ -150,42 +144,20 @@ function showRoute(booking) {
                 >{{ viewer === 'owner' && b.status !== 'confirmed' ? 'Withdraw' : 'Cancel' }}</button>
                 <!-- button only exists if they're owners ; emits the cancel event with the payload of booking_id -->
                 <!-- sitters open the Booking Detail page, owners open the details row below -->
+                <!-- (owners now open the same Booking Detail page; their Past bookings get Rebook instead) -->
                 <router-link
-                  v-if="viewer === 'sitter'"
+                  v-if="isPast(b)"
+                  class="btn btn-sm btn-brand text-nowrap"
+                  :to="`/users/${sitterIdOf(b)}`"
+                >Rebook</router-link>
+                <router-link
+                  v-else
                   class="btn btn-sm btn-outline-secondary text-nowrap"
                   :to="`/bookings/${b._id}`"
                 >View details</router-link>
                 <!-- 
                 on clicking the button, router-link component directs to that link in the router index.js, which directs it to bookingdetail.vue page 
                 -->
-                <button
-                  v-else
-                  type="button"
-                  class="btn btn-sm btn-link details-link text-nowrap"
-                  :aria-expanded="openId === b._id"
-                  @click="toggleDetails(b._id)"
-                >
-                  {{ openId === b._id ? 'Hide details ▲' : 'View details ▼' }}
-                </button>
-              </div>
-            </td>
-          </tr>
-
-          <tr v-if="openId === b._id" class="details-row">
-            <td colspan="5">
-              <div class="row g-3 py-2">
-                <div class="col-12 col-lg-4">
-                  <h6 class="small text-uppercase text-muted mb-2">Booking</h6>
-                  <p class="small mb-1"><strong>Pets:</strong> {{ petNames(b) }}</p>
-                  <p v-if="b.notes" class="small mb-2"><strong>Notes:</strong> "{{ b.notes }}"</p>
-                  <div class="d-flex flex-wrap gap-2 mt-2">
-                    <router-link class="btn btn-sm btn-outline-secondary" :to="`/bookings/${b._id}`">Booking page</router-link>
-                    <router-link v-if="showRoute(b)" class="btn btn-sm btn-outline-secondary" :to="`/bookings/${b._id}/route`">Walk route</router-link>
-                  </div>
-                </div>
-                <div class="col-12 col-lg-8">
-                  <BookingTasks :booking="b" />
-                </div>
               </div>
             </td>
           </tr>
@@ -214,14 +186,6 @@ function showRoute(booking) {
   width: 132px; /* every stacked button is this wide */
   margin-left: auto; /* keeps the stack on the right of the Actions column */
 }
-.details-link {
-  color: #2b2420;
-  font-weight: 600;
-  text-decoration: none;
-}
-.details-row td {
-  background: #fffaf6;
-}
 /* easier to press than Bootstrap's small buttons */
 .row-actions .btn, .details-row .btn {
   display: inline-flex;
@@ -238,7 +202,6 @@ function showRoute(booking) {
   .booking-table tr { padding: 0.75rem 0; border-bottom: 1px solid #ede3d8; }
   .booking-table tr:last-child { border-bottom: 0; }
   .booking-table td { padding: 0.25rem 0; border: 0; text-align: left; }
-  .booking-table .details-row td { padding: 0.5rem; }
   .dates-cell { white-space: normal; }
   .actions-cell { padding-top: 0.5rem !important; }
   .row-actions { flex-direction: row !important; flex-wrap: wrap; width: 100%; margin-left: 0; justify-content: flex-start !important; }

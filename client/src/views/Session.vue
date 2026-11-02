@@ -48,7 +48,8 @@ function pickDefault() {
 
 function selectSession(id) {
   selectedId.value = id
-  listOpen.value = false
+  // owners keep the list open (they close it with the button); sitters get it out of the way
+  if (isSitter.value) listOpen.value = false
 }
 
 async function load(quiet = false) {
@@ -58,6 +59,7 @@ async function load(quiet = false) {
     if (!sessions.value.some((s) => s.booking._id === selectedId.value)) {
       selectedId.value = pickDefault()
       listOpen.value = !sessions.value.some(isInProgress) // the list stays out of the way during a session
+      if (!isSitter.value) listOpen.value = true // owners: the list starts open
     }
   } catch (err) {
     if (!quiet) {
@@ -127,7 +129,8 @@ onBeforeUnmount(() => clearInterval(timer))
 
       <SessionCard v-for="s in sessions" v-show="s.booking._id === selectedId" :key="s.booking._id" :session="s"
                    :is-sitter="isSitter" :active="s.booking._id === selectedId"
-                   @visit-change="s.visit = $event" @unread="unread[s.booking._id] = $event" @walk-ended="load(true)" />
+                   @visit-change="s.visit = $event" @unread="unread[s.booking._id] = $event" @walk-ended="load(true)"
+                   @items-change="s.items = $event" />
     </template>
   </div>
 </template>

@@ -256,16 +256,17 @@ onBeforeUnmount(() => clearInterval(timer))
   opacity: 0.75;
 }
 
-/* a large sheet that comes up from the bottom on phones */
+/* a shorter sheet that comes up from the bottom on phones (about 60% of the screen) */
 @media (max-width: 767.98px) {
   .chat-window {
-    top: 15vh;
+    top: auto;
     right: 0;
     bottom: 0;
     left: 0;
     width: auto;
+    height: 60vh;
     max-height: none;
-    border-radius: 10px 10px 0 0;
+    border-radius: 16px 16px 0 0;
   }
 }
 </style>

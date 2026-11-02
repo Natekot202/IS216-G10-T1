@@ -7,7 +7,7 @@ import { bookingsApi } from '../services/bookingApi.js'
 import { paymentsApi } from '../services/paymentApi.js'
 import { currentUser } from '../services/auth.js'
 import { sendPaymentNotification } from '../utils/sendNotification.js'
-import { petNames, formatPrice, formatBookingWhen } from '../utils/bookingHelpers.js'
+import { petNames, formatPrice, formatBookingWhen, formatDateRange } from '../utils/bookingHelpers.js'
 import { SERVICE_PRICES, SERVICE_LABELS, priceForTasks, daysForTask } from '../utils/servicePrices.js'
 
 const route = useRoute()

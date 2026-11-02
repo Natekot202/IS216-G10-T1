@@ -103,7 +103,7 @@ function reRecord(walkRoute) {
         <h1 class="page-title mb-1">My routes</h1>
         <p class="text-body-secondary mb-0">Walking routes you've recorded.</p>
       </div>
-      <router-link v-if="home" :to="{ name: 'record-route' }" class="btn btn-primary ms-auto">Record new route</router-link>
+      <router-link v-if="home" :to="{ name: 'record-route' }" class="btn btn-brand ms-auto">Record new route</router-link>
     </header>
 
     <p v-if="loading" class="text-body-secondary mb-0">Loading your routes…</p>
@@ -163,11 +163,11 @@ function reRecord(walkRoute) {
               </div>
             </div>
 
-            <!-- Actions -->
-            <div v-else-if="renamingId !== walkRoute._id" class="d-flex gap-3 mt-2" @click.stop>
-              <button class="btn btn-link text-secondary p-0" @click="startRename(walkRoute)">Rename</button>
-              <button class="btn btn-link text-secondary p-0" @click="reRecord(walkRoute)">Re-record</button>
-              <button class="btn btn-link text-danger p-0 ms-auto" @click="askDelete(walkRoute)">Delete</button>
+            <!-- Actions: three equal buttons in one row, Delete last in red -->
+            <div v-else-if="renamingId !== walkRoute._id" class="route-actions mt-3" @click.stop>
+              <button type="button" class="btn btn-sm btn-outline-secondary" @click="startRename(walkRoute)">Rename</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" @click="reRecord(walkRoute)">Re-record</button>
+              <button type="button" class="btn btn-sm btn-outline-danger" @click="askDelete(walkRoute)">Delete</button>
             </div>
           </li>
         </ul>
@@ -215,6 +215,11 @@ function reRecord(walkRoute) {
 .route-card.selected {
   border-color: #e8692c;
   box-shadow: 0 0 0 1px #e8692c;
+}
+.route-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
 }
 .route-map {
   height: 400px;

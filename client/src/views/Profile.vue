@@ -7,7 +7,6 @@ import OwnerDetails from '../components/OwnerDetails.vue'
 import SitterDetails from '../components/SitterDetails.vue'
 import { usersApi } from '../services/api.js'
 import SitterReviews from '../components/SitterReview.vue'
-import ProfileActions from '../components/ProfileActions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -61,7 +60,6 @@ onMounted(() => {
     <template v-else-if="profile">
       <div class="d-flex flex-wrap align-items-center justify-content-between border-bottom pb-2 mb-3">
         <h3 class="page-title">{{ isMine ? 'My Profile' : `${profile.username}'s Profile` }}</h3>
-        <ProfileActions :profile="profile" :editable="isMine" />
       </div>
 
       <div class="row g-3">

@@ -2,8 +2,10 @@
 import { ref, shallowRef, onMounted, onBeforeUnmount, watch } from 'vue'
 import currentLocationImg from '../assets/img/currentLocationIcon.png'
 import L from 'leaflet'
+import { useRouter } from 'vue-router'
 
 const props = defineProps({profiles:Array, origin: { type: Object, default: null }, userLocation: { type: Object, default: null }})
+const router = useRouter()
 
 let originMarker = null
 let userMarker = null
@@ -50,8 +52,15 @@ function drawSitters() {
     const coords = sitter.sitterProfile?.serviceArea?.location?.coordinates
     if (!coords) return
     const [lng, lat] = coords                    // GeoJSON order
-    const label = document.createElement('strong')
+    // the sitter's name links to their profile
+    const label = document.createElement('a')
+    label.href = `/users/${sitter._id}`
+    label.className = 'fw-bold map-sitter-link'
     label.textContent = sitter.username          // textContent, not HTML
+    label.addEventListener('click', (e) => {
+      e.preventDefault()
+      router.push(`/users/${sitter._id}`)
+    })
     L.marker([lat, lng]).bindPopup(label).addTo(sitterLayer)
   })
 }
@@ -101,6 +110,10 @@ onBeforeUnmount(() => map.value?.remove())
   .fullScreenMap {
     height:100%;
     width: 100%;
+  }
+  /* popup content is made with JS, so it needs :deep to be styled */
+  .fullScreenMap :deep(.map-sitter-link) {
+    color: var(--accent-deep);
   }
 
 </style>

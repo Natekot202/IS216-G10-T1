@@ -86,9 +86,16 @@ function positionPicker() {
   pickerPosition.value = { top: `${top}px`, left: `${left}px`, width: `${width}px` }
 }
 
+// clicking outside the picker (and its button) closes it
+function closeOnOutsideClick(e) {
+  if (availabilityPicker.value?.contains(e.target) || dateRangeButton.value?.contains(e.target)) return
+  showDatePicker.value = false
+}
+
 function removePositionListeners() {
   window.removeEventListener('resize', positionPicker)
   window.removeEventListener('scroll', positionPicker, true)
+  document.removeEventListener('pointerdown', closeOnOutsideClick)
 }
 
 watch(showDatePicker, async (isOpen) => {
@@ -102,6 +109,7 @@ watch(showDatePicker, async (isOpen) => {
   positionPicker()
   window.addEventListener('resize', positionPicker)
   window.addEventListener('scroll', positionPicker, true)
+  document.addEventListener('pointerdown', closeOnOutsideClick)
 }, { flush: 'post' })
 
 // parent's "Clear filters" resets from/to; keep the drafts in step

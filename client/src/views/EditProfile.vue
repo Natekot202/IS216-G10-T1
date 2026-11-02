@@ -308,7 +308,7 @@ async function save() {
             </template>
           </section>
 
-          <section class="ef-card ef-card--private">
+          <section class="ef-card ef-card--private mb-1">
             <h4 class="ef-card__title">Password</h4>
             <router-link to="/account/password" class="btn btn-sm mt-2" style="border:1px solid;">Change password</router-link>
           </section>

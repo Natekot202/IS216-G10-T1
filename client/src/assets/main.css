@@ -74,46 +74,75 @@ body {
   margin: 0;
   white-space: nowrap;
 }
-.topbar .navbar-toggler {
+
+/* menu button on the left of the bar */
+.nav-menu-btn {
   grid-column: 1;
   grid-row: 1;
   justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  transition: background 0.2s, border-color 0.2s;
 }
-.nav-login {
-  grid-column: 3;
-  grid-row: 1;
-  justify-self: end;
-  margin: 0;
+.nav-menu-btn:hover,
+.nav-menu-btn[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.5);
 }
  
 /* links */
-.topbar .navbar-nav .nav-link {
+.topbar .navbar-nav .nav-link,
+.nav-account-menu .nav-link {
+  display: flex;
+  align-items: center;
   padding: 0.5rem 0.85rem;
-  border-radius: 999px;
+  border-radius: 10px;
   font-weight: 600;
   font-size: 0.95rem;
   white-space: nowrap;
+  color: rgba(255, 255, 255, 0.8);
 }
 .topbar .navbar-nav .nav-link:hover,
 .topbar .navbar-nav .nav-link:focus-visible,
-.topbar .navbar-nav .nav-link:active {
+.topbar .navbar-nav .nav-link:active,
+.nav-account-menu .nav-link:hover {
   color: #fff;
+  background: rgba(255, 255, 255, 0.08);
 }
 .topbar .navbar-nav .nav-link.router-link-exact-active {
   background: var(--accent);
   color: #fff;
 }
+/* fixed-width icon column so every label starts at the same edge */
+.nav-icon {
+  display: inline-block;
+  width: 1.6rem;
+  flex: 0 0 1.6rem;
+  text-align: center;
+  margin-right: 0.4rem;
+}
  
 /* profile */
 .nav-account {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.25rem;
+  min-width: 0;
 }
 .nav-user {
   display: flex;
   align-items: center;
   gap: 0.55rem;
+  min-width: 0;
   padding: 0.25rem 0.8rem 0.25rem 0.3rem;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
@@ -136,6 +165,7 @@ body {
 .nav-user__avatar {
   width: 1.9rem;
   height: 1.9rem;
+  flex: 0 0 auto;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -155,8 +185,8 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
- 
-/* Profile button on the bar (md and up) */
+
+/* the account button: avatar + name + caret in one */
 .nav-user--toggle {
   cursor: pointer;
 }
@@ -170,6 +200,28 @@ body {
 }
 .nav-user--toggle[aria-expanded="true"] .nav-user__caret {
   transform: rotate(180deg);
+}
+
+/* account dropdown: Profile and Log out */
+.nav-account-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1050;
+  min-width: 160px;
+  margin-top: 0.5rem;
+  padding: 0.4rem;
+  background-color: #2b2420;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 0.75rem 1.75rem rgba(0, 0, 0, 0.3);
+}
+.nav-account-menu .nav-link {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  text-decoration: none;
 }
  
 .nav-btn {
@@ -195,34 +247,32 @@ body {
   min-width: 0;
 }
 .nav-action .nav-btn { flex: 0 0 auto; }
-.nav-action .nav-user { min-width: 0; flex: 0 1 auto; }
- 
-/* Below md the bar is too narrow for the profile button: it lives in the off-canvas only */
-@media (max-width: 767.98px) {
+
+/* phones: the right side is wider than the left, so the logo sits in the space between them */
+@media (max-width: 575.98px) {
+  .topbar > .container-fluid {
+    grid-template-columns: auto 1fr auto;
+    column-gap: 0.5rem;
+  }
+  .topbar .navbar-brand {
+    justify-self: center;
+    font-size: 1.35rem;
+  }
   .nav-action {
-    gap: 0.5rem;
+    gap: 0.35rem;
+  }
+  .nav-user {
+    padding: 0.2rem 0.5rem 0.2rem 0.2rem;
+  }
+  .nav-menu-btn {
+    padding: 0.4rem 0.7rem;
   }
 }
  
-/* Between md and lg the profile button is just the avatar */
-@media (min-width: 768px) and (max-width: 991.98px) {
-  .nav-user--toggle {
-    padding: 0.2rem;
-  }
-}
- 
-/* lg and up: Search Sitters on the left, everything else in a dropdown under the profile button */
+/* lg and up: the page links drop down under the menu button */
 @media (min-width: 992px) {
   .topbar {
     padding-block: 0.65rem;
-  }
- 
-  .topbar .nav-search {
-    grid-column: 1;
-    grid-row: 1;
-    justify-self: start;
-    flex-direction: row;
-    margin: 0;
   }
  
   /* Invisible layer: clicking anywhere outside the dropdown closes it */
@@ -236,7 +286,7 @@ body {
   .nav-menu {
     position: absolute;
     top: 100%;
-    right: 1.25rem;
+    left: 1.25rem;
     z-index: 1050;
     display: none;
     flex-direction: column;
@@ -251,33 +301,12 @@ body {
   .nav-menu--open {
     display: flex;
   }
-  .nav-menu--guest {
-    display: none;
-  }
  
   .topbar .nav-menu .navbar-nav {
     flex-direction: column;
     align-items: stretch;
     gap: 0.15rem;
     margin: 0;
-  }
-  .topbar .nav-menu .nav-link {
-    border-radius: 10px;
-  }
-  .topbar .nav-menu .nav-link:hover {
-    background: rgba(255, 255, 255, 0.08);
-  }
- 
-  .nav-menu .nav-account {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-    padding-top: 0.6rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
-  }
-  .nav-menu .nav-account .btn {
-    width: 100%;
   }
 }
  
@@ -313,18 +342,6 @@ body {
   .nav-menu--open {
     transform: translateX(0);
     visibility: visible;
-  }
-  .nav-account {
-    flex-direction: column;
-    align-items: stretch;
-    margin-top: auto;
-  }
-  .nav-account .btn,
-  .nav-account .nav-user {
-    width: 100%;
-  }
-  .nav-account .nav-user {
-    justify-content: flex-start;
   }
 }
  
@@ -468,6 +485,61 @@ body {
   --bs-btn-focus-shadow-rgb: var(--accent-main-rgb);
 }
  
+/* outline in the theme colour, fills with the theme colour on hover */
+.btn.btn-brand-outline {
+  --bs-btn-color: var(--accent-deep);
+  --bs-btn-bg: #fff;
+  --bs-btn-border-color: var(--accent-deep);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--accent-deep);
+  --bs-btn-hover-border-color: var(--accent-deep);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--accent-deep-active);
+  --bs-btn-active-border-color: var(--accent-deep-active);
+  --bs-btn-disabled-color: var(--accent-deep);
+  --bs-btn-disabled-bg: #fff;
+  --bs-btn-disabled-border-color: var(--accent-deep);
+  --bs-btn-focus-shadow-rgb: var(--accent-deep-rgb);
+}
+
+/* plain grey text button, e.g. "Clear all", "Mark all read" */
+.plain-action {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #6c757d;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.plain-action:hover,
+.plain-action:focus-visible {
+  color: #2b2420;
+}
+
+/* active filter chips (tap to remove) */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--tint-soft);
+  color: #2b2420;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.filter-chip:hover,
+.filter-chip:focus-visible {
+  border-color: var(--accent-main);
+  background: var(--tint);
+  color: #2b2420;
+}
+
 /* handling page widths */
 .pf, .br, .sesh, .ob, .trans, .oh, .sh, .pay, .ur, .noti, .cal-page {
   max-width: 1400px;
