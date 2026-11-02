@@ -16,6 +16,7 @@ import { formatPrice, formatBookingWhen, hoursVary, dayTimesList, formatDateRang
 import { reviewsApi } from '../services/api.js'
 import ReviewForm from '../components/ReviewForm.vue'
 import { prettyDate } from '../utils/bookingTimeHelpers.js'
+import { confirmDialog } from '../utils/useConfirm.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -111,8 +112,17 @@ function detailsSaved(saved) {
 }
 
 async function respond(newStatus) {
-  if (newStatus === 'declined' && status.value === 'accepted' &&
-      !window.confirm('Decline this request? You accepted it, but the owner has not confirmed yet. This cannot be undone.')) return
+  if (newStatus === 'declined' && status.value === 'accepted') {
+    const ok = await confirmDialog({
+      title: 'Decline this request?',
+      message: 'You accepted it, but the owner has not confirmed yet. This cannot be undone.',
+      confirmText: 'Decline',
+      danger: true
+    })
+    if (!ok) {
+      return
+    }
+  }
   busy.value = true
   actionError.value = ''
   message.value = ''
@@ -128,6 +138,14 @@ async function respond(newStatus) {
 }
 
 async function confirmBooking() {
+  const ok = await confirmDialog({
+    title: 'Confirm this booking?',
+    message: `This locks in ${personName.value} for these dates. You can still cancel later, but the other person will be notified.`,
+    confirmText: 'Confirm booking'
+  })
+  if (!ok) {
+    return
+  }
   busy.value = true
   actionError.value = ''
   message.value = ''

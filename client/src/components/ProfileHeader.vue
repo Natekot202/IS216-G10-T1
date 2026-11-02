@@ -32,11 +32,11 @@ watch(() => props.profile._id, async (id) => {
     <p class="ph-name">{{ profile.username }}</p>
     <p v-if="editable && profile.email" class="ph-email">{{ profile.email }}</p>
     <p class="ph-bio">{{ profile.bio || 'No bio yet.' }}</p>  
-    <!-- Request Booking / Edit Details / Log in, right under the bio -->
-    <ProfileActions :profile="profile" :editable="editable" />
     <ul v-if="badges.length" class="ph-badges" aria-label="Highlights">
       <li v-for="b in badges" :key="b" class="ph-badge" :title="BADGES[b].tip">{{ BADGES[b].label }}</li>
     </ul>
+    <ProfileActions :profile="profile" :editable="editable" />
+
   </div>
 </template>
 
