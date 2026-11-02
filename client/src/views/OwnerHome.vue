@@ -487,6 +487,7 @@ onBeforeUnmount(() => {
 
 .sitter-list {
   display: grid;
+  grid-template-columns: minmax(0, 1fr); /* the column can be narrower than a card's content, so cards never push the page wider than the screen */
   grid-auto-rows: 1fr;
   gap: 1rem;
   margin-top: 1rem;

@@ -187,7 +187,7 @@ onMounted(loadTransactions)
                 <td class="small tx-session">{{ r.session }}</td>
                 <td class="text-end text-nowrap tx-amount">
                   <div class="fw-semibold">{{ formatPrice(r.amount) }}</div>
-                  <div class="small text-muted">{{ r.method }}</div>
+                  <div v-if="r.method !== '—'" class="small text-muted">{{ r.method }}</div>
                 </td>
                 <td class="tx-status"><span class="tx-pill" :class="`tx-${r.status}`">{{ STATUS_LABELS[r.status] }}</span></td>
               </tr>
@@ -244,7 +244,7 @@ onMounted(loadTransactions)
   .tx-table table, .tx-table tbody { display: block; width: 100%; }
   .tx-table tr {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     column-gap: 0.75rem;
     row-gap: 0.25rem;
     padding: 0.85rem 0;
@@ -257,6 +257,14 @@ onMounted(loadTransactions)
   .tx-owner { grid-column: 1 / -1; grid-row: 2; }
   .tx-session { grid-column: 1 / -1; grid-row: 3; color: #6c757d; }
   .tx-amount { grid-column: 1 / -1; grid-row: 4; text-align: left !important; white-space: normal !important; }
+}
+
+/* Very narrow phones: no room for the date and status side by side, so the status goes on its own line under the date */
+@media (max-width: 359.98px) {
+  .tx-status { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
+  .tx-owner { grid-row: 3; }
+  .tx-session { grid-row: 4; }
+  .tx-amount { grid-row: 5; }
 }
 .tx-pending { background: #fdf1dc; border-color: #f0c987; color: #8a5a14; }
 .tx-rejected { background: #fbeaea; border-color: #efb6b6; color: #b23c3c; }

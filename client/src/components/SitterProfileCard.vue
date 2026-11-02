@@ -19,14 +19,16 @@ const isNewSitter = computed(() => {
     
     <div class="card">
         <div class="card-body d-flex flex-column">
-            <div class="d-flex justify-content-start gap-2">
+            <!-- flex-wrap: on very narrow cards the name and stars go under the photo -->
+            <div class="d-flex flex-wrap justify-content-start gap-2">
                 <img :src="sitter.profilePicture?.url || defaultAvatar"
-                    class="border rounded img-fluid"
+                    class="border rounded img-fluid flex-shrink-0"
                     style="width: 80px; height: 80px; object-fit: cover; border:1px solid grey"
                     alt="Circular Profile">
-                <div class="d-flex flex-column ms-2 mb-3">
-                    <div class="d-flex align-items-center gap-2">
-                        <h5 class="card-title mb-0 fw-bolder">{{ sitter.username }}</h5>
+                <!-- card-info can shrink, so on narrow phones the badge and stars stay inside the card -->
+                <div class="d-flex flex-column ms-2 mb-3 card-info">
+                    <div class="d-flex flex-wrap align-items-center gap-1 column-gap-2">
+                        <h5 class="card-title mb-0 fw-bolder text-break">{{ sitter.username }}</h5>
                         <span v-if="isNewSitter" class="badge rounded-pill text-bg-success">New sitter</span>
                     </div>
                     <ShowStarRating :modelValue="Math.floor(sitter.sitterProfile.ratingAvg)" :maxStars="5" class="mb-2"> ({{ sitter.sitterProfile.ratingCount }})</ShowStarRating>
@@ -65,6 +67,14 @@ const isNewSitter = computed(() => {
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);
+}
+.card-info {
+  min-width: 0; /* a flex item won't shrink below its content without this */
+}
+/* the stars and "(3)" wrap onto a second line instead of running out of the card */
+.card-info :deep(.star-rating) {
+  flex-wrap: wrap;
+  align-items: center;
 }
 .reason-tag {
   padding: 0.15rem 0.6rem;

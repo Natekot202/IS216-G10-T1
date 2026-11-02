@@ -146,7 +146,7 @@ const isListed = computed(() =>
 
 .sd-groups {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); /* min(): a column never asks for more than the screen has */
   gap: 1.5rem;
 }
 .sd-heading {

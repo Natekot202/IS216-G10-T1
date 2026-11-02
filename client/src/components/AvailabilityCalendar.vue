@@ -344,9 +344,10 @@ function tapBooking(b) {
           <button type="button" class="btn" :class="view === 'week' ? 'btn-accent' : 'btn-outline-secondary'" @click="view = 'week'">Week</button>
         </div>
         <!-- dragging only works with a mouse, so phones and tablets don't get these buttons -->
-        <div v-if="editable && canHover" class="d-flex align-items-center gap-2 small text-muted">
+        <!-- flex-wrap: in a narrow window the two buttons go under "Drag to" instead of running off the page -->
+        <div v-if="editable && canHover" class="d-flex flex-wrap align-items-center gap-2 small text-muted">
           Drag to
-          <div class="btn-group" role="group" aria-label="What dragging does">
+          <div class="btn-group flex-wrap" role="group" aria-label="What dragging does">
             <button type="button" class="btn" :class="mode === 'available' ? 'btn-accent' : 'btn-outline-secondary'" @click="mode = 'available'">Make available</button>
             <button type="button" class="btn" :class="mode === 'blocked' ? 'btn-accent' : 'btn-outline-secondary'" @click="mode = 'blocked'">Make unavailable</button>
           </div>
