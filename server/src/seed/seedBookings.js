@@ -15,7 +15,7 @@ import Walk from '../models/walkModel.js'
 import VisitSession from '../models/VisitSession.js'
 import Notification from '../models/notificationModel.js'
 import Availability from '../models/Availability.js'
-import { bookingPrice } from '../utils/servicePrices.js'
+import { priceForTasks } from '../utils/servicePrices.js'
 import { pathLength } from '../utils/walkGeo.js'
 
 const SEED_OWNER_EMAIL = 'seed.owner@petsociety.com'
@@ -55,10 +55,15 @@ const AVAILABLE_DAYS = 30
 // The date `n` days from today, as a task's `days` stores it: 'YYYY-MM-DD'
 const dayString = (n) => daysFromToday(n).toLocaleDateString('en-CA', { timeZone: 'Asia/Singapore' })
 
-// One booking from `day` days from today, lasting `length` days (1 = a single day), from startTime to endTime.
+// One booking from `day` days from today, lasting `length` days (1 = a single day).
+// Every day runs from startTime to endTime, unless `hoursByDay` gives each day its own hours: [['10:00', '24:00'], ['07:00', '09:00']].
 // Price = each task's fixed price × times a day × its days.
 // A task is for all of the booking's pets, unless it lists its own `pets`.
-function makeBooking(owner, sitter, pets, day, startTime, endTime, status, notes, tasks, length = 1) {
+function makeBooking(owner, sitter, pets, day, startTime, endTime, status, notes, tasks, length = 1, hoursByDay = null) {
+  const dayTimes = Array.from({ length }, (_, i) => {
+    const [s, e] = hoursByDay ? hoursByDay[i] : [startTime, endTime]
+    return { date: dayString(day + i), startTime: s, endTime: e }
+  })
   return {
     booking: {
       ownerId: owner._id,
@@ -69,8 +74,7 @@ function makeBooking(owner, sitter, pets, day, startTime, endTime, status, notes
       startTime,
       endTime,
       notes: `${SEED_TAG} ${notes}`,
-      overnight: false,
-      totalPrice: bookingPrice(tasks, length, false),
+      totalPrice: priceForTasks(tasks, length),
       status
     },
     tasks: tasks.map((t) => ({ ...t, petIds: (t.pets ?? pets).map((p) => p._id) }))
@@ -152,10 +156,10 @@ async function seed() {
 
   // Flow: pending -> accepted (sitter) -> confirmed (owner) -> in-progress -> completed (owner pays now) -> paid
   const plan = [
-    // 3 days, with tasks on certain days too
-    makeBooking(owner, sitter, [mochi], 20, '09:00', '17:00', 'pending', 'Away for the weekend', [
+    // 3 days, with tasks on certain days too, and different hours each day: 10am–12am, all day (7am–12am), 7am–9am
+    makeBooking(owner, sitter, [mochi], 20, null, null, 'pending', 'Away for the weekend', [
       WALK_ROUTE, FEED_TWICE, PLAY_FETCH, WASH_BOWLS, { ...GROOM_ONCE, days: [dayString(22)] }
-    ], 3),
+    ], 3, [['10:00', '24:00'], ['07:00', '24:00'], ['07:00', '09:00']]),
     makeBooking(owner, sitter2, [mochi], 22, '08:00', '12:00', 'pending', 'Morning walks', [WALK_ROUTE, FEED_ONCE, PLAY_FETCH, WIPE_PAWS]),
     makeBooking(owner, sitter, [luna], 14, '10:00', '14:00', 'pending', 'Afternoon with Luna', [FEED_TWICE, CLEAN_ONCE, PLAY_ONCE, EYE_DROPS]),
     // Both pets, 3 days, nail clip on the last day. No care details yet, so the booking asks for them

@@ -3,7 +3,10 @@ import { computed } from 'vue'
 import ShowStarRating from './ShowStarRating.vue';
 import defaultAvatar from '../assets/img/tempProfile.jpg'
 
-const props = defineProps({sitter: Object})
+const props = defineProps({
+    sitter: Object,
+    reasons: { type: Array, default: () => [] } // why this sitter is recommended, e.g. ['Takes Dog, Cat', 'Offers Grooming'] (only with "Recommended for me" on)
+})
 const isNewSitter = computed(() => {
     const createdAt = new Date(props.sitter?.createdAt).getTime()
     const ageMs = Date.now() - createdAt
@@ -41,6 +44,10 @@ const isNewSitter = computed(() => {
             <p v-if="sitter.sitterProfile.services?.length" class="small text-secondary mb-2">
                 Offers: {{ sitter.sitterProfile.services.join(' · ') }}
             </p>
+            <!-- "Recommended for me" is on: the reasons this sitter was picked, as small green tags -->
+            <div v-if="reasons.length" class="d-flex flex-wrap gap-2 mb-1">
+                <span v-for="r in reasons" :key="r" class="reason-tag">✓ {{ r }}</span>
+            </div>
             <slot></slot>
         </div>
     </div>
@@ -55,6 +62,15 @@ const isNewSitter = computed(() => {
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 6px 16px rgba(120, 70, 40, 0.1);
+}
+.reason-tag {
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: #e6f5ee;
+  border: 1px solid #9fd8c0;
+  color: #1f7a53;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 .pet-tag {
   padding: 0.15rem 0.7rem;

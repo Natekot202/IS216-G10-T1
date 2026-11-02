@@ -1,12 +1,8 @@
 // Fixed price for ONE time doing each type of care task, in SGD.
 // MUST match server/src/utils/servicePrices.js (the server's number is the one that is charged).
-// Price of a booking = each task's price × times a day × number of days, added up
-//                      + the overnight fee for every night (if the owner asked for an overnight stay).
+// Price of a booking = each task's price × times a day × number of days, added up.
 // No vague 'other' type on purpose, so a cheap task can't be used for a big job.
 export const SERVICE_PRICES = { feed: 8, walk: 20, groom: 12, medication: 15, clean: 15, play: 12 }
-
-// Overnight stay: the sitter sleeps at the owner's place. Same fixed fee for every sitter, per night.
-export const OVERNIGHT_FEE = 60
 
 // Nice names for the dropdown, e.g. 'walk' → 'Walk ($20)'
 export const SERVICE_LABELS = { feed: 'Feed', walk: 'Walk', groom: 'Groom', medication: 'Medication', clean: 'Clean-up', play: 'Playtime' }
@@ -36,14 +32,4 @@ export function priceForTasks(tasks, days) {
     total += (SERVICE_PRICES[task.category] ?? 0) * (Number(task.dailyFrequency) || 0) * daysForTask(task, days)
   }
   return Math.round(total * 100) / 100 // rounded to cents
-}
-
-// A 3-day booking (Mon, Tue, Wed) has 2 nights. No overnight stay = 0 nights.
-export function nightsFor(days, overnight) {
-  return overnight ? Math.max(days - 1, 0) : 0
-}
-
-// The whole booking price = care tasks + overnight fee for every night
-export function bookingPrice(tasks, days, overnight) {
-  return Math.round((priceForTasks(tasks, days) + OVERNIGHT_FEE * nightsFor(days, overnight)) * 100) / 100
 }

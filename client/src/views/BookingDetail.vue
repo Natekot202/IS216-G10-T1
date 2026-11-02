@@ -12,7 +12,9 @@ import WalkMap from '../components/WalkMap.vue'
 import CancelBookingModal from '../components/CancelBookingModal.vue'
 import CareDetailsForm from '../components/CareDetailsForm.vue'
 import CareDetailsSummary from '../components/CareDetailsSummary.vue'
-import { formatDateRange, formatPrice } from '../utils/bookingHelpers.js'
+import { formatPrice, formatBookingWhen, hoursVary, dayTimesList } from '../utils/bookingHelpers.js'
+import { reviewsApi } from '../services/api.js'
+import ReviewForm from '../components/ReviewForm.vue'
 import { prettyDate } from '../utils/bookingTimeHelpers.js'
 
 const route = useRoute()
@@ -183,6 +185,11 @@ onMounted(async () => {
     error.value = err.response?.data?.message || 'Could not load this booking.'
   } finally {
     loading.value = false
+  }
+  // Came from the "Review sitter" button on My Bookings: scroll down to the review
+  if (route.query.review && reviewLoaded.value) {
+    await nextTick()
+    document.getElementById('review')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
   // Confirming from My Bookings comes here with ?details=open.
   // The address is then cleaned up, so refreshing the page doesn't reopen the form.

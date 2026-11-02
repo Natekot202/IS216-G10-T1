@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import StatusPill from './StatusPill.vue'
 import BookingTasks from './BookingTasks.vue'
-import { formatDateRange, formatPrice } from '../utils/bookingHelpers'
+import { formatPrice, formatBookingWhen } from '../utils/bookingHelpers'
 
 const props = defineProps({
   booking: { type: Object, required: true },
@@ -32,7 +32,7 @@ const showRoute = computed(() => ['confirmed', 'in-progress'].includes(props.boo
         <StatusPill :status="booking.status" />
       </div>
       <p class="text-muted mb-2">{{ viewer === 'sitter' ? 'Owner' : 'Sitter' }}: {{ otherPerson }}</p>
-      <p class="mb-1">📅 {{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime) }}</p>
+      <p class="mb-1"> 📅 {{ formatBookingWhen(booking) }}</p>
       <p class="mb-1">💵 {{ formatPrice(booking.totalPrice) }}</p>
       <p v-if="booking.notes" class="small text-muted mb-0">"{{ booking.notes }}"</p>
 

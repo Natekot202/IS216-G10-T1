@@ -75,6 +75,7 @@ router.get('/me/bookings', requireSitter, asyncHandler(async (req, res) => {
     startTime: b.startTime, // undefined for old all-day bookings
     endDate: toSgtDateString(b.endDate),
     endTime: b.endTime,
+    dayTimes: b.dayTimes, // the hours for each day (empty for old bookings, which use startTime/endTime every day)
     overnight: b.overnight, // only old bookings: they ran non-stop through the night (new ones use the same hours each day)
     status: b.status,
     ownerName: b.ownerId?.username || 'Pet owner',

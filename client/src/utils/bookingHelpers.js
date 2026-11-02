@@ -36,6 +36,32 @@ export function formatDateRange(start, end, startTime, endTime, overnight = fals
   return sameDay ? e : `${s} – ${e}`
 }
 
+// True when a booking's days don't all have the same hours (e.g. Fri 10am–12am, Sat 7am–12am, Sun 7am–9am)
+export function hoursVary(booking) {
+  const days = booking?.dayTimes || []
+  return days.some((d) => d.startTime !== days[0].startTime || d.endTime !== days[0].endTime)
+}
+
+// The dates and times of a booking, for any page: same as formatDateRange, but when each day has
+// different hours it says so: '6 Nov – 8 Nov 2026, hours vary by day'
+export function formatBookingWhen(b) {
+  if (hoursVary(b)) {
+    const opts = { day: 'numeric', month: 'short' }
+    const s = new Date(b.startDate).toLocaleDateString('en-SG', opts)
+    const e = new Date(b.endDate).toLocaleDateString('en-SG', { ...opts, year: 'numeric' })
+    return `${s} – ${e}, hours vary by day`
+  }
+  return formatDateRange(b.startDate, b.endDate, b.startTime, b.endTime, b.overnight)
+}
+
+// One line per day, e.g. 'Fri 6 Nov: 10:00 am – 12:00 am' (for the booking details page)
+export function dayTimesList(b) {
+  return (b?.dayTimes || []).map((d) => {
+    const day = new Date(d.date + 'T00:00:00').toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' })
+    return `${day}: ${formatTime(d.startTime)} – ${formatTime(d.endTime)}`
+  })
+}
+
 export function formatPrice(amount) {
   return amount == null ? '—' : `$${Number(amount).toFixed(2)}`
 }

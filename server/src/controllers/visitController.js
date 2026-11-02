@@ -143,14 +143,16 @@ export async function getTodaySessions(req, res) {
 
   const sessions = bookings
     .map((b) => {
+      // Today's hours: bookings made from now on store hours for each day; old ones use the same hours every day
+      const todayHours = b.dayTimes?.find((d) => d.date === today)
       const session = {
         booking: {
           _id: b._id,
           status: b.status,
           startDate: toSgtDateString(b.startDate),
-          startTime: b.startTime,
+          startTime: todayHours?.startTime ?? b.startTime,
           endDate: toSgtDateString(b.endDate),
-          endTime: b.endTime,
+          endTime: todayHours?.endTime ?? b.endTime,
           owner: b.ownerId,
           sitter: b.sitterId,
           pets: b.petIds,

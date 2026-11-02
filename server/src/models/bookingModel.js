@@ -11,8 +11,21 @@ const bookingSchema = new mongoose.Schema(
     // endTime can be '24:00' (end of the day). Old bookings have no times and count as all-day.
     startTime: { type: String, match: /^([01]\d|2[0-3]):(00|30)$/ },
     endTime: { type: String, match: /^(([01]\d|2[0-3]):(00|30)|24:00)$/ },
-        notes: { type: String, default: '' },
-    // true = the sitter sleeps at the owner's place (charged per night, see utils/servicePrices.js)
+    // The hours for each day of the booking, e.g.
+    // [{ date: '2026-11-03', startTime: '10:00', endTime: '24:00' }, { date: '2026-11-04', startTime: '07:00', endTime: '09:00' }]
+    // Every booking made from now on has one entry per day. Old bookings have none and use startTime/endTime for every day.
+    // (startTime above = the first day's start, endTime = the last day's end.)
+    dayTimes: {
+      type: [{
+        _id: false,
+        date: { type: String, match: /^\d{4}-\d{2}-\d{2}$/ },
+        startTime: { type: String, match: /^([01]\d|2[0-3]):(00|30)$/ },
+        endTime: { type: String, match: /^(([01]\d|2[0-3]):(00|30)|24:00)$/ }
+      }],
+      default: []
+    },
+    notes: { type: String, default: '' },
+    // Only OLD bookings can be true (they ran non-stop through the night). There are no overnight stays or fees any more.
     overnight: { type: Boolean, default: false },
     totalPrice: { type: Number, required: true, min: 0 },
     // pending -> accepted (sitter says yes) -> confirmed (owner picks this sitter) -> in-progress -> completed -> paid

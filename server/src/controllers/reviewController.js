@@ -18,8 +18,9 @@ export async function createReview(req, res) {
   if (!booking) {
     return res.status(404).json({ message: 'Booking not found.' })
   }
-  if (booking.status !== 'completed') {
-    return res.status(400).json({ message: 'You can only review a completed booking.' })
+  // The owner can review once the sitter has finished: before paying (completed) or after (paid)
+  if (!['completed', 'paid'].includes(booking.status)) {
+    return res.status(400).json({ message: 'You can only review a booking once the sitter has completed it.' })
   }
   try {
     const review = await Review.create({

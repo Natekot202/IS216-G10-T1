@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import BookingSheet from './BookingSheet.vue'
-import { formatDateRange } from '../utils/bookingHelpers.js'
+import { formatBookingWhen } from '../utils/bookingHelpers.js'
 import { toDateString, prettyDate, DAY_MIN, DAY_START_MIN } from '../utils/bookingTimeHelpers.js'
 import {
   shortTime,
@@ -517,7 +517,7 @@ function tapBooking(b) {
         <div class="bc-main">
           <strong>{{ hoverPets.map((p) => p.name).join(', ') }}</strong>
           <span class="bc-when">
-            {{ formatDateRange(hovered.booking.startDate, hovered.booking.endDate, hovered.booking.startTime, hovered.booking.endTime, hovered.booking.overnight) }}
+            {{ formatBookingWhen(hovered.booking) }}
           </span>
         </div>
         <span class="bc-price">${{ hovered.booking.totalPrice }}</span>

@@ -5,7 +5,7 @@ import User from '../models/UserModel.js'
 import GoogleCalendarLink from '../models/GoogleCalendarLink.js'
 import CalendarEvent from '../models/CalendarEvent.js'
 import { sgtMidnight, toSgtDateString } from '../models/Availability.js'
-import { bookingRange, dailyRanges } from './bookingTimes.js'
+import { bookingRange, dailyRanges, hoursVary, formatTime } from './bookingTimes.js'
 
 // All the Google Calendar code lives here, so routes and controllers only call these functions.
 
@@ -67,7 +67,12 @@ function buildEvent(booking, ownerName, petNames) {
   lines.push(`Booking requests: ${clientOrigin}/sitter/requests`)
 
   let start, end, recurrence
-  if (booking.startTime && booking.endTime) {
+  if (hoursVary(booking)) {
+    // Different hours on different days: one all-day event over the whole booking, with each day's hours written in it
+    lines.push('Hours:', ...booking.dayTimes.map((d) => `${d.date}: ${formatTime(d.startTime)} – ${formatTime(d.endTime)}`))
+    start = { date: toSgtDateString(booking.startDate) }
+    end = { date: toSgtDateString(new Date(booking.endDate.getTime() + DAY_MS)) }
+  } else if (booking.startTime && booking.endTime) {
     // A booking with times becomes a timed event. Its times are the hours for each day,
     // so a booking over several days is one event on the first day that repeats daily (COUNT = number of days).
     const days = dailyRanges(booking)

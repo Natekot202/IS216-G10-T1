@@ -7,7 +7,7 @@ import { currentUser } from '../services/auth.js'
 import { sendNotification } from '../utils/sendNotification.js'
 import { toDateString, prettyDate } from '../utils/bookingTimeHelpers.js'
 import { checkBookingRequest, buildBookingPayload } from '../utils/bookingRequestRules.js'
-import { SERVICE_PRICES, SERVICE_LABELS, PRICE_LIST_TEXT, priceForTasks, bookingPrice, daysForTask } from '../utils/servicePrices.js'
+import { SERVICE_PRICES, SERVICE_LABELS, PRICE_LIST_TEXT, priceForTasks, daysForTask } from '../utils/servicePrices.js'
 import { bookingsApi } from '../services/bookingApi.js'
 import { availabilityApi } from '../services/availabilityApi.js'
 import { usersApi, petsApi } from '../services/api.js'
@@ -63,8 +63,7 @@ const chosenDays = computed(() => {
 
 // Price preview: each task's fixed price × times a day × number of days, added up
 // (same sum the server does, in utils/servicePrices.js)
-// (no overnight stays any more: bookings only run 7am to 12am, so there are no nights to pay for)
-const totalPrice = computed(() => bookingPrice(tasks.value, chosenDays.value.length, false))
+const totalPrice = computed(() => priceForTasks(tasks.value, chosenDays.value.length))
 
 // Chosen days the sitter hasn't marked as available
 const unavailableDays = computed(() => chosenDays.value.filter((d) => availability.value[d]?.status !== 'available'))

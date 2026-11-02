@@ -9,10 +9,11 @@ import LocationQuery from "../components/LocationQuery.vue";
 import FilterPanel from "../components/FilterPanel.vue";
 import DistanceFilter from "../components/DistanceFilter.vue";
 import DateRangeFilter from "../components/DateRangeFilter.vue";
-import RecommendedSitters from "../components/RecommendedSitters.vue";
 import AdditionalFilters from "../components/AdditionalFilters.vue";
 import { usePagination } from '../utils/usePagination.js'
 import PaginationBar from '../components/PaginationBar.vue'
+import { petsApi } from '../services/api.js'
+import { matchReasons, sortByMatch } from '../utils/recommendSitters.js'
 
 const URL = 'http://localhost:5000'
 const sitterProfiles = ref([])
@@ -37,6 +38,15 @@ watch(showMapModal, open => {
 })
 
 const PAGE_SIZE = 6
+
+// "Recommended for me" button (owners only): keeps only the sitters that suit this owner's pets and needs.
+// The rules are in utils/recommendSitters.js.
+const isOwner = computed(() => currentUser.value?.role === 'owner')
+const showRecommended = ref(false) // the button is on
+const myPetSpecies = ref([]) // the species of the owner's pets, e.g. ['Dog', 'Cat'] (loaded below)
+const needs = computed(() => currentUser.value?.ownerProfile?.servicesNeeded || []) // "Services I need" from Edit Profile
+// Nothing to go on yet: no pets saved and no services picked
+const canRecommend = computed(() => needs.value.length > 0 || myPetSpecies.value.length > 0)
 const listEl = ref(null)
 
 //search rating
@@ -118,6 +128,13 @@ const searchResults = computed(() => {
     })
   }
   results = filterByDistance(results)
+  // "Recommended for me" is on: keep only the sitters that suit this owner, with the reasons why, best match first
+  if (showRecommended.value && canRecommend.value) {
+    results = results
+      .map((sitter) => ({ ...sitter, match: matchReasons(sitter, needs.value, myPetSpecies.value) }))
+      .filter((sitter) => sitter.match)
+    return sortByMatch(results)
+  }
   return sortByDistance(results)
 });
 
@@ -156,6 +173,11 @@ const activeFilters = computed(() => {
     clear: () => { userRating.value = 0 }
   })
 
+  if (showRecommended.value) chips.push({
+    key: 'recommended', label: 'Recommended for me',
+    clear: () => { showRecommended.value = false }
+  })
+
   return chips
 })
 
@@ -168,6 +190,7 @@ function clearFilters(){
   maxDistanceKm.value = maxDistanceLimit
   availableFrom.value = ""
   availableTo.value = ""
+  showRecommended.value = false
 }
 
 
@@ -289,7 +312,7 @@ const { page, pageItems: pagedSitters, goPage, reset } = usePagination(searchRes
 })
 
 watch(
-  [searchKey, selectedPets, otherPets, userRating, origin, maxDistanceKm, availableFrom, availableTo],
+  [searchKey, selectedPets, otherPets, userRating, origin, maxDistanceKm, availableFrom, availableTo, showRecommended],
   reset,
   { deep: true }
 )
@@ -300,6 +323,12 @@ onMounted(()=>{
   mq.addEventListener('change', syncLg)
   loadSitterProfiles()
   locateUser()
+  // Owners: the species of their pets, for "Recommended for me" (if this fails, only the services are used)
+  if (isOwner.value) {
+    petsApi.getAll()
+      .then((pets) => { myPetSpecies.value = pets.map((p) => p.species).filter(Boolean) })
+      .catch(() => {})
+  }
 })
 
 onBeforeUnmount(() => {
@@ -318,7 +347,19 @@ onBeforeUnmount(() => {
           <input type="text" v-model="searchKey" placeholder="Search by sitter name" class="form-control">
         </div>
 
-        <span class="text-secondary">{{ searchResults.length }} sitters</span>
+        <!-- the sitter count, and (owners only) the "Recommended for me" on/off button -->
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+          <span class="text-secondary">{{ searchResults.length }} sitters</span>
+          <button v-if="isOwner" type="button" class="rec-btn" :class="{ 'rec-btn--on': showRecommended }"
+                  :aria-pressed="showRecommended" @click="showRecommended = !showRecommended">
+            ✨ Recommended for me
+          </button>
+        </div>
+        <!-- on, but nothing to match on yet -->
+        <div v-if="showRecommended && !canRecommend" class="rec-note mb-2">
+          We don't know what your pets need yet. Add your pets and pick <strong>Services I need</strong> in
+          <router-link to="/editProfile">Edit Profile</router-link>, then try again.
+        </div>
         <div v-if="activeFilters.length" class="d-flex flex-wrap align-items-center gap-2 mb-2">
           <button v-for="f in activeFilters" :key="f.key" type="button"
                   class="btn btn-outline-danger rounded-pill bg-light text-truncate"
@@ -329,9 +370,6 @@ onBeforeUnmount(() => {
           <button type="button" class="btn btn-link btn-sm" @click="clearFilters">Clear all</button>
         </div>
       </div>
-
-      <!-- sitters who offer the services this owner needs -->
-      <RecommendedSitters />
 
       <!-- main body -->
       <div class="row gx-2">
@@ -370,9 +408,14 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
-          <div ref="listEl" class="row">
+          <!-- on, but no sitter suits this owner -->
+          <p v-if="showRecommended && canRecommend && !searchResults.length" class="rec-empty">
+            No sitters match what your pets need yet. Turn this off to see everyone.
+          </p>
+
+          <div ref="listEl" class="row" :class="{ 'rec-dim': showRecommended && !canRecommend }">
             <div class="col-12 mb-3" v-for="sitter in pagedSitters" :key="sitter._id">
-              <SitterProfileCard :sitter="sitter">
+              <SitterProfileCard :sitter="sitter" :reasons="sitter.match?.reasons || []">
                 <router-link :to="`/users/${sitter._id}`" class="btn btn-outline-danger rounded col-12 fw-semibold bg-light mt-3">View Profile</router-link>
               </SitterProfileCard>
             </div>
@@ -414,6 +457,34 @@ onBeforeUnmount(() => {
 .owner-home :deep(.filter-panel .btn-link:focus-visible) {
   color: var(--accent-hover) !important;
 }
+
+.rec-btn { /* "Recommended for me": outlined when off, filled when on */
+  border: 1.5px solid var(--accent-deep);
+  border-radius: 999px;
+  padding: 0.3rem 0.9rem;
+  background: #fff;
+  color: var(--accent-deep);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.rec-btn:hover { background: var(--tint-soft, #fbeee8); }
+.rec-btn--on,
+.rec-btn--on:hover {
+  background: var(--accent-deep);
+  color: #fff;
+}
+.rec-note { /* shown when the button is on but the owner hasn't said what their pets need */
+  background: #fbeee8;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+}
+.rec-empty {
+  border-left: 3px solid var(--accent-deep);
+  padding-left: 0.75rem;
+  color: #6c757d;
+}
+.rec-dim { opacity: 0.5; } /* the full list stays underneath, faded */
 
 .map-panel {
   position: sticky;

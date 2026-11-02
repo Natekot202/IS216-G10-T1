@@ -18,9 +18,11 @@ import {
 } from '../utils/bookingTimeHelpers.js'
 
 // The calendar + time dropdowns for choosing when a booking starts and ends.
-// A booking has a start date, an end date, a start time and an end time. The times are the hours for EACH day
-// (e.g. 3 Nov to 5 Nov, 9am to 5pm = 9am to 5pm on each of the 3 days), always between 7am and 12am midnight,
-// so nothing runs overnight. The first tap on the calendar picks the start date, the second the end date (the same day is fine).
+// A booking has a start date, an end date, and hours for EACH day, always between 7am and 12am midnight
+// (so nothing runs overnight). The first tap on the calendar picks the start date, the second the end date (the same day is fine).
+// Baby example: Fri 6 Nov to Sun 8 Nov.
+//   "Same hours every day" ticked:   one start + end time, e.g. 9am–5pm on Fri, Sat and Sun.
+//   Unticked: each day gets its own row, e.g. Fri 10am–12am, Sat 7am–12am, Sun 7am–9am.
 // The page gives it the sitter's days and booked times (props), and it tells the page
 // what the owner chose (the 'change' event).
 const props = defineProps({
@@ -37,6 +39,9 @@ const startDate = ref('') // 'YYYY-MM-DD'
 const startTime = ref('') // '09:00'
 const endDate = ref('')
 const endTime = ref('') // '17:30' (or '24:00' = end of the day)
+// These two are the hours for every day while "Same hours every day" is ticked (or the booking is one day).
+const sameHours = ref(true) // untick to choose different hours for each day
+const perDay = ref({}) // the hours for each day when unticked: { '2026-11-06': { startTime: '10:00', endTime: '24:00' }, ... }
 
 // The month shown in the calendar picker
 const viewYear = ref(new Date().getFullYear()) //2026
@@ -120,6 +125,7 @@ function pickDay(date) {
     endDate.value = ''
     startTime.value = ''
     endTime.value = ''
+    perDay.value = {}
   } else {
     endDate.value = date // second click: the end day (the same day is fine)
   }
@@ -129,67 +135,129 @@ function clearDates() {
   endDate.value = ''
   startTime.value = ''
   endTime.value = ''
+  perDay.value = {}
 }
 
-// The Start time dropdown: every 30-minute slot from 7:00 am to 11:30 pm. A slot is greyed out if,
-// on any day of the booking, it has passed, is booked or the sitter isn't free then.
-const startSlots = computed(() => {
-  if (!rangeDays.value.length) return []
+// One day's own hours are only shown as separate rows when the booking has several days and "Same hours every day" is unticked
+const choosingEachDay = computed(() => rangeDays.value.length > 1 && !sameHours.value)
+
+// The Start time options for some days: every 30-minute slot from 7:00 am to 11:30 pm. A slot is greyed out if,
+// on any of those days, it has passed, is booked or the sitter isn't free then.
+// (Same hours every day → all the booking's days are checked; one row per day → only that day.)
+function startSlotsFor(days) {
   const list = []
   for (let m = DAY_START_MIN; m < DAY_MIN; m += 30) {
     let note = ''
-    for (const day of rangeDays.value) {
+    for (const day of days) {
       if (slotFree(props.busy, day, m, slotsFor(props.availability, day))) continue
       const startOfSlot = momentOf(day, m)
-      note = startOfSlot <= Date.now() ? ' (passed)' : isBusy(props.busy, startOfSlot, startOfSlot + SLOT_MS) ? ' (booked)' : ' (not available)'
+      note = startOfSlot <= Date.now() ? (day === today ? ' (passed today)' : ' (passed)') : isBusy(props.busy, startOfSlot, startOfSlot + SLOT_MS) ? ' (booked)' : ' (not available)'
       break // one day that doesn't work is enough
     }
     list.push({ value: toHHMM(m), label: formatTime(toHHMM(m)) + note, disabled: note !== '' })
   }
   return list
-})
-// The End time dropdown: slots from 7:30 am to 12:00 am. Greyed out if it's not after the start time,
-// or if on any day of the booking those hours aren't all free, or run into a time the sitter is booked.
-const endSlots = computed(() => {
-  if (!rangeDays.value.length || !startTime.value) return []
-  const startMin = toMinutes(startTime.value)
+}
+
+// The End time options: only times AFTER the chosen start (up to 12:00 am). Greyed out if, on any of
+// those days, the hours from the start up to that time aren't all free, or run into a time the sitter is booked.
+function endSlotsFor(days, start) {
+  if (!start) return []
+  const startMin = toMinutes(start)
   const list = []
-  for (let m = DAY_START_MIN + 30; m <= DAY_MIN; m += 30) {
-    const value = m === DAY_MIN ? '24:00' : toHHMM(m) //when m == 1440, special case, toHHMM doesnt work, assign it 24:00 (which it actl is ) 
-    const afterStart = m > startMin
+  for (let m = startMin + 30; m <= DAY_MIN; m += 30) {
+    const value = m === DAY_MIN ? '24:00' : toHHMM(m) // 1440 minutes = 12:00 am (end of the day), written '24:00'
     let busyThen = false
     let hoursOk = true
-    for (const day of rangeDays.value) {
+    for (const day of days) {
       if (!slotsCover(slotsFor(props.availability, day), startMin, m)) hoursOk = false // all of those hours are free hours that day
       if (isBusy(props.busy, momentOf(day, startMin), momentOf(day, m))) busyThen = true
     }
-    const free = afterStart && hoursOk && !busyThen // checks wether booking end is aft booking start + person isnt busy during that period 
-    const note = (value === '24:00' ? ' (end of day)' : '') + (afterStart && !free ? (busyThen ? ' (booked)' : ' (not available)') : '')
-    list.push({ value, label: formatTime(value) + note, disabled: !free }) //disabled =!free ; so if free, will be disabled and greyeded out ; if not wont be 
+    const free = hoursOk && !busyThen
+    const note = (value === '24:00' ? ' (end of day)' : '') + (free ? '' : busyThen ? ' (booked)' : ' (not available)')
+    list.push({ value, label: formatTime(value) + note, disabled: !free })
   }
   return list
+}
+
+// "Same hours every day" (or a one-day booking): one pair of dropdowns, checked against every day
+const startSlots = computed(() => (rangeDays.value.length ? startSlotsFor(rangeDays.value) : []))
+const endSlots = computed(() => (rangeDays.value.length ? endSlotsFor(rangeDays.value, startTime.value) : []))
+
+// One row per day: make sure every day of the booking has an entry (an empty pair until the owner picks the hours)
+watch(rangeDays, (days) => {
+  const next = {}
+  for (const day of days) next[day] = perDay.value[day] || { startTime: '', endTime: '' }
+  perDay.value = next
+}, { immediate: true })
+// That day's own hours
+function hoursOf(day) {
+  return perDay.value[day] || { startTime: '', endTime: '' }
+}
+// Is this time allowed in that day's dropdown?
+function allowed(slots, value) {
+  return slots.some((slot) => slot.value === value && !slot.disabled)
+}
+
+// When the owner unticks "Same hours every day", start each day with the hours already chosen (where that day allows them)
+watch(sameHours, (same) => {
+  if (same) return
+  for (const day of rangeDays.value) {
+    const h = hoursOf(day)
+    if (!h.startTime && allowed(startSlotsFor([day]), startTime.value)) h.startTime = startTime.value
+    if (!h.endTime && h.startTime && allowed(endSlotsFor([day], h.startTime), endTime.value)) h.endTime = endTime.value
+  }
 })
-// If the start changes and the chosen end time is no longer allowed, clear it
+
+// Button in "each day" mode: copy the first day's hours to every other day (only where that day allows them)
+const copyNote = ref('')
+function copyFirstDay() {
+  const first = hoursOf(rangeDays.value[0])
+  const skipped = []
+  for (const day of rangeDays.value.slice(1)) {
+    const h = hoursOf(day)
+    if (allowed(startSlotsFor([day]), first.startTime) && allowed(endSlotsFor([day], first.startTime), first.endTime)) {
+      h.startTime = first.startTime
+      h.endTime = first.endTime
+    } else {
+      skipped.push(prettyDate(day))
+    }
+  }
+  copyNote.value = skipped.length ? `Not copied to ${skipped.join(', ')}: the sitter isn't free then. Choose those days' hours below.` : ''
+}
+
+// If a start time changes and the chosen end time is no longer allowed, clear it
 watch([startTime, endDate], () => {
-  const chosen = endSlots.value.find((slot) => slot.value === endTime.value)
-  if (!chosen || chosen.disabled) endTime.value = ''
+  if (!allowed(endSlots.value, endTime.value)) endTime.value = ''
+})
+watch(perDay, () => {
+  for (const day of rangeDays.value) {
+    const h = hoursOf(day)
+    if (h.endTime && !allowed(endSlotsFor([day], h.startTime), h.endTime)) h.endTime = ''
+  }
+}, { deep: true })
+
+// The hours for each day of the booking, which is what gets sent: [{ date, startTime, endTime }, ...]
+const dayTimes = computed(() => {
+  if (!endDate.value) return []
+  if (!choosingEachDay.value) return rangeDays.value.map((date) => ({ date, startTime: startTime.value, endTime: endTime.value }))
+  return rangeDays.value.map((date) => ({ date, startTime: perDay.value[date]?.startTime || '', endTime: perDay.value[date]?.endTime || '' }))
 })
 
 // Safety net: with everything chosen, does any day of the booking run into a booked time? (The greying should stop this.)
-const clash = computed(() => {
-  if (!rangeDays.value.length || !startTime.value || !endTime.value) return false
-  const startMin = toMinutes(startTime.value)
-  const endMin = toMinutes(endTime.value)
-  return rangeDays.value.some((day) => isBusy(props.busy, momentOf(day, startMin), momentOf(day, endMin)))
-})
+const clash = computed(() =>
+  dayTimes.value.some((d) => d.startTime && d.endTime &&
+    isBusy(props.busy, momentOf(d.date, toMinutes(d.startTime)), momentOf(d.date, toMinutes(d.endTime))))
+)
 
 // Tell the page whenever the choice changes (immediately too, so it starts with the empty choice)
 watch(
   () => ({
     startDate: startDate.value,
-    startTime: startTime.value,
+    startTime: dayTimes.value[0]?.startTime || '', // the first day's start
     endDate: endDate.value,
-    endTime: endTime.value,
+    endTime: dayTimes.value[dayTimes.value.length - 1]?.endTime || '', // the last day's end
+    dayTimes: dayTimes.value, // the hours for each day
     clash: clash.value
   }),
   (choice) => emit('change', choice), //sends a custom event called change back to the parent 
@@ -249,23 +317,61 @@ watch(
     </div>
   </div>
 
-  <!-- Times: the hours for EACH day, every 30 minutes from 7:00 am to 12:00 am; booked times are greyed out. For a whole day choose 7:00 am to 12:00 am (end of day). -->
-  <div class="row g-2">
-    <div class="col-6">
-      <label class="form-label small" for="start-time">Start time (each day)</label>
-      <select id="start-time" v-model="startTime" class="form-select" :disabled="!endDate">
-        <option value="" disabled>{{ endDate ? 'Choose a time' : 'Pick the dates first' }}</option>
-        <option v-for="slot in startSlots" :key="slot.value" :value="slot.value" :disabled="slot.disabled">{{ slot.label }}</option>
-      </select>
-    </div>
-    <div class="col-6">
-      <label class="form-label small" for="end-time">End time (each day)</label>
-      <select id="end-time" v-model="endTime" class="form-select" :disabled="!endDate || !startTime">
-        <option value="" disabled>{{ !endDate ? 'Pick the dates first' : !startTime ? 'Choose a start time first' : 'Choose a time' }}</option>
-        <option v-for="slot in endSlots" :key="slot.value" :value="slot.value" :disabled="slot.disabled">{{ slot.label }}</option>
-      </select>
-    </div>
+  <!-- Times: every 30 minutes from 7:00 am to 12:00 am; booked or passed times are greyed out. A whole day is 7:00 am to 12:00 am. -->
+  <div v-if="rangeDays.length > 1 && endDate" class="form-check mb-2">
+    <input id="same-hours" v-model="sameHours" class="form-check-input" type="checkbox" />
+    <label class="form-check-label small" for="same-hours">Same hours every day</label>
   </div>
+
+  <!-- One pair of dropdowns: for a one-day booking, or the same hours on every day -->
+  <template v-if="!choosingEachDay">
+    <div class="row g-2">
+      <div class="col-6">
+        <label class="form-label small" for="start-time">Start time{{ rangeDays.length > 1 ? ' (each day)' : '' }}</label>
+        <select id="start-time" v-model="startTime" class="form-select" :disabled="!endDate">
+          <option value="" disabled>{{ endDate ? 'Choose a time' : 'Pick the dates first' }}</option>
+          <option v-for="slot in startSlots" :key="slot.value" :value="slot.value" :disabled="slot.disabled">{{ slot.label }}</option>
+        </select>
+      </div>
+      <div class="col-6">
+        <label class="form-label small" for="end-time">End time{{ rangeDays.length > 1 ? ' (each day)' : '' }}</label>
+        <select id="end-time" v-model="endTime" class="form-select" :disabled="!endDate || !startTime">
+          <option value="" disabled>{{ !endDate ? 'Pick the dates first' : !startTime ? 'Choose a start time first' : 'Choose a time' }}</option>
+          <option v-for="slot in endSlots" :key="slot.value" :value="slot.value" :disabled="slot.disabled">{{ slot.label }}</option>
+        </select>
+      </div>
+    </div>
+    <p v-if="rangeDays.length > 1 && endDate" class="small text-muted mt-2 mb-0">
+      These hours are used on all {{ rangeDays.length }} days. Need different hours on some days (e.g. a later start today)? Untick "Same hours every day".
+    </p>
+  </template>
+
+  <!-- One row per day: each day has its own start and end time -->
+  <template v-else>
+    <template v-for="day in rangeDays" :key="day">
+    <div v-if="perDay[day]" class="row g-2 align-items-end mb-2">
+      <div class="col-12 col-sm-4 small fw-semibold">{{ prettyDate(day) }}</div>
+      <div class="col-6 col-sm-4">
+        <label class="visually-hidden" :for="`start-${day}`">Start time on {{ prettyDate(day) }}</label>
+        <select :id="`start-${day}`" v-model="perDay[day].startTime" class="form-select form-select-sm">
+          <option value="" disabled>Start</option>
+          <option v-for="slot in startSlotsFor([day])" :key="slot.value" :value="slot.value" :disabled="slot.disabled">{{ slot.label }}</option>
+        </select>
+      </div>
+      <div class="col-6 col-sm-4">
+        <label class="visually-hidden" :for="`end-${day}`">End time on {{ prettyDate(day) }}</label>
+        <select :id="`end-${day}`" v-model="perDay[day].endTime" class="form-select form-select-sm" :disabled="!perDay[day].startTime">
+          <option value="" disabled>End</option>
+          <option v-for="slot in endSlotsFor([day], perDay[day].startTime)" :key="slot.value" :value="slot.value" :disabled="slot.disabled">{{ slot.label }}</option>
+        </select>
+      </div>
+    </div>
+    </template>
+    <button type="button" class="btn btn-link btn-sm p-0" :disabled="!hoursOf(rangeDays[0]).endTime" @click="copyFirstDay">
+      Use {{ prettyDate(rangeDays[0]) }}'s hours for every day
+    </button>
+    <p v-if="copyNote" class="small text-muted mt-1 mb-0">{{ copyNote }}</p>
+  </template>
 </template>
 
 <style scoped>

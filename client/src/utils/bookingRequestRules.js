@@ -4,7 +4,7 @@
 import { prettyDate } from './bookingTimeHelpers.js'
 
 // `form` is { selectedPets, when, chosenDays, tasks, clash, unavailableDays }, taken from the page's refs:
-//   selectedPets: array of pet ids        when: { startDate, startTime, endDate, endTime }
+//   selectedPets: array of pet ids        when: { startDate, endDate, dayTimes: [{ date, startTime, endTime }] }
 //   chosenDays: every booked day          tasks: the care tasks
 //   clash: true if the chosen time runs into a booked time
 //   unavailableDays: chosen days the sitter hasn't marked as available
