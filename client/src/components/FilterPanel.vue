@@ -12,7 +12,7 @@ defineEmits(['clear', ])
           <small class="text-secondary">{{ resultCount }} sitters</small>
           <div v-if="activeFilters.length" class="d-flex flex-wrap align-items-center gap-2 mb-2">
           <button v-for="f in activeFilters" :key="f.key" type="button"
-                  class="btn btn-danger rounded-pill bg-light text-truncate"
+                  class="btn btn-outline-danger rounded-pill bg-light text-truncate"
                   style="max-width: 100%;"
                   :aria-label="`Remove filter: ${f.label}`" @click="f.clear">
             {{ f.label }} <span aria-hidden="true">✕</span>

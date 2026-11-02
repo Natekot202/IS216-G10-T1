@@ -15,7 +15,7 @@ import PaginationBar from '../components/PaginationBar.vue'
 import { petsApi } from '../services/api.js'
 import { matchReasons, sortByMatch } from '../utils/recommendSitters.js'
 
-const URL = 'http://localhost:5000'
+const URL = ''
 const sitterProfiles = ref([])
 const errorMsg = ref("")
 const selectedPets = ref([])
