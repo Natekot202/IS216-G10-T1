@@ -90,7 +90,8 @@ onMounted(() => {
     map.addLayer({id: 'walked', type: 'line', source: 'walked',
       paint: {'line-color': CORAL, 'line-width': 3} })
 
-    fitTo(props.plannedRoute)
+    // a walk with no route zooms to where the sitter went instead
+    fitTo(props.plannedRoute.length ? props.plannedRoute : props.walkedPath)
   })
 
   showHome(props.home)

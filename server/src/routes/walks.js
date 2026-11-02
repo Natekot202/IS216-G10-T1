@@ -7,6 +7,7 @@ import {
   startWalk,
   reportDeviation,
   reportBackOnRoute,
+  remindBackHome,
   finishWalk,
   endWalkEarly
 } from '../controllers/walkController.js'
@@ -19,6 +20,7 @@ router.get('/:id', requireLogin, asyncHandler(getWalk))
 router.post('/:id/start', requireSitter, asyncHandler(startWalk))
 router.post('/:id/deviations', requireSitter, asyncHandler(reportDeviation))
 router.post('/:id/back-on-route', requireSitter, asyncHandler(reportBackOnRoute))
+router.post('/:id/back-home', requireSitter, asyncHandler(remindBackHome))
 router.post('/:id/finish', requireSitter, asyncHandler(finishWalk))
 router.post('/:id/end-early', requireSitter, asyncHandler(endWalkEarly))
 

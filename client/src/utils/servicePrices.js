@@ -22,11 +22,14 @@ export const PRICE_LIST_TEXT = Object.keys(SERVICE_PRICES)
   .map((c) => `${SERVICE_LABELS[c]} $${SERVICE_PRICES[c]}`)
   .join(' · ')
 
-// tasks: [{ category, dailyFrequency }]   days: how many days the booking covers
+// How many days a task is done on: its own chosen days, or every day of the booking
+export const daysForTask = (task, days) => task.days?.length || days
+
+// tasks: [{ category, dailyFrequency, days }]   days: how many days the booking covers
 export function priceForTasks(tasks, days) {
   let total = 0
   for (const task of tasks) {
-    total += (SERVICE_PRICES[task.category] ?? 0) * (Number(task.dailyFrequency) || 0) * days
+    total += (SERVICE_PRICES[task.category] ?? 0) * (Number(task.dailyFrequency) || 0) * daysForTask(task, days)
   }
   return Math.round(total * 100) / 100 // rounded to cents
 }

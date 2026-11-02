@@ -2,15 +2,17 @@ import { Router } from 'express'
 import mongoose from 'mongoose'
 import Availability, { sgtMidnight, toSgtDateString } from '../models/Availability.js'
 import Booking from '../models/bookingModel.js'
-import CareChecklist, { CATEGORIES } from '../models/CareChecklist.js'
+import CareChecklist, { CATEGORIES, FOOD_UNITS, taskIsOn } from '../models/CareChecklist.js'
 import Pet from '../models/petModel.js'
 import User from '../models/UserModel.js'
 import WalkRoute from '../models/walkRouteModel.js'
 import { requireOwner, requireLogin } from '../middleware/authMiddleware.js'
+import { uploadPhoto } from '../middleware/upload.js'
+import { uploadImage, deleteImage } from '../config/cloudinary.js'
 import { bookingRange, dailyRanges, findClash, describeBooking, toMinutes, slotsOf, slotsCover, START_TIME_RE, END_TIME_RE } from '../utils/bookingTimes.js'
 import asyncHandler from '../middleware/asyncHandler.js'
 import { removeBookingFromGoogle } from '../utils/googleCalendar.js'
-import { priceForTasks } from '../utils/servicePrices.js'
+import { bookingPrice } from '../utils/servicePrices.js'
 
 const router = Router()
 
@@ -18,6 +20,59 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 // Booking statuses where the sitter may see a walk task's route (i.e. the owner has confirmed the booking)
 const ROUTE_VISIBLE_STATUSES = ['confirmed', 'in-progress', 'completed', 'paid']
+
+const TASK_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/ // 00:00 to 23:59
+const MAX_REFERENCE_PHOTOS = 3
+
+// Trims a text field, leaving it out if it's blank
+const text = (value) => String(value ?? '').trim() || undefined
+
+// Works out the care details to save on one task, keeping only the fields its category uses.
+// Returns { details } to save on the task, or { error } with a message for the owner.
+function careDetailsFor(task, input) {
+  const details = { instructions: text(input?.instructions) }
+  if (details.instructions?.length > 1000) return { error: 'Instructions can be up to 1000 characters.' }
+
+  // Photos are added and removed one at a time (the routes below), so saving only updates their captions
+  const captions = Array.isArray(input?.referencePhotos) ? input.referencePhotos : []
+  details.referencePhotos = (task.details?.referencePhotos ?? []).map((photo) => {
+    const sent = captions.find((c) => String(c?._id) === String(photo._id))
+    return { _id: photo._id, url: photo.url, publicId: photo.publicId, caption: sent ? text(sent.caption) : photo.caption }
+  })
+  if (details.referencePhotos.some((p) => p.caption?.length > 80)) return { error: 'Photo captions can be up to 80 characters.' }
+
+  // Times are optional, but if there are any there must be one for each time a day
+  const times = Array.isArray(input?.times) ? input.times.filter(Boolean) : []
+  if (times.some((t) => !TASK_TIME_RE.test(t))) return { error: 'Choose each time as HH:MM.' }
+  if (times.length > 0 && times.length !== task.dailyFrequency) {
+    return { error: `"${task.title}" needs ${task.dailyFrequency} time(s), or none.` }
+  }
+  if (times.length > 0) details.times = times
+
+  if (task.category === 'feed') {
+    details.food = text(input?.food)
+    if (input?.amount !== undefined && input.amount !== null && input.amount !== '') {
+      const amount = Number(input.amount)
+      if (!Number.isFinite(amount) || amount < 0) return { error: 'The amount must be a number, 0 or more.' }
+      details.amount = amount
+    }
+    if (input?.unit) {
+      if (!FOOD_UNITS.includes(input.unit)) return { error: `The unit must be one of: ${FOOD_UNITS.join(', ')}.` }
+      details.unit = input.unit
+    }
+  }
+
+  if (task.category === 'medication') {
+    details.medicationName = text(input?.medicationName)
+    details.dosage = text(input?.dosage)
+    details.withFood = input?.withFood === true
+  }
+
+  if ([details.food, details.medicationName, details.dosage].some((v) => v?.length > 100)) {
+    return { error: 'Food, medicine and dosage can be up to 100 characters.' }
+  }
+  return { details }
+}
 
 // Works out the route for a walk task.
 // choice: the id of one of the owner's routes, or 'instructions' for "follow my instructions".
@@ -42,15 +97,13 @@ function daysBetween(start, end) {
 }
 
 // POST /api/bookings
-// Body: { sitterId, petIds: [id], startDate: 'YYYY-MM-DD', endDate: 'YYYY-MM-DD', notes, tasks,
-//         dayTimes: [{ date: 'YYYY-MM-DD', startTime: '10:00', endTime: '24:00' }, ...] }   (one entry per day)
-// Each day has its own hours, e.g. Mon 10am–12am, Tue 7am–9am. Times are Singapore time in 30-minute steps
-// from 07:00 to 24:00 (24:00 = end of the day). An older page may send just startTime/endTime instead of
-// dayTimes: then those hours are used for every day.
+// Body: { sitterId, petIds: [id], startDate: 'YYYY-MM-DD', startTime: '09:00', endDate: 'YYYY-MM-DD', endTime: '17:30', notes, tasks }
+// Times are Singapore time in 30-minute steps from 07:00 to 24:00 (24:00 = end of the day).
+// The times are the hours for EACH day: 3 Nov to 5 Nov, 09:00 to 17:00 = 9am to 5pm on each of the three days.
 // Nothing runs overnight, so there are no overnight stays any more (an `overnight` sent by an old page is ignored).
 // Creates a 'pending' booking if every check passes.
 router.post('/', requireOwner, asyncHandler(async (req, res) => {
-  const { sitterId, petIds, startDate, startTime, endDate, endTime, dayTimes, notes = '', tasks = [] } = req.body
+  const { sitterId, petIds, startDate, startTime, endDate, endTime, notes = '', tasks = [] } = req.body
   const ownerId = req.session.userId
 
   // 1. Input checks
@@ -63,28 +116,16 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
   if (startDate < toSgtDateString(new Date())) return res.status(400).json({ message: 'Start date cannot be in the past.' })
   if (end < start) return res.status(400).json({ message: 'End date must be on or after the start date.' })
 
-  // The hours for each day: sent per day (dayTimes), or the same startTime/endTime for every day
-  const days = daysBetween(start, end)
-  const hours = Array.isArray(dayTimes) && dayTimes.length
-    ? dayTimes
-    : days.map((date) => ({ date, startTime, endTime }))
-  if (hours.length !== days.length || hours.some((h, i) => h?.date !== days[i])) {
-    return res.status(400).json({ message: 'Choose the hours for each day of the booking.' })
+  // Times are compulsory: HH:00 or HH:30, between 7am and 12am midnight. (An all-day booking is 07:00 to 24:00.)
+  if (!START_TIME_RE.test(startTime || '') || !END_TIME_RE.test(endTime || '') || endTime === '07:00') {
+    return res.status(400).json({ message: 'Choose a start time and an end time between 7:00 am and 12:00 am (in 30-minute steps).' })
   }
-  // Times are compulsory: HH:00 or HH:30, between 7am and 12am midnight. (A whole day is 07:00 to 24:00.)
-  for (const h of hours) {
-    if (!START_TIME_RE.test(h.startTime || '') || !END_TIME_RE.test(h.endTime || '') || h.endTime === '07:00') {
-      return res.status(400).json({ message: `Choose a start and end time between 7:00 am and 12:00 am for ${h.date} (in 30-minute steps).` })
-    }
-    if (toMinutes(h.endTime) <= toMinutes(h.startTime)) {
-      return res.status(400).json({ message: `On ${h.date}, the end time must be after the start time.` })
-    }
+  if (toMinutes(endTime) <= toMinutes(startTime)) {
+    return res.status(400).json({ message: 'End time must be after the start time (the times are the hours for each day).' })
   }
-  const schedule = hours.map((h) => ({ date: h.date, startTime: h.startTime, endTime: h.endTime })) // only keep these 3 fields
-  const ranges = dailyRanges({ dayTimes: schedule }) // the exact hours on each day
-  if (bookingRange({ dayTimes: schedule }).start <= Date.now()) {
-    return res.status(400).json({ message: 'The start time has already passed.' })
-  }
+  const range = bookingRange({ startDate: start, endDate: end, startTime, endTime }) // first start and last end
+  const ranges = dailyRanges({ startDate: start, endDate: end, startTime, endTime }) // the exact hours on each day
+  if (range.start <= Date.now()) return res.status(400).json({ message: 'The start time has already passed.' })
 
   // 2. The sitter exists
   const sitter = await User.findById(sitterId)
@@ -95,15 +136,16 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
   if (pets.length !== petIds.length) return res.status(400).json({ message: 'You can only book for your own pets.' })
 
   // 4. The sitter is available on every day, and for the hours asked for on each day
+  const days = daysBetween(start, end)
   const saved = await Availability.find({ sitterId, date: { $gte: start, $lte: end } })
   const byDay = Object.fromEntries(saved.map((a) => [toSgtDateString(a.date), a]))
   const missing = days.filter((d) => byDay[d]?.status !== 'available')
   if (missing.length) {
     return res.status(409).json({ message: `The sitter is not available on ${missing.join(', ')}.` })
   }
-  const wrongHours = schedule
-    .filter((h) => !slotsCover(slotsOf(byDay[h.date]), toMinutes(h.startTime), toMinutes(h.endTime))) // that day's own hours
-    .map((h) => h.date)
+  const wrongHours = days.filter((d) => {
+    return !slotsCover(slotsOf(byDay[d]), toMinutes(startTime), toMinutes(endTime)) // the same hours on every day
+  })
   if (wrongHours.length) {
     return res.status(409).json({ message: `The sitter is not available at those times on ${wrongHours.join(', ')}.` })
   }
@@ -143,22 +185,33 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
       if (result.error) return res.status(400).json({ message: result.error })
       walkRoute = result.walkRoute
     }
-    items.push({ category: t.category, title, dailyFrequency: t.dailyFrequency, petIds: taskPets, walkRoute })
+    // A task is done every day, unless the owner chose some of the booking's days. All of them = every day.
+    const taskDays = Array.isArray(t.days) ? [...new Set(t.days)] : []
+    if (!taskDays.every((d) => days.includes(d))) {
+      return res.status(400).json({ message: `"${title}" is on a day outside this booking.` })
+    }
+    const onSomeDays = taskDays.length > 0 && taskDays.length < days.length
+    items.push({ category: t.category, title, dailyFrequency: t.dailyFrequency, petIds: taskPets, walkRoute, days: onSomeDays ? taskDays : undefined })
+  }
+  // Every booked day needs a task: the price comes from the tasks, so an empty day would hold the sitter's time for nothing
+  const emptyDay = days.find((d) => !items.some((item) => taskIsOn(item, d)))
+  if (emptyDay) {
+    return res.status(400).json({ message: `${emptyDay} has no tasks. Add a task for that day, or remove the day.` })
   }
 
   // 7. Create the booking.
-  // Price = each task's fixed price × times a day × number of days, added up
+ // Price = each task's fixed price × times a day × its number of days, added up
   const booking = await Booking.create({
     ownerId,
     sitterId,
     petIds,
     startDate: start,
-    startTime: schedule[0].startTime, // the first day's start
+    startTime,
     endDate: end,
-    endTime: schedule[schedule.length - 1].endTime, // the last day's end
-    dayTimes: schedule, // the hours for each day
+    endTime,
     notes,
-    totalPrice: priceForTasks(items, days.length),
+    overnight: false,
+    totalPrice: bookingPrice(items, days.length, false),
     status: 'pending'
   })
 
@@ -171,8 +224,8 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
     startTime: booking.startTime,
     endDate: toSgtDateString(booking.endDate),
     endTime: booking.endTime,
-    dayTimes: booking.dayTimes,
     days: days.length,
+    nights: 0, // no overnight stays any more
     totalPrice: booking.totalPrice,
     status: booking.status,
     tasks: items.length
@@ -181,7 +234,8 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
 
 // GET /api/bookings/:id/care-tasks
 // The care tasks the owner added to this booking request. Only the booking's owner or sitter can read them.
-// Out: { items: [{ category, title, petIds, dailyFrequency }] } (empty list if there are none)
+// Out: { items: [{ category, title, petIds, dailyFrequency, days, walkRoute, details }], detailsSavedAt }
+// (an empty list if there are none)
 router.get('/:id/care-tasks', requireLogin, asyncHandler(async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Booking not found.' })
   const booking = await Booking.findById(req.params.id)
@@ -205,7 +259,107 @@ router.get('/:id/care-tasks', requireLogin, asyncHandler(async (req, res) => {
       }
     }
   }
-  res.json({ items })
+  res.json({ items, detailsSavedAt: checklist?.detailsSavedAt ?? null })
+}))
+
+// The booking and checklist the owner can add care details to, or sends the reason they can't and returns null.
+// A booking becomes in-progress when the first session starts, so this also locks the details from then on.
+async function loadEditableChecklist(req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    res.status(404).json({ message: 'Booking not found.' })
+    return null
+  }
+  const booking = await Booking.findById(req.params.id)
+  if (!booking) {
+    res.status(404).json({ message: 'Booking not found.' })
+    return null
+  }
+  if (String(req.session.userId) !== String(booking.ownerId)) {
+    res.status(403).json({ message: 'This booking is not yours.' })
+    return null
+  }
+  if (booking.status !== 'confirmed') {
+    res.status(400).json({ message: 'Care details can only be changed on a confirmed booking, before the first session starts.' })
+    return null
+  }
+  const checklist = await CareChecklist.findOne({ bookingId: booking._id })
+  if (!checklist) res.status(404).json({ message: 'This booking has no care tasks.' })
+  return checklist
+}
+
+// PATCH /api/bookings/:id/care-details
+// The owner adds or changes the care details on a confirmed booking. Only `details` can change: a task's
+// category and times a day set the price. An empty list is fine: it means the owner has nothing to add.
+// In: { tasks: [{ taskId, details: { instructions, times, food, amount, unit, medicationName, dosage, withFood } }] }
+// Out: { items, detailsSavedAt }
+router.patch('/:id/care-details', requireOwner, asyncHandler(async (req, res) => {
+  const checklist = await loadEditableChecklist(req, res)
+  if (!checklist) return
+
+  const { tasks } = req.body
+  if (!Array.isArray(tasks) || tasks.length > 20) {
+    return res.status(400).json({ message: 'Send a list of up to 20 tasks.' })
+  }
+
+  // Check everything first, so one bad task doesn't leave the others half saved
+  const changes = []
+  for (const t of tasks) {
+    const task = mongoose.isValidObjectId(t?.taskId) ? checklist.items.id(t.taskId) : null
+    if (!task) return res.status(404).json({ message: 'Task not found.' })
+    const { details, error } = careDetailsFor(task, t.details)
+    if (error) return res.status(400).json({ message: error })
+    changes.push({ task, details })
+  }
+
+  for (const { task, details } of changes) task.details = details
+  checklist.detailsSavedAt = new Date()
+  await checklist.save()
+  res.json({ items: checklist.items, detailsSavedAt: checklist.detailsSavedAt })
+}))
+
+// POST /api/bookings/:id/care-details/:taskId/photos   multipart: photo
+// Adds one reference photo to a task, up to 3. Out: { items, detailsSavedAt }
+router.post('/:id/care-details/:taskId/photos', requireOwner, uploadPhoto, asyncHandler(async (req, res) => {
+  const checklist = await loadEditableChecklist(req, res)
+  if (!checklist) return
+  const task = mongoose.isValidObjectId(req.params.taskId) ? checklist.items.id(req.params.taskId) : null
+  if (!task) return res.status(404).json({ message: 'Task not found.' })
+  if ((task.details?.referencePhotos?.length ?? 0) >= MAX_REFERENCE_PHOTOS) {
+    return res.status(400).json({ message: `A task can have up to ${MAX_REFERENCE_PHOTOS} photos.` })
+  }
+  if (!req.file) return res.status(400).json({ message: 'Choose a photo first.' })
+
+  const uploaded = await uploadImage(req.file.buffer, {
+    folder: 'petsociety/care-details',
+    transformation: [{ width: 1200, height: 1200, crop: 'limit' }]
+  })
+  try {
+    if (!task.details) task.details = {}
+    if (!task.details.referencePhotos) task.details.referencePhotos = []
+    task.details.referencePhotos.push({ url: uploaded.secure_url, publicId: uploaded.public_id })
+    await checklist.save()
+  } catch (err) {
+    await deleteImage(uploaded.public_id)
+    throw err
+  }
+  res.status(201).json({ items: checklist.items, detailsSavedAt: checklist.detailsSavedAt })
+}))
+
+// DELETE /api/bookings/:id/care-details/:taskId/photos/:photoId
+// Removes one reference photo from a task. Out: { items, detailsSavedAt }
+router.delete('/:id/care-details/:taskId/photos/:photoId', requireOwner, asyncHandler(async (req, res) => {
+  const checklist = await loadEditableChecklist(req, res)
+  if (!checklist) return
+  const task = mongoose.isValidObjectId(req.params.taskId) ? checklist.items.id(req.params.taskId) : null
+  const photos = task?.details?.referencePhotos
+  const photo = mongoose.isValidObjectId(req.params.photoId) ? photos?.id(req.params.photoId) : null
+  if (!photo) return res.status(404).json({ message: 'Photo not found.' })
+
+  const { publicId } = photo
+  photos.pull(photo._id)
+  await checklist.save()
+  await deleteImage(publicId)
+  res.json({ items: checklist.items, detailsSavedAt: checklist.detailsSavedAt })
 }))
 
 // GET /api/bookings/:id

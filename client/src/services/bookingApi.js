@@ -27,6 +27,23 @@ export const bookingsApi = {
   },
   // The owner or the sitter cancels a pending, accepted or confirmed booking
   cancel: (id, reason) => api.patch(`/bookings/${id}/cancel`, { reason }).then((res) => res.data), // reason = why it was cancelled (required)
-  // The care tasks the owner added to a booking request: { items: [...] }
-  getCareTasks: (id) => api.get(`/bookings/${id}/care-tasks`).then((res) => res.data)
+  // The care tasks the owner added to a booking request: { items: [...], detailsSavedAt }
+  getCareTasks: (id) => api.get(`/bookings/${id}/care-tasks`).then((res) => res.data),
+  // The owner saves the care details on a confirmed booking: tasks = [{ taskId, details }]
+  // (No try/catch: errors go to the page, which shows the message.)
+  saveCareDetails: async (id, tasks) => {
+    const res = await api.patch(`/bookings/${id}/care-details`, { tasks })
+    return res.data
+  },
+  // Reference photos are added and removed one at a time. Both send back { items, detailsSavedAt }.
+  addCarePhoto: async (id, taskId, file) => {
+    const form = new FormData()
+    form.append('photo', file)
+    const res = await api.post(`/bookings/${id}/care-details/${taskId}/photos`, form)
+    return res.data
+  },
+  removeCarePhoto: async (id, taskId, photoId) => {
+    const res = await api.delete(`/bookings/${id}/care-details/${taskId}/photos/${photoId}`)
+    return res.data
+  }
 }

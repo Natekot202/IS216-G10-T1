@@ -1,15 +1,20 @@
 <script setup>
+// The chat between a booking's owner and sitter: an icon with an unread count, which opens a small window
+// (a large sheet on phones). The card stays on the page while hidden, so messages keep being checked.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { messageApi } from '../services/messageApi.js'
 
 const props = defineProps({
   bookingId: { type: String, required: true },
-  isSitter: { type: Boolean, default: false }
+  isSitter: { type: Boolean, default: false },
+  canSend: { type: Boolean, default: true }, // false once the booking is over: old messages can still be read
+  active: { type: Boolean, default: true }   // false while another session is showing
 })
+const emit = defineEmits(['unread'])
 
 // How often an open chat checks for new messages
 const CHECK_EVERY_MS = 3000
-// How often a closed chat checks, so "new messages" shows without a refresh
+// How often a closed chat checks, so the unread count shows without a refresh
 const CHECK_CLOSED_EVERY_MS = 10000
 
 // This browser remembers the time of the last message read. A booking has one owner and one sitter,
@@ -25,11 +30,15 @@ const error = ref('')
 const listEl = ref(null)
 let timer = null
 
+const title = computed(() => (props.isSitter ? 'Chat with owner' : 'Chat with sitter'))
+
 // Messages from the other person that came after the last one read (an open chat has none)
 const unreadCount = computed(() => {
   if (open.value) return 0
   return messages.value.filter((m) => !m.mine && m.createdAt > lastRead.value).length
 })
+// tells the page, so the session list can show a dot on sessions that aren't showing
+watch(unreadCount, (n) => emit('unread', n), { immediate: true })
 
 // Counts everything loaded so far as read
 function markRead() {
@@ -107,7 +116,12 @@ watch(open, (isOpen) => {
   scrollToBottom()
 })
 
-// One check when the card appears, so the header can show how many messages there are
+// switching to another session closes this one's chat
+watch(() => props.active, (isActive) => {
+  if (!isActive) open.value = false
+})
+
+// One check when the card appears, so the icon can show the unread count
 onMounted(() => {
   load(true)
   startChecking()
@@ -116,22 +130,27 @@ onBeforeUnmount(() => clearInterval(timer))
 </script>
 
 <template>
-  <section class="sc-card">
-    <button type="button" class="chat-toggle" :class="{ 'chat-toggle--new': unreadCount }" :aria-expanded="open" @click="open = !open">
-      <h4 class="sc-title mb-0">
-        {{ isSitter ? 'Chat with owner' : 'Chat with sitter' }}
-        <span v-if="unreadCount" class="chat-new">{{ unreadCount }} new message{{ unreadCount === 1 ? '' : 's' }}</span>
-        <span v-else-if="messages.length" class="chat-count">{{ messages.length }}</span>
-      </h4>
-      <span aria-hidden="true">{{ open ? '▾' : '▸' }}</span>
+  <div class="chat" @keydown.esc="open = false">
+    <button type="button" class="chat-btn" :aria-expanded="open"
+            :aria-label="unreadCount ? `${title}, ${unreadCount} new` : title" @click="open = !open">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <path d="M4 5h16v11H9l-5 4V5z" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <span v-if="unreadCount" class="chat-badge">{{ unreadCount }}</span>
     </button>
 
-    <div v-if="open" class="mt-3">
-      <div v-if="error" class="alert alert-warning py-2 small">{{ error }}</div>
+    <div v-if="open" class="chat-window" role="dialog" :aria-label="title">
+      <div class="chat-head">
+        <strong>{{ title }}</strong>
+        <button type="button" class="btn-close" aria-label="Close chat" @click="open = false"></button>
+      </div>
+
+      <div v-if="error" class="alert alert-warning py-2 small mb-2">{{ error }}</div>
 
       <div ref="listEl" class="chat-list" aria-live="polite">
         <p v-if="!messages.length" class="text-muted small mb-0">
-          No messages yet. Say hi to {{ isSitter ? 'the owner' : 'your sitter' }}.
+          No messages yet.<template v-if="canSend"> Say hi to {{ isSitter ? 'the owner' : 'your sitter' }}.</template>
         </p>
 
         <div v-for="m in messages" :key="m._id" class="chat-row" :class="m.mine ? 'chat-row--mine' : 'chat-row--theirs'">
@@ -142,71 +161,72 @@ onBeforeUnmount(() => clearInterval(timer))
         </div>
       </div>
 
-      <form class="d-flex gap-2 mt-2" @submit.prevent="submit">
+      <form v-if="canSend" class="d-flex gap-2 mt-2" @submit.prevent="submit">
         <input v-model="draft" type="text" class="form-control" maxlength="500"
                placeholder="Write a message" aria-label="Message" />
         <button type="submit" class="btn btn-brand" :disabled="sending || !draft.trim()">Send</button>
       </form>
+      <p v-else class="text-muted small mt-2 mb-0">This booking has ended, so messages can't be sent.</p>
     </div>
-  </section>
+  </div>
 </template>
 
 <style scoped>
-/* same as the other titles on the Session card (SessionCard's own styles can't reach inside this component) */
-.sc-title {
-  font-family: var(--bs-body-font-family);
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #2b2420;
-}
-@media (max-width: 575.98px) {
-  .sc-title {
-    font-size: 1.05rem;
-  }
-}
-.chat-toggle {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0;
-  border: 0;
+.chat-btn {
+  position: relative;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 10px;
   background: none;
   color: inherit;
-  text-align: left;
 }
-.chat-count {
-  margin-left: 0.4rem;
-  padding: 0.1rem 0.5rem;
+.chat-badge {
+  position: absolute;
+  top: -0.45rem;
+  right: -0.45rem;
+  min-width: 1.3rem;
+  padding: 0 0.3rem;
+  border: 2px solid #fff;
   border-radius: 999px;
-  background: #f1ece8;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-/* unread messages: the shadow spreads the tint past the row, so the row itself doesn't change size */
-.chat-toggle--new {
-  border-radius: 8px;
-  background: #fde9dd;
-  box-shadow: 0 0 0 8px #fde9dd;
-}
-.chat-new {
-  display: inline-block;
-  margin-left: 0.4rem;
-  padding: 0.1rem 0.6rem;
-  border-radius: 999px;
-  background: #c44f1c;
+  background: var(--accent-deep);
   color: #fff;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  white-space: nowrap;
+  line-height: 1.1rem;
 }
 
-/* the message list scrolls inside the card */
+/* a small window in the corner on computers */
+.chat-window {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 1045;
+  display: flex;
+  width: 22rem;
+  max-height: 30rem;
+  flex-direction: column;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(43, 36, 32, 0.22);
+  color: #2b2420;
+}
+.chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
 .chat-list {
   display: flex;
+  min-height: 8rem;
+  flex: 1;
   flex-direction: column;
   gap: 0.5rem;
-  max-height: 18rem;
   overflow-y: auto;
   padding: 0.25rem;
 }
@@ -226,7 +246,7 @@ onBeforeUnmount(() => clearInterval(timer))
   color: #2b2420;
 }
 .chat-bubble--mine {
-  background: #c44f1c;
+  background: var(--accent-deep);
   color: #fff;
 }
 .chat-time {
@@ -234,5 +254,18 @@ onBeforeUnmount(() => clearInterval(timer))
   margin-top: 0.15rem;
   font-size: 0.7rem;
   opacity: 0.75;
+}
+
+/* a large sheet that comes up from the bottom on phones */
+@media (max-width: 767.98px) {
+  .chat-window {
+    top: 15vh;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    max-height: none;
+    border-radius: 10px 10px 0 0;
+  }
 }
 </style>

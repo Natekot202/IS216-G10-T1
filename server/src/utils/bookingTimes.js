@@ -90,6 +90,17 @@ export function anyOverlap(a, b) {
   return a.some((x) => b.some((y) => rangesOverlap(x, y)))
 }
 
+// When a day's session was booked to end, in milliseconds (the booking's end time, on the session's date)
+export function sessionEndTime(visit, booking) {
+  // Bookings with hours for each day end at THAT day's end time (e.g. Fri 12am, but Sun 9am)
+  const endTime = booking.dayTimes?.find((d) => d.date === visit.date)?.endTime || booking.endTime || '24:00'
+  return sgtMidnight(visit.date).getTime() + toMinutes(endTime) * MINUTE_MS
+}
+
+// Location sharing stops this long after the booked end, and no new walks can start after that
+const SHARING_GRACE_MS = 30 * MINUTE_MS
+export const sharingEndTime = (visit, booking) => sessionEndTime(visit, booking) + SHARING_GRACE_MS
+
 // Two ranges overlap when each one starts before the other ends.
 // A booking ending at 12:00 and another starting at 12:00 do NOT overlap.
 export function rangesOverlap(a, b) {

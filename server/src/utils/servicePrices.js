@@ -20,10 +20,11 @@ export const SERVICE_PRICES = {
 
 // Price of a booking = for every task: price × times a day × number of days, all added up.
 // e.g. walk ($20) × 2 a day × 3 days = $120
+// A task with its own `days` only counts those days: a nail clip on the last day of a week counts once.
 export function priceForTasks(tasks, days) {
   let total = 0
   for (const task of tasks) {
-    total += (SERVICE_PRICES[task.category] ?? 0) * task.dailyFrequency * days
+    total += (SERVICE_PRICES[task.category] ?? 0) * task.dailyFrequency * (task.days?.length || days)
   }
   return Math.round(total * 100) / 100 // rounded to cents
 }

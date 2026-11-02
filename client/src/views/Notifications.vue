@@ -23,6 +23,9 @@ const TYPE_LABELS = {
   'walk-off-route': { text: 'Off route', badge: 'text-bg-danger' },
   'walk-back-on-route': { text: 'Back on route', badge: 'text-bg-success' },
   'walk-ended-early': { text: 'Ended early', badge: 'text-bg-warning' },
+  'walk-back-home': { text: 'End your walk', badge: 'text-bg-warning' },
+  'session-unverified': { text: 'No location check', badge: 'text-bg-warning' },
+  'session-auto-ended': { text: 'Session ended', badge: 'text-bg-warning' },
   'booking-requested': { text: 'New request', badge: 'text-bg-primary' },
   'booking-request-sent': { text: 'Request sent', badge: 'text-bg-primary' },
   'booking-accepted': { text: 'Accepted', badge: 'text-bg-success' },
@@ -70,7 +73,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => clearInterval(timer))
 
-// Clicking a notification marks it as read, then opens the booking it's about (if any)
+// Clicking a notification marks it as read and opens it
 async function openNotification(notification) {
   if (!notification.read) {
     actionError.value = ''
@@ -83,7 +86,21 @@ async function openNotification(notification) {
       return
     }
   }
-  if (notification.booking) router.push(`/bookings/${notification.booking}`)
+  if (notification.type === 'walk-back-home') {
+    router.push(`/sitter/walks/${notification.walk}`)
+    return
+  }
+  if (notification.type === 'payment-due') {
+    router.push({ name: 'owner-bookings', query: { tab: 'to-pay' } })
+    return
+  }
+  if (notification.type === 'payment-received') {
+    router.push({ name: 'sitter-transactions', query: { tab: 'successful' } })
+    return
+  }
+  if (notification.type.includes('booking') || notification.type.startsWith('session-')) {
+    router.push(`/bookings/${notification.booking}`)
+  }
 }
 
 async function markAllRead() {

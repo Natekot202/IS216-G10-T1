@@ -10,9 +10,12 @@ import StatusPill from '../components/StatusPill.vue'
 import ShowStarRating from '../components/ShowStarRating.vue'
 import WalkMap from '../components/WalkMap.vue'
 import CancelBookingModal from '../components/CancelBookingModal.vue'
+import CareDetailsForm from '../components/CareDetailsForm.vue'
+import CareDetailsSummary from '../components/CareDetailsSummary.vue'
 import { formatPrice, formatBookingWhen, hoursVary, dayTimesList } from '../utils/bookingHelpers.js'
 import { reviewsApi } from '../services/api.js'
 import ReviewForm from '../components/ReviewForm.vue'
+import { prettyDate } from '../utils/bookingTimeHelpers.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -85,6 +88,28 @@ const canCancel = computed(() =>
 )
 const cancelText = computed(() => (status.value === 'confirmed' ? 'Cancel booking' : 'Withdraw request'))
 
+// Care details: the owner adds them once the booking is confirmed. A booking becomes in-progress
+// when the first session starts, so they lock from then on (the server checks this too).
+const detailsSavedAt = ref(null) // null = not saved yet, so the card keeps asking for them
+const detailsFormOpen = ref(false)
+const detailsCard = ref(null)
+const canEditDetails = computed(() => !isSitter.value && status.value === 'confirmed' && tasks.value.length > 0)
+const detailsLocked = computed(() => !isSitter.value && status.value === 'in-progress' && tasks.value.length > 0)
+
+async function openDetailsForm() {
+  detailsFormOpen.value = true
+  await nextTick()
+  const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  detailsCard.value?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' })
+}
+
+function detailsSaved(saved) {
+  tasks.value = saved.items
+  detailsSavedAt.value = saved.detailsSavedAt
+  detailsFormOpen.value = false
+  message.value = 'Care details saved ✅ The sitter can see them on this booking.'
+}
+
 async function respond(newStatus) {
   if (newStatus === 'declined' && status.value === 'accepted' &&
       !window.confirm('Decline this request? You accepted it, but the owner has not confirmed yet. This cannot be undone.')) return
@@ -110,6 +135,7 @@ async function confirmBooking() {
     const updated = await bookingsApi.confirm(booking.value._id)
     booking.value.status = updated.status
     message.value = 'Booking confirmed ✅ It is now final for you and the sitter.'
+    if (canEditDetails.value) await openDetailsForm()
   } catch (err) {
     actionError.value = err.response?.data?.message || 'Could not confirm the booking.'
   } finally {
@@ -147,23 +173,14 @@ async function sendCancel(reason) {
   }
 }
 
-// Review: once the sitter has finished (completed, or paid after that), the owner can rate the sitter here.
-// The sitter sees the owner's review here too. (Same review as on the Sessions page; a booking has at most one.)
-const review = ref(null)
-const reviewLoaded = ref(false)
-const canSeeReview = computed(() => ['completed', 'paid'].includes(booking.value?.status))
-const reviewStars = computed(() => (review.value ? '★'.repeat(review.value.rating) + '☆'.repeat(5 - review.value.rating) : ''))
-
 onMounted(async () => {
   try {
     if (!currentUser.value) await fetchUser()
     booking.value = await bookingsApi.getOne(route.params.id)
-    tasks.value = (await bookingsApi.getCareTasks(route.params.id)).items
+    const care = await bookingsApi.getCareTasks(route.params.id)
+    tasks.value = care.items
+    detailsSavedAt.value = care.detailsSavedAt
     selectedPetId.value = booking.value.petIds?.[0]?._id || null // start on the first pet
-    if (canSeeReview.value) {
-      review.value = await reviewsApi.getForBooking(route.params.id).catch(() => null)
-      reviewLoaded.value = true
-    }
   } catch (err) {
     error.value = err.response?.data?.message || 'Could not load this booking.'
   } finally {
@@ -173,6 +190,15 @@ onMounted(async () => {
   if (route.query.review && reviewLoaded.value) {
     await nextTick()
     document.getElementById('review')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  // Confirming from My Bookings comes here with ?details=open.
+  // The address is then cleaned up, so refreshing the page doesn't reopen the form.
+  if (route.query.details === 'open') {
+    router.replace({ query: {} })
+    if (canEditDetails.value) {
+      message.value = 'Booking confirmed ✅ Add the care details now, or come back to them later.'
+      await openDetailsForm()
+    }
   }
 })
 // checks if the user is logged in , then gets their booking and careTasks
@@ -197,12 +223,9 @@ onMounted(async () => {
         <StatusPill :status="booking.status" />
       </div>
       <p class="text-muted fw-semibold mb-3">
-        {{ formatBookingWhen(booking) }} · {{ formatPrice(booking.totalPrice) }}
+        {{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime, booking.overnight) }} · {{ formatPrice(booking.totalPrice) }}
+        <span v-if="booking.overnight" class="badge rounded-pill text-bg-light border ms-1">🌙 Sitter stays overnight</span>
       </p>
-      <!-- Different hours on different days: list them, e.g. "Fri 6 Nov: 10:00 am – 12:00 am" -->
-      <ul v-if="hoursVary(booking)" class="small text-muted mb-3 ps-3">
-        <li v-for="line in dayTimesList(booking)" :key="line">{{ line }}</li>
-      </ul>
 
       <div v-if="booking.status === 'cancelled'" class="alert alert-secondary">
         {{ booking.cancelledBy === 'owner' ? 'The owner withdrew or cancelled this booking.' : booking.cancelledBy === 'sitter' ? 'The sitter cancelled this booking.' : 'This booking was cancelled.' }}
@@ -216,7 +239,7 @@ onMounted(async () => {
         {{ isSitter ? 'You accepted this request. Waiting for the owner to confirm; the hours are held for you until then.'
                     : 'The sitter accepted your request. Confirm it below to make the booking final.' }}
       </div>
-      <div v-if="message" class="alert alert-success">{{ message }}</div>
+      <!-- <div v-if="message" class="alert alert-success">{{ message }}</div> -->
       <div v-if="actionError" class="alert alert-warning">{{ actionError }}</div>
 
       <!-- Pets: tap one to show its checklist below. With one pet there is nothing to choose, so this card is left out
@@ -268,10 +291,12 @@ onMounted(async () => {
               <small v-if="pets.length > 1" class="d-block text-muted">
                 {{ alsoFor(task).length ? `Also for ${alsoFor(task).join(', ')}` : `Only for ${selectedPet?.name}` }}
               </small>
+              <small v-if="task.days?.length" class="d-block text-muted">Only on {{ task.days.map(prettyDate).join(', ') }}</small>
               <small v-if="task.category === 'walk'" class="d-block text-muted">{{ routeText(task) }}</small>
             </label>
             <span v-if="task.dailyFrequency > 1" class="freq-badge">{{ task.dailyFrequency }} times a day</span>
           </div>
+          <CareDetailsSummary :task="task" />
           <!-- the route map, when this viewer is allowed to see the path -->
           <template v-if="task.walkRoute?.path">
             <button type="button" class="btn btn-link btn-sm p-0 route-toggle"
@@ -282,6 +307,30 @@ onMounted(async () => {
                      :planned-route="task.walkRoute.path.coordinates" />
           </template>
         </div>
+      </div>
+
+      <!-- Care details: the owner fills these in after confirming -->
+      <div v-if="canEditDetails || detailsLocked" ref="detailsCard" class="detail-card details-card p-4 mb-3">
+        <h6 class="section-title">Care details</h6>
+        <CareDetailsForm
+          v-if="canEditDetails && detailsFormOpen"
+          :booking-id="booking._id"
+          :tasks="tasks"
+          :close-text="detailsSavedAt ? 'Cancel' : 'Add later'"
+          @saved="detailsSaved"
+          @photos-changed="tasks = $event.items"
+          @close="detailsFormOpen = false"
+        />
+        <p v-else-if="detailsLocked" class="text-muted mb-0">Care details are locked because the first session has started.</p>
+        <template v-else>
+          <div v-if="!detailsSavedAt" class="alert alert-warning">
+            <strong>Care details needed.</strong> Tell the sitter things like the food amount, medicine dosage and where the leash is kept.
+          </div>
+          <p v-else class="text-muted">Saved. You can change these until the first session starts.</p>
+          <button type="button" class="btn btn-brand w-100" @click="openDetailsForm">
+            {{ detailsSavedAt ? 'Edit care details' : 'Add care details' }}
+          </button>
+        </template>
       </div>
 
       <div v-if="booking.notes" class="detail-card p-4 mb-3" :class="{ 'opacity-75': booking.status === 'cancelled' }">
@@ -331,18 +380,6 @@ onMounted(async () => {
           </template>
         </div>
       </div>
-
-      <!-- Review: the owner rates the sitter (or sees their review); the sitter sees the owner's review -->
-      <div v-if="canSeeReview && reviewLoaded" id="review" class="detail-card p-4 mb-3">
-        <h6 class="section-title">{{ isSitter ? "Owner's review" : 'Review your sitter' }}</h6>
-        <template v-if="review">
-          <div class="fs-5" style="color:#FFD700;">{{ reviewStars }}</div>
-          <p v-if="review.comment" class="mb-1 text-break">{{ review.comment }}</p>
-          <p v-if="!isSitter" class="small text-muted mb-0">Thanks, your review has been posted.</p>
-        </template>
-        <p v-else-if="isSitter" class="small text-muted mb-0">The owner hasn't left a review yet.</p>
-        <ReviewForm v-else :booking-id="booking._id" @saved="review = $event" />
-      </div>
     </template>
 
     <!-- asks for the reason before cancelling -->
@@ -372,6 +409,9 @@ onMounted(async () => {
   background: #fff;
   border: 1px solid #ede3d8;
   border-radius: 12px;
+}
+.details-card {
+  scroll-margin-top: 5rem; /* stops the top bar covering the card when the page scrolls to it */
 }
 .section-title {
   font-size: 0.75rem;

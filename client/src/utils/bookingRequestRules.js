@@ -3,22 +3,18 @@
 // The server checks all of this again, so these exist only to tell the owner quickly, before anything is sent.
 import { prettyDate } from './bookingTimeHelpers.js'
 
-// `form` is { selectedPets, when, tasks, clash, unavailableDays }, taken from the page's refs:
+// `form` is { selectedPets, when, chosenDays, tasks, clash, unavailableDays }, taken from the page's refs:
 //   selectedPets: array of pet ids        when: { startDate, endDate, dayTimes: [{ date, startTime, endTime }] }
-//   tasks: the care tasks                 clash: true if the chosen time runs into a booked time
+//   chosenDays: every booked day          tasks: the care tasks
+//   clash: true if the chosen time runs into a booked time
 //   unavailableDays: chosen days the sitter hasn't marked as available
 // Returns the message to show the owner, or '' if everything is fine.
-export function checkBookingRequest({ selectedPets, when, tasks, clash, unavailableDays }) {
+export function checkBookingRequest({ selectedPets, when, chosenDays, tasks, clash, unavailableDays }) {
   if (selectedPets.length === 0) return 'Select at least one pet.'
   if (!when.startDate || !when.endDate) return 'Choose a start and end date.'
   if (when.endDate < when.startDate) return 'End date must be on or after the start date.'
-    // Every day needs its hours, and each day's end must be after its start
-  const missingDay = (when.dayTimes || []).find((d) => !d.startTime || !d.endTime)
-  if (!when.dayTimes?.length || missingDay) {
-    return missingDay ? `Choose a start time and an end time for ${prettyDate(missingDay.date)}.` : 'Choose a start time and an end time.'
-  }
-  const backwardsDay = when.dayTimes.find((d) => d.endTime <= d.startTime)
-  if (backwardsDay) return `On ${prettyDate(backwardsDay.date)}, the end time must be after the start time.`
+  if (!when.startTime || !when.endTime) return 'Choose a start time and an end time.'
+  if (when.endTime <= when.startTime) return 'The end time must be after the start time (the times are the hours for each day).'
   if (clash) return 'The sitter is already booked during this time. Please choose different times.'
   if (unavailableDays.length) {
     return `The sitter is not available on ${unavailableDays.map(prettyDate).join(', ')}.`
@@ -31,11 +27,13 @@ export function checkBookingRequest({ selectedPets, when, tasks, clash, unavaila
   if (tasks.some((t) => !Number.isInteger(t.dailyFrequency) || t.dailyFrequency < 1 || t.dailyFrequency > 10)) {
     return 'Times a day must be a whole number from 1 to 10.'
   }
-  // Walk tasks need a route, or "No route – follow my instructions"
-  if (tasks.some((t) => t.category === 'walk' && !t.walkRouteId)) {
-    return 'Choose a route for each walk task, or "follow my instructions".'
-  }
-  // .some returns true/false for the condition 
+  // .some returns true/false for the condition
+  const noRoute = tasks.find((t) => t.category === 'walk' && !t.walkRouteId)
+  if (noRoute) return `Choose a route for "${noRoute.title.trim()}", or pick "No route – follow my instructions".`
+  const noDays = tasks.find((t) => t.someDays && !t.days.length)
+  if (noDays) return `Choose the days for "${noDays.title.trim()}", or set it to every day.`
+  const emptyDay = chosenDays.find((d) => !tasks.some((t) => !t.days.length || t.days.includes(d)))
+  if (emptyDay) return `${prettyDate(emptyDay)} has no tasks. Add a task for that day, or remove the day.`
   return ''
 }
 
@@ -45,8 +43,9 @@ export function buildBookingPayload(sitterId, { selectedPets, when, tasks, notes
     sitterId,
     petIds: selectedPets,
     startDate: when.startDate,
+    startTime: when.startTime,
     endDate: when.endDate,
-    dayTimes: when.dayTimes, // the hours for each day: [{ date, startTime, endTime }]
+    endTime: when.endTime,
     notes,
     tasks: tasks.map((t) => {
       // keep only pets that are still selected; if none are left, the task is for all selected pets
@@ -56,9 +55,8 @@ export function buildBookingPayload(sitterId, { selectedPets, when, tasks, notes
         title: t.title.trim(),
         dailyFrequency: t.dailyFrequency,
         petIds: chosen.length ? chosen : selectedPets,
-        // Walk tasks: the chosen route's id, or 'instructions' for "No route – follow my instructions".
-        // (This was missing before, so the server never got the choice and always said "Choose a route".)
-        ...(t.category === 'walk' ? { walkRouteId: t.walkRouteId } : {})
+        walkRouteId: t.walkRouteId, // walk tasks: a route's id, or 'instructions'
+        days: t.days // empty = every day
       }
     })
   }

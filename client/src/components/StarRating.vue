@@ -71,6 +71,7 @@ const setRating = (rating) => {
 
 .star-button:hover .star-icon {
   transform: scale(1.1);
+ 
 }
 
 /* Color for filled stars (prioritizing hover states) */

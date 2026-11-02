@@ -1,14 +1,17 @@
 import mongoose from 'mongoose'
 import Booking from '../models/bookingModel.js'
-import CareChecklist from '../models/CareChecklist.js'
+import CareChecklist, { taskIsOn } from '../models/CareChecklist.js'
 import VisitSession from '../models/VisitSession.js'
 import Walk from '../models/walkModel.js'
 import { sgtMidnight, toSgtDateString } from '../models/Availability.js'
 import { uploadImage, deleteImage } from '../config/cloudinary.js'
 import User from '../models/UserModel.js'
-import { notifyPaymentDue } from '../models/notificationModel.js'
+import { notify, notifyPaymentDue } from '../models/notificationModel.js'
+import { HOME_RADIUS_M, MAX_START_ACCURACY_M, isValidPoint, metresBetween } from '../utils/walkGeo.js'
+import { sharingEndTime } from '../utils/bookingTimes.js'
 
 const STARTABLE = ['confirmed', 'in-progress'] // owners pay at the end, so sessions start once the owner has confirmed
+const PAUSED_AFTER_MS = 60 * 1000 // no update for this long: the owner sees "Location paused"
 
 // to ensure only valid bookings can be started
 function startBlockReason(booking, todaysVisits, today) {
@@ -22,6 +25,34 @@ function startBlockReason(booking, todaysVisits, today) {
     return "Today's session has already been started."
   }
   return ''
+}
+
+// Is the sitter at the home? `reading` is { location: [lng, lat], accuracy }, `home` is [lng, lat] or undefined.
+// Weak GPS shouldn't flag a sitter standing in the house, so a reading passes if it could be within
+// HOME_RADIUS_M once its accuracy is counted. A reading too vague to use counts as no location.
+// Returns { passed: true }, or { check: 'out-of-range', distanceM }, or { check: 'no-location' }.
+function checkStartLocation(reading, home) {
+  const accuracy = Number(reading?.accuracy)
+  if (!home || !isValidPoint(reading?.location) || !Number.isFinite(accuracy) || accuracy > MAX_START_ACCURACY_M) {
+    return { check: 'no-location' }
+  }
+  const distanceM = metresBetween(reading.location, home)
+  return distanceM - accuracy <= HOME_RADIUS_M ? { passed: true } : { check: 'out-of-range', distanceM: Math.round(distanceM) }
+}
+
+// What the owner's live location card shows. `visit` includes lastLocation, `walk` is the walk under way, if any.
+// state: 'blocked', 'paused', 'walk', 'home' or 'away'. There's no position once sharing has stopped.
+function liveLocationFor(visit, booking, walk) {
+  if (Date.now() >= sharingEndTime(visit, booking)) return { state: 'paused', ended: true, at: visit.lastLocation?.at ?? null }
+  if (visit.locationBlocked) return { state: 'blocked' }
+  const last = visit.lastLocation
+  if (!last) return { state: 'paused', at: null }
+
+  const shared = { position: last.coordinates, at: last.at }
+  if (Date.now() - last.at.getTime() >= PAUSED_AFTER_MS) return { ...shared, state: 'paused' }
+  if (walk) return { ...shared, state: 'walk' }
+  const atHome = checkStartLocation({ location: last.coordinates, accuracy: last.accuracy }, visit.home).passed
+  return { ...shared, state: atHome ? 'home' : 'away' }
 }
 
 // finds the booking and checks the caller is its owner or sitter
@@ -49,10 +80,15 @@ export async function getTodaySessions(req, res) {
   const dayStart = sgtMidnight(today)
   const field = req.session.role === 'sitter' ? 'sitterId' : 'ownerId'
 
+  // A session from an earlier day stays until it's ended, so a sitter can still submit a report after midnight
+  const earlier = await VisitSession.find({ status: 'active', date: { $lt: today } }).select('booking')
+
   const bookings = await Booking.find({
     [field]: req.session.userId,
-    startDate: { $lte: dayStart },
-    endDate: { $gte: dayStart },
+    $or: [
+      { startDate: { $lte: dayStart }, endDate: { $gte: dayStart } },
+      { _id: { $in: earlier.map((v) => v.booking) } }
+    ],
     status: { $in: ['confirmed', 'in-progress', 'completed', 'paid'] }
   })
     .populate('ownerId', 'username profilePicture')
@@ -61,13 +97,24 @@ export async function getTodaySessions(req, res) {
 
   const ids = bookings.map((b) => b._id)
   const [visits, checklists] = await Promise.all([
-    VisitSession.find({ booking: { $in: ids }, date: today }),
+    // (lastLocation isn't sent as part of a visit: liveLocationFor decides who sees it)
+    VisitSession.find({ booking: { $in: ids }, $or: [{ date: today }, { status: 'active' }] }).select('-lastLocation').sort({ date: 1 }),
     CareChecklist.find({ bookingId: { $in: ids } })
   ])
   const visitByBooking = new Map(visits.map((v) => [String(v.booking), v]))
   const itemsByBooking = new Map(checklists.map((c) => [String(c.bookingId), c.items]))
 
+  // Any walk happening now, so the checklist still shows it after the page reloads
+  const walks = await Walk.find({ visit: { $in: visits.map((v) => v._id) }, status: 'in-progress' })
+    .select('visit task startedAt plannedPath')
+  const walkByVisit = new Map(walks.map((w) => [String(w.visit), w]))
+
   const isSitterViewer = req.session.role === 'sitter'
+
+  // the owner's live location: only their own bookings, and only during an active session
+  const locations = isSitterViewer ? [] : await VisitSession.find({ _id: { $in: visits.filter((v) => v.status === 'active').map((v) => v._id) } })
+    .select('date home lastLocation locationBlocked')
+  const locationByVisit = new Map(locations.map((v) => [String(v._id), v]))
   const confirmed = (b) => ['confirmed', 'in-progress'].includes(b.status)
 
  const addressByOwner = new Map()
@@ -85,6 +132,7 @@ export async function getTodaySessions(req, res) {
             line1: a?.line1 || '',
             unit: a?.unit || '',
             postalCode: a?.postalCode || '',
+            location: a?.location?.coordinates ?? null, // [lng, lat] for the "Where to go" map
             instructions
           })
         }
@@ -110,8 +158,15 @@ export async function getTodaySessions(req, res) {
           pets: b.petIds,
           notes: b.notes || ''
         },
-        items: itemsByBooking.get(String(b._id)) ?? [],
         visit: visitByBooking.get(String(b._id)) ?? null
+      }
+      // the tasks for this session's day, which is an earlier day if it's still open from then
+      session.items = (itemsByBooking.get(String(b._id)) ?? []).filter((item) => taskIsOn(item, session.visit?.date ?? today))
+      session.activeWalk = session.visit ? walkByVisit.get(String(session.visit._id)) ?? null : null
+      if (session.visit?.status === 'active') {
+        const located = locationByVisit.get(String(session.visit._id))
+        if (located) session.liveLocation = liveLocationFor(located, b, session.activeWalk)
+        if (isSitterViewer) session.sharingEndsAt = sharingEndTime(session.visit, b)
       }
       // only a booking's sitter gets the address, and only once it is confirmed
       if (isSitterViewer && confirmed(b)) {
@@ -126,6 +181,9 @@ export async function getTodaySessions(req, res) {
 }
 
 // POST /api/visits/booking/:bookingId/start  (sitter)
+// In: { location: [lng, lat], accuracy, note }
+// A sitter within range starts straight away. Otherwise this answers 409 with { check, distanceM }, and they can
+// send it again with a `note` for the owner: the session then starts, and the owner is notified.
 export async function startVisit(req, res) {
   const booking = await loadBooking(req, res)
   if (!booking) {
@@ -142,11 +200,39 @@ export async function startVisit(req, res) {
     return res.status(400).json({ message: reason })
   }
 
+  // Only one session at a time: the owner of each sees where the sitter is, so two would show one home to the other
+  // (a forgotten session can't block this for long: utils/endForgottenSessions.js closes it)
+  const otherSession = await VisitSession.exists({ sitter: req.session.userId, status: 'active' })
+  if (otherSession) {
+    return res.status(409).json({ message: 'End your other session before starting this one.' })
+  }
+
+  const owner = await User.findById(booking.ownerId).select('+ownerProfile.address')
+  const result = checkStartLocation(req.body, owner?.ownerProfile?.address?.location?.coordinates)
+  let startCheck
+  if (!result.passed) {
+    const note = String(req.body.note ?? '').trim()
+    if (!note) {
+      return res.status(409).json({ message: 'Your location could not be confirmed.', check: result.check, distanceM: result.distanceM })
+    }
+    if (note.length > 200) return res.status(400).json({ message: 'The note can be up to 200 characters.' })
+    startCheck = { reason: result.check, note, distanceM: result.distanceM }
+  }
+
   try {
-    const visit = await VisitSession.create({ booking: booking._id, sitter: req.session.userId, date: today })
+    const home = owner?.ownerProfile?.address?.location?.coordinates
+    const visit = await VisitSession.create({ booking: booking._id, sitter: req.session.userId, date: today, startCheck, home })
     if (booking.status !== 'in-progress') {
       booking.status = 'in-progress'
       await booking.save()
+    }
+    if (startCheck) {
+      try {
+        await notify(booking.ownerId, 'session-unverified', `The sitter started without a location check: "${startCheck.note}"`, { booking: booking._id })
+      } catch (err) {
+        // The session should stand even if its notification cannot be saved (the owner still sees the note on the Session page).
+        console.error('Could not create session-unverified notification:', err.message)
+      }
     }
     return res.status(201).json(visit)
   } catch (err) {
@@ -158,6 +244,42 @@ export async function startVisit(req, res) {
 }
 
 // PATCH /api/visits/:visitId/tasks/:taskId   body: { count }  (sitter)
+// POST /api/visits/:visitId/location  (sitter)   body: { location: [lng, lat], accuracy } or { blocked: true }
+// Only the latest location is kept. Out: { sharing }, false once the booked time plus 30 minutes has passed.
+export async function updateLocation(req, res) {
+  if (!mongoose.isValidObjectId(req.params.visitId)) {
+    return res.status(404).json({ message: 'Session not found.' })
+  }
+  const visit = await VisitSession.findOne({ _id: req.params.visitId, sitter: req.session.userId })
+  if (!visit) {
+    return res.status(404).json({ message: 'Session not found.' })
+  }
+  if (visit.status !== 'active') {
+    return res.status(400).json({ message: 'This session is not active.' })
+  }
+
+  const booking = await Booking.findById(visit.booking)
+  if (!booking || Date.now() >= sharingEndTime(visit, booking)) {
+    await VisitSession.updateOne({ _id: visit._id }, { $unset: { lastLocation: 1 } })
+    return res.json({ sharing: false })
+  }
+
+  if (req.body.blocked === true) {
+    await VisitSession.updateOne({ _id: visit._id }, { $set: { locationBlocked: true }, $unset: { lastLocation: 1 } })
+    return res.json({ sharing: true })
+  }
+
+  const { location } = req.body
+  const accuracy = Number(req.body.accuracy)
+  if (!isValidPoint(location) || !Number.isFinite(accuracy)) {
+    return res.status(400).json({ message: 'Your location is missing.' })
+  }
+  await VisitSession.updateOne({ _id: visit._id }, {
+    $set: { locationBlocked: false, lastLocation: { coordinates: location, accuracy, at: new Date() } }
+  })
+  res.json({ sharing: true })
+}
+
 export async function setTaskCount(req, res) {
   if (!mongoose.isValidObjectId(req.params.visitId)) {
     return res.status(404).json({ message: 'Session not found.' })
@@ -174,6 +296,9 @@ export async function setTaskCount(req, res) {
   const item = checklist?.items.id(req.params.taskId)
   if (!item) {
     return res.status(404).json({ message: 'Task not found.' })
+  }
+  if (!taskIsOn(item, visit.date)) {
+    return res.status(400).json({ message: 'This task is not scheduled for today.' })
   }
   // walk tasks are ticked by finishing a tracked walk (walkController), not by hand
   if (item.category === 'walk') {
@@ -234,6 +359,7 @@ export async function endVisit(req, res) {
     visit.report = { notes, photos }
     visit.status = 'completed'
     visit.endedAt = new Date()
+    visit.lastLocation = undefined // sharing stops when the session ends
     await visit.save()
   } catch (err) {
     for (const p of photos) {

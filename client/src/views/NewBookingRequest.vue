@@ -2,12 +2,12 @@
 import { ref, computed, onMounted } from 'vue'
 import defaultAvatar from '../assets/img/tempProfile.jpg'
 import { useRoute } from 'vue-router'
-import { formatTime, formatBookingWhen, hoursVary } from '../utils/bookingHelpers.js'
+import { formatTime, formatDateRange } from '../utils/bookingHelpers.js'
 import { currentUser } from '../services/auth.js'
 import { sendNotification } from '../utils/sendNotification.js'
 import { toDateString, prettyDate } from '../utils/bookingTimeHelpers.js'
 import { checkBookingRequest, buildBookingPayload } from '../utils/bookingRequestRules.js'
-import { SERVICE_PRICES, SERVICE_LABELS, PRICE_LIST_TEXT, priceForTasks } from '../utils/servicePrices.js'
+import { SERVICE_PRICES, SERVICE_LABELS, PRICE_LIST_TEXT, priceForTasks, daysForTask } from '../utils/servicePrices.js'
 import { bookingsApi } from '../services/bookingApi.js'
 import { availabilityApi } from '../services/availabilityApi.js'
 import { usersApi, petsApi } from '../services/api.js'
@@ -26,9 +26,8 @@ const loadError = ref('')
 
 // What the owner fills in
 const selectedPets = ref([]) // array of pet ids
-// What the date picker says was chosen (it sends this to us):
-// { startDate, startTime, endDate, endTime, dayTimes: [{ date, startTime, endTime }], clash }
-const when = ref({ startDate: '', startTime: '', endDate: '', endTime: '', dayTimes: [], clash: false })
+// What the date picker says was chosen (it sends this to us): { startDate, startTime, endDate, endTime, clash }
+const when = ref({ startDate: '', startTime: '', endDate: '', endTime: '', clash: false })
 const tasks = ref([]) // the care tasks (the checklist editor sends us this list)
 const notes = ref('')
 
@@ -64,7 +63,8 @@ const chosenDays = computed(() => {
 
 // Price preview: each task's fixed price × times a day × number of days, added up
 // (same sum the server does, in utils/servicePrices.js)
-const totalPrice = computed(() => priceForTasks(tasks.value, chosenDays.value.length))
+// (no overnight stays any more: bookings only run 7am to 12am, so there are no nights to pay for)
+const totalPrice = computed(() => bookingPrice(tasks.value, chosenDays.value.length, false))
 
 // Chosen days the sitter hasn't marked as available
 const unavailableDays = computed(() => chosenDays.value.filter((d) => availability.value[d]?.status !== 'available'))
@@ -90,6 +90,7 @@ async function sendRequest() {
   const message = checkBookingRequest({
     selectedPets: selectedPets.value,
     when: when.value,
+    chosenDays: chosenDays.value,
     tasks: tasks.value,
     clash: clash.value,
     unavailableDays: unavailableDays.value
@@ -148,7 +149,7 @@ onMounted(async () => {
       <div class="fs-1">🐾</div>
       <h2 class="h5">Request sent to {{ sitter.username }}</h2>
       <p class="text-muted mb-1">
-        {{ formatBookingWhen(booking) }} · ${{ booking.totalPrice }}
+        {{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime) }} · ${{ booking.totalPrice }}
       </p>
       <p class="small">Status: <span class="badge text-bg-warning">{{ booking.status }}</span></p>
       <p v-if="booking.tasks" class="small text-muted">{{ booking.tasks }} care task{{ booking.tasks === 1 ? '' : 's' }} included</p>
@@ -214,12 +215,8 @@ onMounted(async () => {
             {{ chosenDays.length }} day{{ chosenDays.length === 1 ? '' : 's' }} booked
           </p>
 
-          <!-- Notes -->
-          <h3 class="h6 text-uppercase text-muted fw-bold">Notes to Sitter</h3>
-          <textarea v-model="notes" class="form-control" rows="4" placeholder="Feeding times, medication, walking routine…"></textarea>
-
           <!-- Care checklist -->
-          <CareChecklistEditor :pets="selectedPetList" :days="chosenDays.length" @change="tasks = $event" />
+          <CareChecklistEditor :pets="selectedPetList" :dates="chosenDays" @change="tasks = $event" />
           <!-- 
           same concept as bookingDatePicker abv 
           -->
@@ -234,21 +231,14 @@ onMounted(async () => {
           <h3 class="h6 text-uppercase text-muted fw-bold mb-3">Price Preview</h3>
           <!-- One line per task, e.g. "Walk: $20 × 2 a day × 3 days = $120" -->
           <div v-for="(t, i) in tasks" :key="i" class="d-flex justify-content-between small">
-            <span>{{ SERVICE_LABELS[t.category] }}: ${{ SERVICE_PRICES[t.category] }} × {{ t.dailyFrequency || 0 }} a day × {{ chosenDays.length }} day{{ chosenDays.length === 1 ? '' : 's' }}</span>
+            <span>{{ SERVICE_LABELS[t.category] }}: ${{ SERVICE_PRICES[t.category] }} × {{ t.dailyFrequency || 0 }} a day × {{ daysForTask(t, chosenDays.length) }} day{{ daysForTask(t, chosenDays.length) === 1 ? '' : 's' }}</span>
             <span>${{ priceForTasks([t], chosenDays.length) }}</span>
           </div>
           <p v-if="tasks.length === 0" class="small text-muted mb-1">Add a care task above to see the price.</p>
           <div class="d-flex justify-content-between small"><span>Days</span><span>{{ chosenDays.length || '–' }}</span></div>
-          <!-- Hours: one line if every day is the same, otherwise one line per day -->
-          <div v-if="when.startTime && when.endTime && !hoursVary(when)" class="d-flex justify-content-between small">
+          <div v-if="when.startTime && when.endTime" class="d-flex justify-content-between small">
             <span>Time</span><span>{{ formatTime(when.startTime) }} – {{ formatTime(when.endTime) }}{{ chosenDays.length > 1 ? ' each day' : '' }}</span>
           </div>
-          <template v-else-if="hoursVary(when)">
-            <div v-for="d in when.dayTimes" :key="d.date" class="d-flex justify-content-between small">
-              <span>{{ prettyDate(d.date) }}</span>
-              <span>{{ d.startTime && d.endTime ? `${formatTime(d.startTime)} – ${formatTime(d.endTime)}` : '–' }}</span>
-            </div>
-          </template>
           <hr />
           <div class="d-flex justify-content-between fw-bold"><span>Total</span><span>${{ totalPrice }}</span></div>
           <p class="small text-muted mt-2 mb-0">Same fixed prices for every sitter, per time a task is done: {{ PRICE_LIST_TEXT }}. You pay after the sitter has completed the booking.</p>

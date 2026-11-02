@@ -5,6 +5,7 @@ const { ObjectId } = mongoose.Schema.Types
 export const NOTIFICATION_TYPES = [
   // walks (to owners)
   'walk-off-route', 'walk-back-on-route', 'walk-ended-early',
+  'walk-back-home',      // to sitter: back at the home for a while, with the walk still going
   // bookings
   'booking-requested',   // to sitter: an owner sent a request
   'booking-request-sent', // to owner: confirmation that their request was sent
@@ -13,6 +14,9 @@ export const NOTIFICATION_TYPES = [
   'booking-declined',    // to owner
   'booking-cancelled',   // to whichever side didn't cancel
   'booking-expired',     // to owner: sitter didn't answer before the start time
+  // sessions
+  'session-unverified',  // to owner: the sitter started without passing the location check
+  'session-auto-ended',  // to both: the sitter never ended a session, so it ended itself
   // payments
   'payment-due',         // to owner: booking completed, please pay
   'payment-successful',  // to owner: receipt for their payment

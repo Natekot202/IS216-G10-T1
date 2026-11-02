@@ -16,7 +16,6 @@ import { petsApi } from '../services/api.js'
 import { matchReasons, sortByMatch } from '../utils/recommendSitters.js'
 
 const URL = 'http://localhost:5000'
-const profilePic = computed(() => currentUser.value?.profilePicture?.url || "")
 const sitterProfiles = ref([])
 const errorMsg = ref("")
 const selectedPets = ref([])
@@ -445,8 +444,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .owner-home .btn-outline-danger:hover:not(:disabled),
 .owner-home .btn-outline-danger:focus-visible:not(:disabled),
-.owner-home :deep(.filter-panel button:not(.btn-link):not(.btn-close):hover:not(:disabled)),
-.owner-home :deep(.filter-panel button:not(.btn-link):not(.btn-close):focus-visible:not(:disabled)) {
+.owner-home :deep(.filter-panel button:not(.btn-link):not(.btn-close):not(.star-button):hover:not(:disabled)),
+.owner-home :deep(.filter-panel button:not(.btn-link):not(.btn-close):not(.star-button):focus-visible:not(:disabled)) {
   background-color: var(--accent-hover) !important;
   border-color: var(--accent-hover) !important;
   color: #fff !important;

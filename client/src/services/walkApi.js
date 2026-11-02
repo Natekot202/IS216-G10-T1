@@ -37,6 +37,12 @@ export const walkApi = {
     return res.data
   },
 
+  // Back at the home for a while with the walk still going: the server notifies the sitter
+  async remindBackHome(id) {
+    const res = await api.post(`/walks/${id}/back-home`)
+    return res.data
+  },
+
   // path: [[lng, lat], ...]
   async finish(id, path) {
     const res = await api.post(`/walks/${id}/finish`, { path })

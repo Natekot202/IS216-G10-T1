@@ -1,80 +1,37 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
-import { length, lineString, simplify } from '@turf/turf'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { length, lineString } from '@turf/turf'
 import WalkMap from '../components/WalkMap.vue'
-import { useGeoTracker } from '../utils/useGeoTracker.js'
-import { useHomeCheck, HOME_RADIUS_M } from '../utils/useHomeCheck.js'
-import { useDeviationCheck, WARN_M, NOTIFY_M } from '../utils/useDeviationCheck.js'
+import { HOME_RADIUS_M } from '../utils/useHomeCheck.js'
+import { WARN_M, NOTIFY_M } from '../utils/useDeviationCheck.js'
+import {
+  position, path, accuracy, gpsError, home, metresFromHome, nearHome, hasLeftHome, deviation, trackedWalk,
+  syncError, backOnRouteMessage, sendInOrder, beginWalk, resumeWalk, endWalk, simplifiedPath, resumeTracking, startGps, stopGpsIfIdle
+} from '../utils/sessionTracker.js'
 import { walkApi } from '../services/walkApi.js'
 
 const pageRoute = useRoute()
+const router = useRouter()
 const walkId = pageRoute.params.id
 
 const walk = ref(null)        // the walk from the server
 const loadError = ref('')
 const actionError = ref('')   // start / finish / end early failed
-const syncError = ref('')     // a deviation report couldn't reach the server
 const busy = ref(false)       // waiting on start / finish / end early
-const resumed = ref(false)    // page was reloaded during the walk
+const resumed = ref(false)    // the page was reloaded during the walk and no path was saved on the phone
 
 // End early form
 const showEndEarly = ref(false)
 const endEarlyReason = ref('')
 
-// Short message after coming back on route
-const backOnRouteMessage = ref('')
-let backOnRouteTimer = null
-
 // ---- GPS, home and route checks ----
-const { position, path, accuracy, error: gpsError, start: startGps, startRecording, stopRecording } = useGeoTracker()
-
-const home = computed(() => walk.value?.home.coordinates ?? null)
-// 'instructions' walks have no route: no dashed line, and no going-off-route checks
+// The shared tracker does these (utils/sessionTracker.js), so a walk carries on if the sitter leaves this page
 const hasRoute = computed(() => walk.value?.mode !== 'instructions')
 const plannedRoute = computed(() => walk.value?.plannedPath?.coordinates ?? [])
-
-const { metresFromHome, nearHome, hasLeftHome, resetLeftHome } = useHomeCheck(position, home)
-
-const deviation = useDeviationCheck(position, plannedRoute, {
-  onWarning(location, metresOff) {
-    vibrate([200])
-    report(() => walkApi.reportDeviation(walkId, 'warning', location, Math.round(metresOff)))
-  },
-  onNotify(location, metresOff) {
-    vibrate([200, 100, 200])
-    report(() => walkApi.reportDeviation(walkId, 'notify', location, Math.round(metresOff)))
-  },
-  onBackOnRoute(location, ownerWasNotified) {
-    showBackOnRoute(ownerWasNotified
-      ? "You're back on the route. The owner has been told."
-      : "You're back on the route.")
-    report(() => walkApi.reportBackOnRoute(walkId, location))
-  }
+watch(trackedWalk, (w) => {
+  if (w?._id === walkId) walk.value = w
 })
-
-// ---- Sending reports to the server in order ----
-// Deviation reports must reach the server in the order they happened (warning before notify
-// before back on route), so each request waits for the one before it to finish.
-let lastRequest = Promise.resolve()
-function sendInOrder(request) {
-  const previous = lastRequest
-  lastRequest = (async () => {
-    try { await previous } catch { /* an earlier failure shouldn't block this one */ }
-    return await request()
-  })()
-  return lastRequest
-}
-
-// sends a deviation report; if it fails, tells the sitter but carries on with the walk
-async function report(request) {
-  try {
-    walk.value = await sendInOrder(request)
-    syncError.value = ''
-  } catch (err) {
-    syncError.value = "Couldn't reach the server, so the owner may not have been alerted. Check your connection."
-  }
-}
 
 // ---- Timer for the elapsed time ----
 const now = ref(Date.now())
@@ -82,7 +39,7 @@ const clock = setInterval(() => { now.value = Date.now() }, 1000)
 
 onBeforeUnmount(() => {
   clearInterval(clock)
-  clearTimeout(backOnRouteTimer)
+  stopGpsIfIdle()
 })
 
 // ---- Things shown on the page ----
@@ -115,20 +72,6 @@ const formatDuration = (s) => {
   return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`
 }
 
-function vibrate(pattern) {
-  navigator.vibrate?.(pattern)   // not supported on every phone (e.g. iPhones), so it's optional
-}
-
-function showBackOnRoute(message) {
-  backOnRouteMessage.value = message
-  clearTimeout(backOnRouteTimer)
-  backOnRouteTimer = setTimeout(() => { backOnRouteMessage.value = '' }, 5000)
-}
-
-// Drop points that barely change the shape (within about 2 m), so the path is smaller to send
-const simplifiedPath = () =>
-  path.value.length < 2 ? [...path.value] : simplify(lineString(path.value), { tolerance: 0.00002 }).geometry.coordinates
-
 // ---- Loading ----
 onMounted(async () => {
   try {
@@ -138,17 +81,14 @@ onMounted(async () => {
     return
   }
 
+  home.value = walk.value.home.coordinates
   if (isFinished.value) return   // just show the summary
 
+  await resumeTracking()
   startGps()
 
-  // the page was reloaded part-way through: carry on from here
-  if (isWalking.value) {
-    resumed.value = true
-    startRecording()
-    if (hasRoute.value) deviation.start()
-    hasLeftHome.value = true   // they've been out walking, so coming home should allow ending the walk
-  }
+  // back on this page, or reloaded part-way through: carry on from here
+  if (isWalking.value) resumed.value = !resumeWalk(walk.value)
 })
 
 // ---- Actions ----
@@ -157,9 +97,7 @@ async function startWalk() {
   actionError.value = ''
   try {
     walk.value = await walkApi.start(walkId, position.value)
-    resetLeftHome()
-    startRecording()
-    if (hasRoute.value) deviation.start()
+    beginWalk(walk.value)
   } catch (err) {
     actionError.value = err.response?.data?.message ?? 'Could not start the walk. Please try again.'
   } finally {
@@ -174,8 +112,7 @@ async function finishWalk() {
   actionError.value = ''
   try {
     walk.value = await sendInOrder(() => walkApi.finish(walkId, simplifiedPath()))
-    stopRecording()
-    deviation.stop()
+    endWalk()
   } catch (err) {
     actionError.value = err.response?.data?.message ?? 'Could not finish the walk. Please try again.'
   } finally {
@@ -194,8 +131,7 @@ async function endWalkEarly() {
   actionError.value = ''
   try {
     walk.value = await sendInOrder(() => walkApi.endEarly(walkId, simplifiedPath(), reason))
-    stopRecording()
-    deviation.stop()
+    endWalk()
     showEndEarly.value = false
   } catch (err) {
     actionError.value = err.response?.data?.message ?? 'Could not end the walk. Please try again.'
@@ -213,12 +149,15 @@ async function endWalkEarly() {
         {{ hasRoute ? 'Follow the dashed route.' : "No set route: follow the owner's instructions." }}
         Start and finish within {{ HOME_RADIUS_M }} m of the owner's home.
       </p>
+      <p v-if="isWalking" class="small text-body-secondary mb-0">Keep this app open: locking your phone leaves gaps in the path.</p>
     </header>
 
-    <!-- The walk task's text from the owner. For an 'instructions' walk this is the whole plan. -->
-    <div v-if="walk?.instructions" class="info-card">
+    <!-- The walk task's text from the owner, then anything they added after confirming (like where the leash is).
+         For an 'instructions' walk this is the whole plan. -->
+    <div v-if="walk?.instructions || walk?.ownerNotes" class="info-card">
       <div class="section-label">Owner's instructions</div>
       <div>{{ walk.instructions }}</div>
+      <div v-if="walk.ownerNotes" class="owner-notes">{{ walk.ownerNotes }}</div>
       <div v-if="!hasRoute" class="small text-body-secondary mt-1">
         This walk is tracked, but not checked against a route.
       </div>
@@ -371,6 +310,10 @@ async function endWalkEarly() {
 </template>
 
 <style scoped>
+.owner-notes {
+  white-space: pre-line; /* keeps the owner's line breaks */
+  overflow-wrap: anywhere;
+}
 /* PetSociety design system */
 .page-title {
   font-size: 32px;
