@@ -52,6 +52,12 @@ const position = computed(() => (props.location.state === 'blocked' ? null : pro
     <div class="live-map">
       <WalkMap :home="home" :position="position" :planned-route="plannedRoute" />
     </div>
+    <!-- which pin is which (same colours as the pins in WalkMap) -->
+    <ul class="live-legend" aria-label="Map key">
+      <li v-if="home"><span class="live-dot live-dot--home" aria-hidden="true"></span>Your home</li>
+      <li><span class="live-dot live-dot--sitter" aria-hidden="true"></span>Sitter</li>
+      <li v-if="plannedRoute.length"><span class="live-line" aria-hidden="true"></span>Planned route</li>
+    </ul>
   </section>
 </template>
 
@@ -104,5 +110,32 @@ const position = computed(() => (props.location.state === 'blocked' ? null : pro
 }
 .live-map :deep(.map) {
   min-height: 0;
+}
+.live-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: #6f6259;
+  font-size: 0.85rem;
+}
+.live-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.live-dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+}
+/* these match the pin colours set in WalkMap.vue */
+.live-dot--home { background: #2f6f62; }
+.live-dot--sitter { background: #2b2420; }
+.live-line {
+  width: 1.1rem;
+  border-top: 3px dashed #2f6f62;
 }
 </style>

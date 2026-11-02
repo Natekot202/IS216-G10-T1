@@ -7,6 +7,7 @@ import { bookingsApi } from '../services/bookingApi.js'
 import BookingTable from '../components/BookingTable.vue'
 import BookingTabs from '../components/BookingTabs.vue'
 import CancelBookingModal from '../components/CancelBookingModal.vue'
+import MessageBar from '../components/MessageBar.vue'
 
 // /sitter/requests: every booking made with this sitter, sorted into
 // To accept / Awaiting confirmation / Upcoming / Awaiting payment / Past tabs (like the tabs on the owner's My Bookings)
@@ -147,9 +148,9 @@ onMounted(loadRequests)
   <div class="br">
     <h2 class="mb-4">Booking Requests</h2>
 
-    <div v-if="error" class="alert alert-warning">{{ error }}</div>
-    <div v-if="message" class="alert alert-success">{{ message }}</div>
-    <div v-if="actionError" class="alert alert-warning">{{ actionError }}</div>
+    <MessageBar v-if="error" type="error" @close="error = ''">{{ error }}</MessageBar>
+    <MessageBar v-if="message" @close="message = ''">{{ message }}</MessageBar>
+    <MessageBar v-if="actionError" type="error" @close="actionError = ''">{{ actionError }}</MessageBar>
 
     <div v-if="loading" class="text-muted">Loading requests…</div>
 

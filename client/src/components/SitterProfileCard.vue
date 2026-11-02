@@ -18,7 +18,7 @@ const isNewSitter = computed(() => {
 <template>
     
     <div class="card">
-        <div class="card-body">
+        <div class="card-body d-flex flex-column">
             <div class="d-flex justify-content-start gap-2">
                 <img :src="sitter.profilePicture?.url || defaultAvatar"
                     class="border rounded img-fluid"
@@ -48,7 +48,10 @@ const isNewSitter = computed(() => {
             <div v-if="reasons.length" class="d-flex flex-wrap gap-2 mb-1">
                 <span v-for="r in reasons" :key="r" class="reason-tag">✓ {{ r }}</span>
             </div>
-            <slot></slot>
+            <!-- pushed to the bottom so the buttons line up when cards are the same height -->
+            <div class="mt-auto">
+                <slot></slot>
+            </div>
         </div>
     </div>
 
@@ -56,7 +59,7 @@ const isNewSitter = computed(() => {
 
 <style scoped>
 .card {
-  margin-top: 1rem;
+  height: 100%;
   border: 1px solid rgba(196, 119, 86, 0.3);
   border-top: 4px solid var(--line);    
   border-radius: 16px;

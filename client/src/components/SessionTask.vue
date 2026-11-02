@@ -17,9 +17,10 @@ const props = defineProps({
   isSitter: { type: Boolean, default: false },
   isActive: { type: Boolean, default: false }, // is today's session in progress?
   saving: { type: Boolean, default: false },
-  opening: { type: Boolean, default: false }   // this task's walk page is opening
+  opening: { type: Boolean, default: false },  // this task's walk page is opening
+  canAddDetails: { type: Boolean, default: false } // owner, before the first session: details can still be added
 })
-const emit = defineEmits(['tick', 'start-walk'])
+const emit = defineEmits(['tick', 'start-walk', 'add-details'])
 
 // A simple line drawing for each type of task
 const ICONS = {
@@ -130,7 +131,11 @@ watch(allDone, (done) => {
                     :aria-expanded="openWalkId === t.walk" @click="toggleWalk(t.walk)">View walk {{ i + 1 }}</button>
           </small>
         </template>
-        <small v-if="noDetails && !medicationWarning" class="task-line">No details added, check with the owner</small>
+        <!-- sitters are told to ask the owner; owners can add the details themselves -->
+        <small v-if="noDetails && !medicationWarning && isSitter" class="task-line">No details added, check with the owner</small>
+        <small v-else-if="noDetails && !medicationWarning" class="task-line">
+          No details yet<template v-if="canAddDetails"> · <button type="button" class="task-walk-link" @click="emit('add-details')">Add details</button></template>
+        </small>
       </div>
 
       <div class="task-controls">
@@ -172,7 +177,10 @@ watch(allDone, (done) => {
         <path d="M12 4l9 16H3zM12 10v4M12 17v.01" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round" />
       </svg>
-      No details added, check with the owner
+      <template v-if="isSitter">No details added, check with the owner</template>
+      <template v-else>
+        No details yet<template v-if="canAddDetails"> · <button type="button" class="task-walk-link" @click="emit('add-details')">Add details</button></template>
+      </template>
     </div>
 
     <template v-if="details.instructions || photos.length">
@@ -380,8 +388,9 @@ watch(allDone, (done) => {
 .task-instructions {
   margin: 0.2rem 0 0;
   padding: 0.5rem 0.65rem;
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--tint-soft);
+  background: #fff; /* white card, so it stands out from the page */
   color: #2b2420;
   font-size: 0.9rem;
   white-space: pre-line; /* keeps the owner's line breaks */

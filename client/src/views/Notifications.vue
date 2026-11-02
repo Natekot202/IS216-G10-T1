@@ -26,8 +26,8 @@ const TYPE_LABELS = {
   'walk-back-home': { text: 'End your walk', badge: 'text-bg-warning' },
   'session-unverified': { text: 'No location check', badge: 'text-bg-warning' },
   'session-auto-ended': { text: 'Session ended', badge: 'text-bg-warning' },
-  'booking-requested': { text: 'New request', badge: 'text-bg-primary' },
-  'booking-request-sent': { text: 'Request sent', badge: 'text-bg-primary' },
+  'booking-requested': { text: 'New request', badge: 'badge-theme' }, // theme colour instead of Bootstrap blue
+  'booking-request-sent': { text: 'Request sent', badge: 'badge-theme' },
   'booking-accepted': { text: 'Accepted', badge: 'text-bg-success' },
   'booking-confirmed': { text: 'Confirmed', badge: 'text-bg-success' },
   'booking-declined': { text: 'Declined', badge: 'text-bg-danger' },
@@ -139,10 +139,10 @@ async function clearAllNotifications() {
         <p class="text-body-secondary mb-0">Updates about your bookings and walks. New ones appear automatically.</p>
       </div>
       <div class="d-flex gap-3 ms-auto">
-        <button class="btn btn-link text-secondary p-0" :disabled="!hasUnread" @click="markAllRead">
+        <button type="button" class="plain-action" :disabled="!hasUnread" @click="markAllRead">
           Mark all as read
         </button>
-        <button class="btn btn-link text-danger p-0" :disabled="!notifications.length || clearing" @click="clearAllNotifications">
+        <button type="button" class="plain-action" :disabled="!notifications.length || clearing" @click="clearAllNotifications">
           {{ clearing ? 'Clearing…' : 'Clear all' }}
         </button>
       </div>
@@ -200,13 +200,14 @@ async function clearAllNotifications() {
 }
 
 /* Unread: warm tint, coral marker, dot, bold text */
+/* (colours come from the theme now: orange for owners, pink for sitters) */
 .notification.unread {
-  background: #fff4ec;
-  border-left-color: #e8692c;   /* coral marker for unread */
+  background: var(--tint-soft);
+  border-left-color: var(--accent-main);
   cursor: pointer;
 }
 .notification.unread:hover {
-  background: #fde6d6;
+  background: var(--tint);
 }
 
 /* Read: plain white, softer text */
@@ -222,8 +223,17 @@ async function clearAllNotifications() {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #e8692c;
+  background: var(--accent-main);
   flex-shrink: 0;
+}
+
+.badge-theme {
+  background: var(--accent-deep);
+  color: #fff;
+}
+
+.plain-action:disabled {
+  opacity: 0.5;
 }
 
 @media (prefers-reduced-motion: reduce) {

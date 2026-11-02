@@ -18,25 +18,24 @@ const needsLogin = computed(() =>
 </script>
 
 <template>
-    <router-link v-if="editable" class="btn btn-sm button" style="background-color:var(--accent);" to="/editProfile">
+    <!-- sits full width in the profile card, under the name and bio -->
+    <router-link v-if="editable" class="btn btn-brand w-100 button" to="/editProfile">
         Edit Details
     </router-link>
 
-    <router-link v-else-if="canRequestBooking" class="btn btn-sm button" style="background-color:var(--accent);" :to="{ path: '/bookings/new', query: { sitterId: profile._id } }">
+    <router-link v-else-if="canRequestBooking" class="btn btn-brand w-100 button" :to="{ path: '/bookings/new', query: { sitterId: profile._id } }">
         Request Booking
     </router-link>
 
-    <router-link v-else-if="needsLogin" class="btn btn-sm btn-outline-dark button" to="/login">
+    <router-link v-else-if="needsLogin" class="btn btn-brand-outline w-100 button" to="/login">
         Log in to request a booking
     </router-link>
 </template>
 
 <style scoped>
 .button {
-  padding: 0.4rem 0.95rem;
-  border: 0;
-  background: var(--accent);
-  color: #fff;
+  margin-top: 1rem;
+  padding: 0.55rem 0.95rem;
   font-weight: 600;
 }
 </style>

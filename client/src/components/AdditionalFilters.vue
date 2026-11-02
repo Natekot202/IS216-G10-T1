@@ -11,13 +11,12 @@ const open = ref(false)
 
 <template>
   <div>
-    <button class="btn btn-link" type="button"
-            style="color:brown"
+    <button class="btn btn-brand-outline btn-sm w-100 fw-semibold" type="button"
             :aria-expanded="open" aria-controls="additionalFilters"
             @click="open = !open">
-      Additional filters {{ open ? '▴' : '▾' }}
+      More filters {{ open ? '▴' : '▾' }}
     </button>
-    <div v-if="open" id="additionalFilters">
+    <div v-if="open" id="additionalFilters" class="mt-3">
       <label class="form-label fw-bold">Pet services:</label>
       <div>
         <div class="form-check form-check-inline" v-for="p in ['dog','cat','bird','rabbit','hamster']" :key="p">

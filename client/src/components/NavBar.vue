@@ -11,13 +11,22 @@ const router = useRouter()
 
 const hideElem = computed(() => route.meta.hideElem === true)
 const searchLink = computed(() => (currentUser.value ? '/home' : '/browse'))
-const searchLabel = computed(() => (currentUser.value?.role === 'sitter' ? '🏠︎ Home' : '🔍︎ Search Sitters'))
+// icon and text are split so every icon sits in the same fixed-width column
+const searchIcon = computed(() => (currentUser.value?.role === 'sitter' ? '🏠︎' : '🔍︎'))
+const searchLabel = computed(() => (currentUser.value?.role === 'sitter' ? 'Home' : 'Search Sitters'))
 
-// open = off-canvas below lg, profile dropdown at lg and up
+// open = page menu from the left button (off-canvas below lg, dropdown at lg and up)
 const open = ref(false);
+// accountOpen = the small dropdown beside the avatar that holds Log out
+const accountOpen = ref(false)
+
+const menuEl = ref(null)
+const menuBtnEl = ref(null)
+const accountEl = ref(null)
 
 watch(() => route.fullPath, () => {
   open.value = false;
+  accountOpen.value = false
 });
 
 // Only the off-canvas locks page scroll; the desktop dropdown doesn't
@@ -25,9 +34,30 @@ watch(open, (isOpen) => {
   document.body.style.overflow = isOpen && window.innerWidth < 992 ? 'hidden' : ''
 })
 
+function toggleMenu() {
+  open.value = !open.value
+  accountOpen.value = false
+}
+
+function toggleAccount() {
+  accountOpen.value = !accountOpen.value
+  open.value = false
+}
+
 function onKey(e) {
   if (e.key === 'Escape') {
     open.value = false
+    accountOpen.value = false
+  }
+}
+
+// clicking anywhere outside a dropdown closes it
+function onDocClick(e) {
+  if (open.value && !menuEl.value?.contains(e.target) && !menuBtnEl.value?.contains(e.target)) {
+    open.value = false
+  }
+  if (accountOpen.value && !accountEl.value?.contains(e.target)) {
+    accountOpen.value = false
   }
 }
 
@@ -49,6 +79,7 @@ watch(() => currentUser.value?.role, (role) => {
 onMounted(() => {
   window.addEventListener('keydown', onKey)
   window.addEventListener('resize', onResize)
+  document.addEventListener('click', onDocClick)
 })
 
 
@@ -56,11 +87,13 @@ onBeforeUnmount(() => {
   stopCheckingUnread()
   window.removeEventListener('keydown', onKey)
   window.removeEventListener('resize', onResize)
+  document.removeEventListener('click', onDocClick)
   document.body.style.overflow = ''
 })
 
 async function handleLogout() {
   open.value = false
+  accountOpen.value = false
   await logout();
   router.push("/");
 }
@@ -68,19 +101,14 @@ async function handleLogout() {
 </script>
 
 <template>
-  <nav class="topbar navbar navbar-expand-lg navbar-dark">
+  <nav class="topbar navbar navbar-dark">
     <div class="container-fluid">
-      <button v-if="!hideElem" class="navbar-toggler" type="button" aria-label="Open menu"
-              :aria-expanded="open" @click="open = !open">
-        <span class="navbar-toggler-icon"></span>
+      <!-- page links open from this button on the left, at every width -->
+      <button v-if="!hideElem" ref="menuBtnEl" class="nav-menu-btn" type="button" aria-label="Open menu"
+              aria-haspopup="true" :aria-expanded="open" @click="toggleMenu">
+        <span aria-hidden="true">☰</span>
+        <span class="d-none d-sm-inline">Menu</span>
       </button>
-
-      <!-- lg and up: Search Sitters sits on the left of the bar -->
-      <ul v-if="!hideElem" class="navbar-nav nav-search d-none d-lg-flex">
-        <li class="nav-item">
-          <router-link class="nav-link" :to="searchLink">{{ searchLabel }}</router-link>
-        </li>
-      </ul>
 
       <router-link class="navbar-brand" to="/">
         PetSociety
@@ -89,23 +117,25 @@ async function handleLogout() {
         <div v-if="open" class="nav-backdrop" @click="open = false">
         </div>
 
-        <!-- below lg: off-canvas. lg and up: dropdown under the profile button (logged in only) -->
-        <div class="nav-menu" :class="{ 'nav-menu--open': open, 'nav-menu--guest': !currentUser }">
+        <!-- below lg: off-canvas. lg and up: dropdown under the menu button -->
+        <div ref="menuEl" class="nav-menu" :class="{ 'nav-menu--open': open }">
           <button type="button" class="btn-close btn-close-white d-lg-none ms-auto mb-3"
                   aria-label="Close menu" @click="open = false">
           </button>
           <ul class="navbar-nav">
-            <li class="nav-item d-lg-none">
-              <router-link class="nav-link" :to="searchLink">{{ searchLabel }}</router-link>
+            <li class="nav-item">
+              <router-link class="nav-link" :to="searchLink">
+                <span class="nav-icon" aria-hidden="true">{{ searchIcon }}</span>{{ searchLabel }}
+              </router-link>
             </li>
             <li v-if="currentUser?.role === 'owner'" class="nav-item">
-              <router-link class="nav-link" to="/owner/bookings">🗒 My Bookings</router-link>
+              <router-link class="nav-link" to="/owner/bookings"><span class="nav-icon" aria-hidden="true">🗒</span>My Bookings</router-link>
             </li>
             <li v-if="currentUser" class="nav-item">
-              <router-link class="nav-link" to="/session">𓃠 Session</router-link>
+              <router-link class="nav-link" to="/session"><span class="nav-icon" aria-hidden="true">𓃠</span>Session</router-link>
             </li>
             <li v-if="currentUser?.role === 'owner'" class="nav-item">
-              <router-link class="nav-link" to="/owner/routes">🏞 My Routes</router-link>
+              <router-link class="nav-link" to="/owner/routes"><span class="nav-icon" aria-hidden="true">🏞</span>My Routes</router-link>
             </li>
             <!-- <li v-if="currentUser?.role === 'owner' && !hideElem" class="nav-item">
               <router-link class="nav-link d-flex align-items-center gap-1" to="/notifications"
@@ -115,43 +145,41 @@ async function handleLogout() {
               </router-link>
             </li> -->
             <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
-              <router-link class="nav-link" to="/sitter/calendar">𝄜 Calendar</router-link>
+              <router-link class="nav-link" to="/sitter/calendar"><span class="nav-icon" aria-hidden="true">𝄜</span>Calendar</router-link>
             </li>
             <li v-if="currentUser?.role === 'sitter'" class="nav-item">
-              <router-link class="nav-link" to="/sitter/requests">✉︎ Booking Requests</router-link>
+              <router-link class="nav-link" to="/sitter/requests"><span class="nav-icon" aria-hidden="true">✉︎</span>Booking Requests</router-link>
             </li>
             <li v-if="currentUser?.role === 'sitter'" class="nav-item">
-              <router-link class="nav-link" to="/sitter/transactions">⛁ Transactions</router-link>
+              <router-link class="nav-link" to="/sitter/transactions"><span class="nav-icon" aria-hidden="true">⛁</span>Transactions</router-link>
             </li>
           </ul>
-
-          <!-- Profile + log out: bottom of the off-canvas, bottom of the dropdown -->
-          <div v-if="currentUser" class="nav-account">
-            <router-link to="/profile" class="nav-user" aria-label="Your profile">
-              <span class="nav-user__avatar" aria-hidden="true">
-                <img v-if="currentUser.profilePicture?.url" :src="currentUser.profilePicture.url" alt="" />
-                <template v-else>{{ currentUser.username.charAt(0).toUpperCase() }}</template>
-              </span>
-              <span class="nav-user__name">{{ currentUser.username }}</span>
-            </router-link>
-            <button class="btn nav-btn" @click="handleLogout">Log out</button>
-          </div>
         </div>
 
         <div class="nav-action">
           <!-- Bell: visible at every width -->
           <NotificationIcon v-if="currentUser" :count="unreadCount" />
 
-          <!-- Profile button: md and up. Opens the off-canvas below lg, the dropdown at lg and up -->
-          <button v-if="currentUser" type="button" class="nav-user nav-user--toggle d-none d-md-flex"
-                  aria-label="Account menu" aria-haspopup="true" :aria-expanded="open" @click="open = !open">
-            <span class="nav-user__avatar" aria-hidden="true">
-              <img v-if="currentUser.profilePicture?.url" :src="currentUser.profilePicture.url" alt="" />
-              <template v-else>{{ currentUser.username.charAt(0).toUpperCase() }}</template>
-            </span>
-            <span class="nav-user__name d-none d-lg-inline">{{ currentUser.username }}</span>
-            <span class="nav-user__caret d-none d-lg-inline" aria-hidden="true">▾</span>
-          </button>
+          <!-- one button (avatar + name + caret) opens a dropdown with Profile and Log out -->
+          <div v-if="currentUser" ref="accountEl" class="nav-account">
+            <button type="button" class="nav-user nav-user--toggle" aria-label="Account menu" aria-haspopup="true"
+                    :aria-expanded="accountOpen" @click="toggleAccount">
+              <span class="nav-user__avatar" aria-hidden="true">
+                <img v-if="currentUser.profilePicture?.url" :src="currentUser.profilePicture.url" alt="" />
+                <template v-else>{{ currentUser.username.charAt(0).toUpperCase() }}</template>
+              </span>
+              <span class="nav-user__name d-none d-sm-inline">{{ currentUser.username }}</span>
+              <span class="nav-user__caret" aria-hidden="true">▾</span>
+            </button>
+            <div v-if="accountOpen" class="nav-account-menu">
+              <router-link to="/profile" class="nav-link">
+                <span class="nav-icon" aria-hidden="true">☺︎</span>Profile
+              </router-link>
+              <button type="button" class="nav-link" @click="handleLogout">
+                <span class="nav-icon" aria-hidden="true">↪</span>Log out
+              </button>
+            </div>
+          </div>
 
           <router-link v-if="!currentUser" class="btn nav-btn" to="/login">Log in</router-link>
         </div>

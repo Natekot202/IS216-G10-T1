@@ -9,6 +9,7 @@ import { currentUser, fetchUser } from '../services/auth.js'
 import BookingTable from '../components/BookingTable.vue'
 import BookingTabs from '../components/BookingTabs.vue'
 import CancelBookingModal from '../components/CancelBookingModal.vue'
+import MessageBar from '../components/MessageBar.vue'
 
 const TABS = [
   { key: 'pending', label: 'Pending', statuses: ['pending'] },
@@ -139,14 +140,18 @@ onMounted(loadBookings)
 
 <template>
   <div class="ob">
-    <h2 class="mb-4">My Bookings</h2>
+    <!-- title, with the "+ Book a sitter" button always on the right -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+      <h2 class="mb-0">My Bookings</h2>
+      <router-link to="/home" class="btn btn-brand fw-semibold">+ Book a sitter</router-link>
+    </div>
 
-    <div v-if="error" class="alert alert-warning">{{ error }}</div>
+    <MessageBar v-if="error" type="error" @close="error = ''">{{ error }}</MessageBar>
     <div v-else-if="loading" class="text-muted">Loading your bookings…</div>
 
     <template v-else>
-      <div v-if="message" class="alert alert-success">{{ message }}</div>
-      <div v-if="actionError" class="alert alert-warning">{{ actionError }}</div>
+      <MessageBar v-if="message" @close="message = ''">{{ message }}</MessageBar>
+      <MessageBar v-if="actionError" type="error" @close="actionError = ''">{{ actionError }}</MessageBar>
 
       <BookingTabs :tabs="tabsWithCounts" :active-tab="activeTab" @select="selectTab" />
 

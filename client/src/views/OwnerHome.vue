@@ -173,13 +173,13 @@ const activeFilters = computed(() => {
     clear: () => { userRating.value = 0 }
   })
 
-  if (showRecommended.value) chips.push({
-    key: 'recommended', label: 'Recommended for me',
-    clear: () => { showRecommended.value = false }
-  })
+  // "Recommended for me" has no chip: its own button turns it off
 
   return chips
 })
+
+// any filter on, including "Recommended for me" (Clear all is hidden otherwise)
+const hasFilters = computed(() => activeFilters.value.length > 0 || showRecommended.value)
 
 function clearFilters(){
   selectedPets.value=[]
@@ -347,27 +347,24 @@ onBeforeUnmount(() => {
           <input type="text" v-model="searchKey" placeholder="Search by sitter name" class="form-control">
         </div>
 
-        <!-- the sitter count, and (owners only) the "Recommended for me" on/off button -->
+        <!-- the sitter count, (owners only) the "Recommended for me" on/off button, then the active filter chips -->
         <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
           <span class="text-secondary">{{ searchResults.length }} sitters</span>
           <button v-if="isOwner" type="button" class="rec-btn" :class="{ 'rec-btn--on': showRecommended }"
                   :aria-pressed="showRecommended" @click="showRecommended = !showRecommended">
-            ✨ Recommended for me
+            ✨ Recommended for me <span v-if="showRecommended" aria-hidden="true">✕</span>
           </button>
+          <button v-for="f in activeFilters" :key="f.key" type="button"
+                  class="filter-chip"
+                  :aria-label="`Remove filter: ${f.label}`" @click="f.clear">
+            {{ f.label }} <span aria-hidden="true">✕</span>
+          </button>
+          <button v-if="hasFilters" type="button" class="plain-action" @click="clearFilters">Clear all</button>
         </div>
         <!-- on, but nothing to match on yet -->
         <div v-if="showRecommended && !canRecommend" class="rec-note mb-2">
           We don't know what your pets need yet. Add your pets and pick <strong>Services I need</strong> in
           <router-link to="/editProfile">Edit Profile</router-link>, then try again.
-        </div>
-        <div v-if="activeFilters.length" class="d-flex flex-wrap align-items-center gap-2 mb-2">
-          <button v-for="f in activeFilters" :key="f.key" type="button"
-                  class="btn btn-outline-danger rounded-pill bg-light text-truncate"
-                  style="max-width: 100%"
-                  :aria-label="`Remove filter: ${f.label}`" @click="f.clear">
-            {{ f.label }} <span aria-hidden="true">✕</span>
-          </button>
-          <button type="button" class="btn btn-link btn-sm" @click="clearFilters">Clear all</button>
         </div>
       </div>
 
@@ -377,7 +374,7 @@ onBeforeUnmount(() => {
         <div class="col-md-4 col-lg-2">
 
           <!-- filter panel  -->
-          <FilterPanel :result-count="searchResults.length" @clear="clearFilters" :activeFilters="activeFilters">
+          <FilterPanel :result-count="searchResults.length" @clear="clearFilters" :activeFilters="activeFilters" :has-filters="hasFilters">
             <LocationQuery
               v-model:location-query="locationQuery"
               :location-suggestions="locationSuggestions"
@@ -396,13 +393,13 @@ onBeforeUnmount(() => {
         <div class="col-md-8 col-lg-5">
 
           <div class="d-flex align-items-center gap-2 mb-2">
-            <button type="button" class="btn btn-outline-danger fw-bold flex-fill d-md-none bg-white"
+            <button type="button" class="btn btn-brand-outline btn-sm fw-bold flex-fill d-md-none"
               data-bs-toggle="offcanvas"
               data-bs-target="#offcanvasBottom"
               aria-controls="offcanvasBottom">
               ⫶☰ Filters
             </button>
-            <button type="button" class="btn btn-outline-danger bg-white fw-bold flex-fill flex-md-grow-0 ms-md-auto d-lg-none"
+            <button type="button" class="btn btn-brand-outline btn-sm fw-bold flex-fill flex-md-grow-0 ms-md-auto d-lg-none"
                 @click="showMapModal = true">
               🗺 Show map
             </button>
@@ -413,10 +410,11 @@ onBeforeUnmount(() => {
             No sitters match what your pets need yet. Turn this off to see everyone.
           </p>
 
-          <div ref="listEl" class="row" :class="{ 'rec-dim': showRecommended && !canRecommend }">
-            <div class="col-12 mb-3" v-for="sitter in pagedSitters" :key="sitter._id">
+          <!-- grid with equal rows, so every card is as tall as the tallest one on the page -->
+          <div ref="listEl" class="sitter-list" :class="{ 'rec-dim': showRecommended && !canRecommend }">
+            <div v-for="sitter in pagedSitters" :key="sitter._id">
               <SitterProfileCard :sitter="sitter" :reasons="sitter.match?.reasons || []">
-                <router-link :to="`/users/${sitter._id}`" class="btn btn-outline-danger rounded col-12 fw-semibold bg-light mt-3">View Profile</router-link>
+                <router-link :to="`/users/${sitter._id}`" class="btn btn-brand-outline rounded col-12 fw-semibold mt-3">View Profile</router-link>
               </SitterProfileCard>
             </div>
           </div>
@@ -431,7 +429,8 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <!-- map popup below lg -->
+      <!-- map popup below lg (tap the dimmed part to close it) -->
+      <div v-if="showMapModal" class="map-backdrop" @click="showMapModal = false"></div>
       <div v-if="showMapModal" class="map-modal" role="dialog" aria-modal="true" aria-label="Map of sitters">
         <button type="button" class="map-close" aria-label="Close map" @click="showMapModal = false">✕</button>
         <SitterMap :profiles="searchResults" :origin="origin" :userLocation="userLocation" />
@@ -444,8 +443,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .owner-home .btn-outline-danger:hover:not(:disabled),
 .owner-home .btn-outline-danger:focus-visible:not(:disabled),
-.owner-home :deep(.filter-panel button:not(.btn-link):not(.btn-close):not(.star-button):hover:not(:disabled)),
-.owner-home :deep(.filter-panel button:not(.btn-link):not(.btn-close):not(.star-button):focus-visible:not(:disabled)) {
+.owner-home :deep(.filter-panel button:not(.btn-link):not(.btn-close):not(.star-button):not(.filter-chip):not(.plain-action):hover:not(:disabled)),
+.owner-home :deep(.filter-panel button:not(.btn-link):not(.btn-close):not(.star-button):not(.filter-chip):not(.plain-action):focus-visible:not(:disabled)) {
   background-color: var(--accent-hover) !important;
   border-color: var(--accent-hover) !important;
   color: #fff !important;
@@ -486,6 +485,19 @@ onBeforeUnmount(() => {
 }
 .rec-dim { opacity: 0.5; } /* the full list stays underneath, faded */
 
+.sitter-list {
+  display: grid;
+  grid-auto-rows: 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* phones: a little more room from the page edges */
+@media (max-width: 767.98px) {
+  .owner-home { padding-inline: 1rem; }
+}
+
 .map-panel {
   position: sticky;
   top: 7vh;
@@ -496,12 +508,20 @@ onBeforeUnmount(() => {
 
 .map-modal {
   position: fixed;
-  inset: .5rem;
+  left: .5rem;
+  right: .5rem;
+  bottom: .5rem;
+  height: 75vh;                        /* a large card, not the whole screen */
   z-index: 1060;                       /* above Bootstrap's offcanvas (1045) */
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
   background: #fff;
-  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .5);   /* backdrop without an extra element */
+}
+.map-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1059;
+  background: rgba(0, 0, 0, .5);
 }
 .map-close {
   position: absolute; top: .75rem; right: .75rem; z-index: 1100;   /* Leaflet controls sit at 1000 */
