@@ -86,3 +86,29 @@ IS216-G10-T1/
 - This starter is intentionally minimal so the team can build actual
   PetSociety features (auth, adoption listings, etc.) on top of a working
   foundation.
+
+## Testing (End-to-End, Playwright)
+
+### Setup (once)
+1. Make sure `server/.env` has `MONGO_URI` (and `STRIPE_SECRET_KEY` for the payment test).
+2. `cd e2e && pnpm install && pnpm exec playwright install chromium`
+
+### Run
+```bash
+cd e2e
+pnpm playwright test            # resets test data with `pnpm seed`, starts client + server, runs all tests
+pnpm exec playwright show-report
+```
+
+### Test accounts (created by the seed, password `Password123!`)
+- Owner: seed.owner@petsociety.com
+- Sitter: seed.sitter@petsociety.com
+- Sitter 2: seed.sitter2@petsociety.com
+
+### Test cases
+| ID | Journey | File |
+|---|---|---|
+| TC-01 | Valid login → Home | tests/auth.spec.js |
+| … | … | … |
+
+Notes: tests run one at a time (shared database). The Stripe test stops at the redirect to Stripe Checkout (test mode, no real money).
