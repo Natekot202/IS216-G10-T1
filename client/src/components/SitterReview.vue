@@ -108,6 +108,17 @@ async function loadReviews(id) {
   }
 }
 
+// new review badge 
+const NEW_DAYS = 7
+
+function isNew(review) {
+  if (!review.createdAt) {
+    return false          
+  }
+  const age = Date.now() - new Date(review.createdAt).getTime()
+  return age >= 0 && age <= NEW_DAYS * 24 * 60 * 60 * 1000
+}
+
 watch(() => props.sitterId, (id) => {
   if (id) {
     loadReviews(id)
@@ -213,6 +224,7 @@ watch([ratingFilter, commentsOnly, sortBy], () => {
                   <td class="sr-td sr-td--date">
                     <time v-if="r.createdAt" :datetime="r.createdAt">{{ formatDate(r.createdAt) }}</time>
                     <span v-else class="sr-none">–</span>
+                    <span v-if="isNew(r)" class="sr-new">New</span>
                   </td>
                 </tr>
               </tbody>
@@ -254,6 +266,12 @@ watch([ratingFilter, commentsOnly, sortBy], () => {
 }
 .sr-layout--solo {
   grid-template-columns: minmax(0, 1fr);
+}
+@media (max-width: 991.98px) {
+  .sr-layout {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
 }
 @media (max-width: 767.98px) {
   .sr-layout {
@@ -326,7 +344,7 @@ watch([ratingFilter, commentsOnly, sortBy], () => {
   width: 8.5rem;
 }
 .sr-th--date {
-  width: 7.5rem;
+  width: 10.5rem;
 }
 
 .sr-row {
@@ -339,12 +357,15 @@ watch([ratingFilter, commentsOnly, sortBy], () => {
   overflow-wrap: anywhere;
 }
 .sr-td--rating,
-.sr-td--date {
+.sr-td--date time {
   white-space: nowrap;
 }
 .sr-td--date {
   font-size: 0.9rem;
   color: #5c524b;
+}
+.sr-td--date .sr-new {
+  margin-left: 0.4rem;
 }
 .sr-stars {
   color: var(--accent-deep);
@@ -380,6 +401,7 @@ watch([ratingFilter, commentsOnly, sortBy], () => {
   object-fit: cover;
 }
 .sr-by__link {
+  min-width: 5ch;              
   color: inherit;
   font-weight: 600;
   text-decoration: none;
@@ -423,10 +445,15 @@ watch([ratingFilter, commentsOnly, sortBy], () => {
       'comment comment';
     gap: 0.35rem 0.75rem;
     align-items: center;
-    padding: 0.85rem 0.25rem;
+    padding: 0.85rem 0.25rem 1rem;
+  }
+  .sr-table .sr-td--date {
+    grid-area: date;
+    justify-self: end;
+    text-align: right;
   }
   .sr-table .sr-row:first-child {
-    border-top: 0;
+    padding: 0.85rem 0.25rem 1rem; 
   }
 
   .sr-table .sr-td {
@@ -438,7 +465,8 @@ watch([ratingFilter, commentsOnly, sortBy], () => {
     grid-area: by;
   }
   .sr-table .sr-td--date {
-    grid-area: date;
+  justify-self: end;
+  text-align: right;
   }
   .sr-table .sr-td--rating {
     grid-area: rating;
@@ -446,5 +474,19 @@ watch([ratingFilter, commentsOnly, sortBy], () => {
   .sr-table .sr-td--comment {
     grid-area: comment;
   }
+}
+.sr-new {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: var(--accent-main);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+  position: relative;
+  top: -0.1rem;    
 }
 </style>

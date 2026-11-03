@@ -149,7 +149,7 @@ onBeforeUnmount(removePositionListeners)
             </div>
             <div class="d-flex justify-content-between align-items-center mt-3">
                 <button type="button" class="btn btn-outline-secondary btn-sm" @click="clearAvailabilityDates">Clear days</button>
-                <button type="button" class="btn btn-primary btn-sm apply-days" :disabled="!draftFrom || !draftTo" @click="confirmAvailabilityDates">Confirm dates</button>
+                <button type="button" class="btn btn-brand btn-sm apply-days" :disabled="!draftFrom || !draftTo" @click="confirmAvailabilityDates">Confirm dates</button>
             </div>
         </div>
         </Teleport>

@@ -17,6 +17,7 @@ import { reviewsApi } from '../services/api.js'
 import ReviewForm from '../components/ReviewForm.vue'
 import { prettyDate } from '../utils/bookingTimeHelpers.js'
 import { confirmDialog } from '../utils/useConfirm.js'
+import BackButton from '../components/BackButton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -30,16 +31,6 @@ const message = ref('')
 const busy = ref(false)
 
 const isSitter = computed(() => currentUser.value?.role === 'sitter')
-
-function goBack() {
-  if (window.history.state?.back) {
-    router.back()
-  } else {
-    router.push(currentUser.value ? '/home' : '/browse')
-  }
-}
-
-const backText = computed(() => (isSitter.value ? 'Back to Booking Requests' : 'Back to My Bookings'))
 
 // the person on the other side of the booking
 const person = computed(() => (isSitter.value ? booking.value.ownerId : booking.value.sitterId))
@@ -220,17 +211,12 @@ onMounted(async () => {
   }
 })
 // checks if the user is logged in , then gets their booking and careTasks
+
 </script>
 
 <template>
   <div class="detail-wrap">
-    <button type="button" class="pf-back" @click="goBack">
-      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-        <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-      {{ backText }}
-    </button>
+    <BackButton label="Back" :fallback="isSitter ? '/sitter/requests' : '/owner/bookings'" />
 
     <div v-if="loading" class="text-muted mt-3">Loading this booking…</div>
     <div v-else-if="error" class="alert alert-warning mt-3">{{ error }}</div>

@@ -1,20 +1,43 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { currentUser } from '../services/auth.js'
+import { availabilityApi } from '../services/availabilityApi.js'
+
+const hasDate = ref(null)   
+function sgtDay(value) {
+  return new Date(value).toLocaleDateString('en-CA', { timeZone: 'Asia/Singapore' })
+}
+
+onMounted(async () => {
+  if (currentUser.value?.role !== 'sitter') {
+    return
+  }
+  try {
+    const days = await availabilityApi.getMine()
+    const today = sgtDay(new Date())
+    hasDate.value = days.some((d) => d.status === 'available' && sgtDay(d.date) >= today)
+  } catch (err) {
+    console.warn('Could not check availability', err)
+    hasDate.value = false
+  }
+})
 
 const steps = computed(() => {
   const u = currentUser.value
   const sp = u?.sitterProfile || {}
   return [
-    { key: 'area', text: 'Add your address and service area', ok: !!sp.serviceArea?.label },
-    { key: 'pets', text: 'Choose the pets you look after', ok: !!sp.petTypes?.length },
-    { key: 'services', text: 'Choose the services you offer', ok: !!sp.services?.length }
+    { key: 'area', text: 'Add your address and service area', ok: !!sp.serviceArea?.label, group: 'profile' },
+    { key: 'pets', text: 'Choose the pets you look after', ok: !!sp.petTypes?.length, group: 'profile' },
+    { key: 'services', text: 'Choose the services you offer', ok: !!sp.services?.length, group: 'profile' },
+    { key: 'calendar', text: 'Add an available date to your calendar', ok: hasDate.value === true, group: 'calendar' }
   ]
 })
 
 const doneCount = computed(() => steps.value.filter((s) => s.ok).length)
+const profileMissing = computed(() => steps.value.some((s) => s.group === 'profile' && !s.ok))
+const calendarMissing = computed(() => steps.value.some((s) => s.group === 'calendar' && !s.ok))
 const show = computed(
-  () => currentUser.value?.role === 'sitter' && steps.value.some((s) => !s.ok)
+  () => currentUser.value?.role === 'sitter' && hasDate.value !== null && steps.value.some((s) => !s.ok)
 )
 </script>
 
@@ -40,7 +63,11 @@ const show = computed(
       </li>
     </ul>
 
-    <router-link to="/editProfile" class="pc-btn">Complete my profile</router-link>
+    <p class="pc-actions__label">Complete your profile</p>
+    <div class="pc-actions">
+      <router-link v-if="profileMissing" to="/editProfile" class="pc-btn">Edit profile</router-link>
+      <router-link v-if="calendarMissing" to="/sitter/calendar" class="pc-btn pc-btn--outline">Go to calendar</router-link>
+    </div>
   </section>
 </template>
 
@@ -127,6 +154,25 @@ const show = computed(
 .pc-opt {
   font-size: 0.75rem;
   color: #5c524b;
+}
+.pc-actions__label {
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+  color: #2b2420;
+}
+.pc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.pc-btn--outline {
+  border: 1px solid var(--accent);
+  background: #fff;
+  color: var(--accent);
+}
+.pc-btn--outline:hover {
+  background: var(--tint-soft);
+  color: var(--accent-hover);
 }
 .pc-btn {
   display: inline-block;

@@ -137,7 +137,7 @@ function reRecord(walkRoute) {
             <form v-if="renamingId === walkRoute._id" class="d-flex gap-2" @submit.prevent="saveRename(walkRoute)" @click.stop>
               <input v-model="newName" class="form-control form-control-sm" maxlength="60" aria-label="Route name" />
               <button type="button" class="btn btn-sm bg-white border" @click="renamingId = null">Cancel</button>
-              <button type="submit" class="btn btn-sm btn-primary" :disabled="busyId === walkRoute._id">Save</button>
+              <button type="submit" class="btn btn-sm btn-brand" :disabled="busyId === walkRoute._id">Save</button>
             </form>
             <h2 v-else class="card-heading mb-1">{{ walkRoute.name }}</h2>
 

@@ -13,6 +13,7 @@ import { availabilityApi } from '../services/availabilityApi.js'
 import { usersApi, petsApi } from '../services/api.js'
 import BookingDatePicker from '../components/BookingDatePicker.vue'
 import CareChecklistEditor from '../components/CareChecklistEditor.vue'
+import BackButton from '../components/BackButton.vue'
 
 const route = useRoute()
 const sitterId = route.query.sitterId // from the URL: /bookings/new?sitterId=...
@@ -139,6 +140,8 @@ onMounted(async () => {
 <template>
   <div class="nbr">
   <h1 class="h3 fw-bold mb-3">New Booking Request</h1>
+
+  <BackButton label="Back"></BackButton>
 
   <div v-if="loadError" class="alert alert-danger">{{ loadError }}</div>
 

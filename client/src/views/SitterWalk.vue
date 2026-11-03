@@ -245,16 +245,16 @@ async function endWalkEarly() {
         </template>
 
         <div class="ms-auto d-flex gap-2">
-          <button v-if="status === 'ready'" class="btn btn-primary" :disabled="!nearHome || busy" @click="startWalk">
+          <button v-if="status === 'ready'" class="btn btn-brand" :disabled="!nearHome || busy" @click="startWalk">
             {{ busy ? 'Starting…' : 'Start walk' }}
           </button>
           <template v-else-if="isWalking && !showEndEarly">
             <button class="btn bg-white border" :disabled="busy" @click="showEndEarly = true">End early</button>
-            <button class="btn btn-primary" :disabled="!(hasLeftHome && nearHome) || busy" @click="finishWalk">
+            <button class="btn btn-brand" :disabled="!(hasLeftHome && nearHome) || busy" @click="finishWalk">
               {{ busy ? 'Saving…' : 'End walk' }}
             </button>
           </template>
-          <router-link v-else-if="isFinished" to="/session" class="btn btn-primary">Back to session</router-link>
+          <router-link v-else-if="isFinished" to="/session" class="btn btn-brand">Back to session</router-link>
         </div>
       </div>
 
