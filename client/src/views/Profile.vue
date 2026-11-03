@@ -7,6 +7,8 @@ import OwnerDetails from '../components/OwnerDetails.vue'
 import SitterDetails from '../components/SitterDetails.vue'
 import { usersApi } from '../services/api.js'
 import SitterReviews from '../components/SitterReview.vue'
+import { useGoBack } from '../utils/backButton.js';
+import BackButton from '../components/BackButton.vue';
 
 const route = useRoute()
 const router = useRouter()
@@ -14,13 +16,7 @@ const profile = ref(null)
 const error = ref('')
 const isMine = computed(() => !route.params.id || route.params.id === currentUser.value?._id)
 
-function goBack() {
-  if (window.history.state?.back) {
-    router.back()
-  } else {
-    router.push(currentUser.value ? '/home' : '/browse')
-  }
-}
+const { goBack } = useGoBack()  
 
 async function load() {
   error.value = ''
@@ -47,14 +43,7 @@ onMounted(() => {
   <div class="pf">
   
     <!-- to go back (for when viewing another person's profile) -->
-    <button v-if="!isMine" type="button" class="pf-back" @click="goBack">
-      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-        <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-      Back
-    </button>
-
+    <BackButton v-if="!isMine" label="Back" />
     <div v-if="error" class="alert alert-warning">{{ error }}</div>
 
     <template v-else-if="profile">

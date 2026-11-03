@@ -8,6 +8,7 @@ import { usePhotoPicker } from '../utils/usePhotoPicker.js'
 import LocationQuery from '../components/LocationQuery.vue'
 import { useLocationSearch } from '../utils/useLocationSearch.js'
 import { confirmDialog } from '../utils/useConfirm.js'
+import BackButton from '../components/BackButton.vue'
 
 const router = useRouter()
 
@@ -265,7 +266,7 @@ async function save() {
 <template>
   <div v-if="currentUser" class="mx-auto mt-4 mb-4 px-2" style="max-width: 1100px">
     <h3 class="border-bottom pb-2 mb-4">Edit profile</h3>
-
+    <BackButton label="Back"></BackButton>
     <form @submit.prevent="save">
       <div class="row g-4">
         <!-- side column: private -->

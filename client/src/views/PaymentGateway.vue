@@ -9,7 +9,7 @@ import { currentUser } from '../services/auth.js'
 import { sendPaymentNotification } from '../utils/sendNotification.js'
 import { petNames, formatPrice, formatBookingWhen, formatDateRange } from '../utils/bookingHelpers.js'
 import { SERVICE_PRICES, SERVICE_LABELS, priceForTasks, daysForTask } from '../utils/servicePrices.js'
-
+import BackButton from '../components/BackButton.vue'
 const route = useRoute()
 const router = useRouter()
 
@@ -21,14 +21,6 @@ const loadError = ref('')
 const paying = ref(false) // true while we are getting the Stripe link
 const payError = ref('')
 const receipt = ref(null) // the successful payment, once paid
-
-function goBack() {
-  if (window.history.state?.back) {
-    router.back()
-  } else {
-    router.push(currentUser.value ? '/home' : '/browse')
-  }
-}
 
 // Number of days in the booking (start and end day both count)
 const days = computed(() => {
@@ -95,13 +87,7 @@ async function pay() {
 
 <template>
   <div class="pay">
-    <button type="button" class="pf-back" @click="goBack">
-      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-        <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-      Back to My Bookings
-    </button>
+    <BackButton label="Back to bookings"></BackButton>
 
     <h2 class="mt-3 mb-4">Payment</h2>
 

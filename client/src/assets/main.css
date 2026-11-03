@@ -79,6 +79,9 @@ body {
   margin: 0;
   white-space: nowrap;
   font-size: clamp(0.95rem, 0.55rem + 2vw, 2rem); /* about 15px at 320px, 20px at 560px, 2rem on big screens */
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 /* menu button on the left of the bar */
@@ -443,27 +446,6 @@ body {
   letter-spacing: -0.01em;
   margin-bottom: 0;
 }
-.pf-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin-bottom: 0.75rem;
-  padding: 0.25rem 0.75rem 0.25rem 0.4rem;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: #5c524b;
-  font-weight: 600;
-  transition: background 0.2s, color 0.2s;
-}
-.pf-back:hover {
-  background: rgba(196, 119, 86, 0.16);
-  color: #2b2420;
-}
-.pf-back:focus-visible {
-  outline: 2px solid var(--accent-deep);
-  outline-offset: 2px;
-}
  
 /* gutters for the navbar, so Log out stops touching the edge */
 .topbar > .container-fluid {
@@ -562,6 +544,19 @@ body {
   border-color: var(--accent-main);
   background: var(--tint);
   color: #2b2420;
+}
+
+.brand-logo {
+  height: 1.8rem;
+  width: auto;
+  flex: none;
+  margin: 0;                     
+}
+
+@media (max-width: 324px) {
+  .brand-logo {
+    display: none;
+  }
 }
 
 /* handling page widths */

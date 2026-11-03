@@ -97,6 +97,24 @@ watch(() => props.profile._id, async (id) => {
     max-width: 100%;
   }  
 }
+@media (max-width: 767.98px) {
+  .ph-card {
+    text-align: center;
+  }
+  .ph-photo {
+    margin-inline: auto;        
+  }
+  .ph-bio {
+    margin-inline: auto;      
+  }
+  .ph-badges {
+    align-items: center;         
+  }
+  .ph-card .btn {
+    display: block;
+    margin-inline: auto;
+  }
+}
 .ph-badge {
   padding: 0.2rem 0.7rem;
   border: 1px solid rgba(196, 119, 86, 0.45);

@@ -7,6 +7,7 @@ import { useGeoTracker } from '../utils/useGeoTracker.js'
 import { useHomeCheck, HOME_RADIUS_M } from '../utils/useHomeCheck.js'
 import { currentUser, fetchUser } from '../services/auth.js'
 import { walkRoutesApi } from '../services/walkRouteApi.js'
+import BackButton from '../components/BackButton.vue'
 
 const { position, path, accuracy, error, start, startRecording, stopRecording } = useGeoTracker()
 
@@ -102,27 +103,13 @@ async function save() {
     saving.value = false
   }
 }
-const router = useRouter()
-function goBack() {
-  if (window.history.state?.back) {
-    router.back()
-  } else {
-    router.push(currentUser.value ? '/home' : '/browse')
-  }
-}
 </script>
 
 <template>
   <div class="d-flex flex-column vh-100 p-3 gap-3">
     <header>
       <!-- <router-link :to="{ name: 'my-routes' }" class="btn btn-link text-secondary p-0 mb-1">← My routes</router-link> -->
-      <button type="button" class="pf-back" @click="goBack">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        My routes
-      </button>
+      <BackButton label="My Routes"></BackButton>
       <h1 class="page-title mb-1">{{ existingRoute ? `Re-record "${existingRoute.name}"` : 'Record a walking route' }}</h1>
       <p class="text-body-secondary mb-0">
         Walk the route with your phone. It must start and finish at your home.
@@ -156,12 +143,12 @@ function goBack() {
         </div>
 
         <div class="ms-auto d-flex gap-2">
-          <button v-if="step === 'ready'" class="btn btn-primary" :disabled="!nearHome" @click="beginRecording">
+          <button v-if="step === 'ready'" class="btn btn-brand" :disabled="!nearHome" @click="beginRecording">
             Start recording
           </button>
           <template v-else-if="step === 'recording'">
             <button class="btn bg-white border" @click="reset">Cancel</button>
-            <button class="btn btn-primary" :disabled="!(hasLeftHome && nearHome)" @click="finishRecording">
+            <button class="btn btn-brand" :disabled="!(hasLeftHome && nearHome)" @click="finishRecording">
               End recording
             </button>
           </template>
@@ -187,7 +174,7 @@ function goBack() {
         <div v-if="saveError" class="alert alert-danger py-2">{{ saveError }}</div>
         <div class="d-flex gap-2 justify-content-end">
           <button type="button" class="btn bg-white border" @click="reset">Discard</button>
-          <button type="submit" class="btn btn-primary" :disabled="saving">{{ saving ? 'Saving…' : 'Save route' }}</button>
+          <button type="submit" class="btn btn-brand" :disabled="saving">{{ saving ? 'Saving…' : 'Save route' }}</button>
         </div>
       </form>
 
