@@ -226,11 +226,13 @@ onBeforeUnmount(removePositionListeners)
         </button>
         <!-- show date calandar to pick date  -->
         <Teleport to="body">
-        <div v-if="showDatePicker" ref="availabilityPicker" :style="pickerPosition" class="availability-picker shadow bg-white border rounded p-3" role="dialog" aria-label="Choose available date range">
+        <!-- @focusin.stop: on phones the filters are a Bootstrap bottom sheet that pulls focus back into itself,
+             which closed the time dropdowns straight away. Stopping the focus event here keeps them open. -->
+        <div v-if="showDatePicker" ref="availabilityPicker" :style="pickerPosition" class="availability-picker shadow bg-white border rounded p-3" role="dialog" aria-label="Choose available date range" @focusin.stop>
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Previous month" @click="changeCalendarMonth(-1)">‹</button>
+                <button type="button" class="month-btn" aria-label="Previous month" @click="changeCalendarMonth(-1)">‹</button>
                 <strong>{{ calendarTitle }}</strong>
-                <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Next month" @click="changeCalendarMonth(1)">›</button>
+                <button type="button" class="month-btn" aria-label="Next month" @click="changeCalendarMonth(1)">›</button>
             </div>
             <div class="availability-calendar">
                 <span v-for="weekday in ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']" :key="weekday" class="weekday">{{ weekday }}</span>
@@ -298,6 +300,23 @@ onBeforeUnmount(removePositionListeners)
   overflow-y: auto;
   font-family: Roboto, system-ui, -apple-system, sans-serif;
 }
+
+/* ‹ › month buttons: 44px round, like the arrows on My Calendar */
+.month-btn {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 0 0 3px;
+  border: 1px solid #e2d6ca;
+  border-radius: 50%;
+  background: #fff;
+  color: #333;
+  font-size: 24px;
+  line-height: 1;
+}
+.month-btn:hover { background: #fce2cf; border-color: #c46b17; }
 
 .availability-calendar {
   display: grid;
@@ -370,6 +389,9 @@ onBeforeUnmount(removePositionListeners)
   text-overflow: ellipsis;
 }
 .range-time { font-size: 0.85em; color: #6c757d; }
+/* the button turns orange on hover / keyboard focus (style in OwnerHome.vue), so the grey hours line goes white to stay readable */
+button:hover:not(:disabled) .range-time,
+button:focus-visible .range-time { color: #fff; }
 
 /* From / Until dropdowns under the calendar */
 .time-row {
