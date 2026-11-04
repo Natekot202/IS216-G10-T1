@@ -8,6 +8,7 @@ import { currentUser } from '../services/auth.js'
 import { visitsApi } from '../services/api.js'
 import SessionCard from '../components/SessionCard.vue'
 import RecentlyEnded from '../components/RecentlyEnded.vue'
+import VisitReportModal from '../components/VisitReportModal.vue'
 
 const data = ref(null)
 const loading = ref(true)
@@ -94,6 +95,23 @@ onMounted(() => {
 })
 onBeforeUnmount(() => clearInterval(timer))
 
+// ---- The visit report window (owners) ----
+const report = ref(null) // { entry, dayIndex } while the window is open
+const reportError = ref('')
+function openReport(r) {
+  report.value = r
+}
+// "View report" on a finished day of the Today card: load that booking's reports, open at today's day
+async function viewTodayReport(s) {
+  reportError.value = ''
+  try {
+    const entry = await visitsApi.report(s.booking._id)
+    report.value = { entry, dayIndex: Math.max(0, entry.days.findIndex((d) => d.date === s.booking.day)) }
+  } catch (err) {
+    reportError.value = err.response?.data?.message || 'Could not load the report.'
+  }
+}
+
 // ---- Owner's phone tabs ----
 const tab = ref('today')
 function showTab(name) {
@@ -147,6 +165,7 @@ function onTouchEnd(e) {
       </div>
 
       <div v-if="error" class="alert alert-warning">{{ error }}</div>
+      <div v-if="reportError" class="alert alert-warning">{{ reportError }}</div>
 
       <div v-else-if="loading" class="d-flex align-items-center text-muted">
         <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
@@ -179,7 +198,7 @@ function onTouchEnd(e) {
         <SessionCard v-for="s in sessions" v-show="s.booking._id === selectedId" :key="s.booking._id" :session="s"
                      :is-sitter="isSitter" :active="s.booking._id === selectedId"
                      @visit-change="s.visit = $event" @unread="unread[s.booking._id] = $event" @walk-ended="load(true)"
-                     @items-change="s.items = $event" />
+                     @items-change="s.items = $event" @view-report="viewTodayReport(s)" />
       </template>
     </section>
 
@@ -187,9 +206,12 @@ function onTouchEnd(e) {
     <template v-if="!isSitter">
       <hr class="sesh-rule" />
       <section id="panel-recent" class="sesh-panel" :class="{ 'sesh-panel--off': tab !== 'recent' }" role="tabpanel" aria-labelledby="tab-recent">
-        <RecentlyEnded ref="recentRef" @count="recentCount = $event" />
+        <RecentlyEnded ref="recentRef" @count="recentCount = $event" @open-report="openReport" />
       </section>
     </template>
+
+    <VisitReportModal v-if="report" :entry="report.entry" :day-index="report.dayIndex"
+                      @close="report = null" @change-day="report.dayIndex = $event" />
   </div>
 </template>
 

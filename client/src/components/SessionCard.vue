@@ -23,7 +23,7 @@ const props = defineProps({
   isSitter: { type: Boolean, default: false },
   active: { type: Boolean, default: true } // false while another session is showing
 })
-const emit = defineEmits(['visit-change', 'unread', 'walk-ended', 'items-change'])
+const emit = defineEmits(['visit-change', 'unread', 'walk-ended', 'items-change', 'view-report'])
 
 const visit = ref(props.session.visit)
 const status = ref(props.session.booking.status)
@@ -429,6 +429,9 @@ const shownEvents = computed(() => (allEvents.value ? events.value : events.valu
               {{ starting ? 'Starting…' : 'Start session' }}
             </button>
           </template>
+          <!-- owner, a finished day that isn't the booking's last: the report opens in the report window -->
+          <button v-else-if="!isSitter && isCompleted && !isLastDay && multiDay" type="button" class="sc-report-btn"
+                  @click="emit('view-report')">View report</button>
           <small v-else-if="!isSitter && isActive && locationNote" class="sc-status__right sc-wide"
                  :class="{ 'sc-status__right--warn': locationNote.warn }">{{ locationNote.text }}</small>
         </div>
@@ -849,6 +852,20 @@ const shownEvents = computed(() => (allEvents.value ? events.value : events.valu
 .sc-where-row:focus-visible,
 .sc-more:focus-visible,
 .photo-slot:focus-within {
+  outline: 3px solid var(--accent-deep);
+  outline-offset: 2px;
+}
+.sc-report-btn {
+  flex: none;
+  min-height: 40px;
+  padding: 0 1rem;
+  border: 1.5px solid var(--accent);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--accent);
+  font-weight: 800;
+}
+.sc-report-btn:focus-visible {
   outline: 3px solid var(--accent-deep);
   outline-offset: 2px;
 }
