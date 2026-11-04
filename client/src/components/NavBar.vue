@@ -144,7 +144,9 @@ async function handleLogout() {
               </span>Session</router-link>
             </li>
             <li v-if="currentUser?.role === 'owner'" class="nav-item">
-              <router-link class="nav-link" to="/owner/routes"><span class="nav-icon" aria-hidden="true">🏞</span>My Routes</router-link>
+              <router-link class="nav-link" to="/owner/routes"><span class="nav-icon" aria-hidden="true">
+              <i class="fa-solid fa-location-dot"></i>
+              </span>My Routes</router-link>
             </li>
             <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
               <router-link class="nav-link" to="/sitter/calendar"><span class="nav-icon" aria-hidden="true">
@@ -193,7 +195,9 @@ async function handleLogout() {
                 </span>Profile
               </router-link>
               <button type="button" class="nav-link" @click="handleLogout">
-                <span class="nav-icon" aria-hidden="true">↪</span>Log out
+                <span class="nav-icon" aria-hidden="true">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                </span>Log out
               </button>
             </div>
           </div>
