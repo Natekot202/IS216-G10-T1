@@ -137,6 +137,7 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
 
   // 4. The sitter is available on every day, and for the hours asked for on each day
   const days = daysBetween(start, end)
+  const schedule = days.map((date) => ({ date, startTime, endTime }))
   const saved = await Availability.find({ sitterId, date: { $gte: start, $lte: end } })
   const byDay = Object.fromEntries(saved.map((a) => [toSgtDateString(a.date), a]))
   const missing = days.filter((d) => byDay[d]?.status !== 'available')
