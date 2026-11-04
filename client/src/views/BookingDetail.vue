@@ -249,7 +249,12 @@ onMounted(async () => {
   <div class="detail-wrap">
     <BackButton label="Back" :fallback="isSitter ? '/sitter/requests' : '/owner/bookings'" />
 
-    <div v-if="loading" class="text-muted mt-3">Loading this booking…</div>
+    <div v-if="loading" class="d-flex align-items-center text-muted">
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Loading this booking...
+    </div>
+
+    
     <div v-else-if="error" class="alert alert-warning mt-3">{{ error }}</div>
 
     <template v-else>

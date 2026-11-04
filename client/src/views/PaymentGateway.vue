@@ -91,7 +91,10 @@ async function pay() {
 
     <h2 class="mt-3 mb-4">Payment</h2>
 
-    <div v-if="loading" class="text-muted">Loading booking…</div>
+    <div v-if="loading" class="d-flex align-items-center text-muted">
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Loading booking...
+    </div>
 
     <!-- Paid -->
     <div v-else-if="receipt" class="card shadow-sm pay-card text-center p-4 mx-auto success-card">
