@@ -130,7 +130,10 @@ onMounted(loadTransactions)
     <h2 class="mb-4">Transactions</h2>
 
     <div v-if="error" class="alert alert-warning">{{ error }}</div>
-    <div v-else-if="loading" class="text-muted">Loading transactions…</div>
+    <div v-else-if="loading" class="d-flex align-items-center text-muted">
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Loading transactions...
+    </div>
 
     <template v-else>
       <!-- Summary tiles -->

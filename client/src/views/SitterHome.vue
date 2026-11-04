@@ -68,7 +68,10 @@ onMounted(loadDashboard)
     <ProfileChecklistCard />
 
     <div v-if="error" class="alert alert-warning">{{ error }}</div>
-    <div v-else-if="loading" class="text-muted">Loading your dashboard…</div>
+    <div v-else-if="loading" class="d-flex align-items-center text-muted">
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Loading your dashboard...
+    </div>
 
     <template v-else>
       <!-- Stat tiles -->

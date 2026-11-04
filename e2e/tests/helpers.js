@@ -22,7 +22,9 @@ export async function apiAs(browser, who) {
 // Signs up a brand-new user (a new email every time) and returns a logged-in API client for them.
 // Used for "someone else's booking / pet / route" tests, and so tests never change the seed users' passwords.
 export async function newUser(browser, role = 'owner') {
-  const context = await browser.newContext() // starts logged out
+  // An EMPTY storageState on purpose. Without it, browser.newContext() copies the file's test.use({ storageState })
+  // login, and signing up on that cookie would turn SeedOwner's server session into this new user.
+  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } }) // starts logged out
   const unique = `${Date.now()}${Math.floor(Math.random() * 1000)}`
   const user = { username: `e2e_${role}_${unique}`, email: `e2e_${unique}@test.com`, password: PASSWORD }
   const res = await context.request.post('/api/auth/register', {

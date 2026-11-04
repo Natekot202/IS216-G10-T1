@@ -153,7 +153,10 @@ onMounted(loadBookings)
     </div>
 
     <MessageBar v-if="error" type="error" @close="error = ''">{{ error }}</MessageBar>
-    <div v-else-if="loading" class="text-muted">Loading your bookings…</div>
+    <div v-else-if="loading" class="d-flex align-items-center text-muted">
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Loading your bookings...
+    </div>
 
     <template v-else>
       <MessageBar v-if="message" @close="message = ''">{{ message }}</MessageBar>
