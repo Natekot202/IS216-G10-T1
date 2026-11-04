@@ -9,7 +9,7 @@ import WalkRoute from '../models/walkRouteModel.js'
 import { requireOwner, requireLogin } from '../middleware/authMiddleware.js'
 import { uploadPhoto } from '../middleware/upload.js'
 import { uploadImage, deleteImage } from '../config/cloudinary.js'
-import { bookingRange, dailyRanges, findClash, describeBooking, toMinutes, slotsOf, slotsCover, START_TIME_RE, END_TIME_RE } from '../utils/bookingTimes.js'
+import { bookingRange, dailyRanges, findClash, describeBooking, toMinutes, slotsOf, slotsCover, START_TIME_RE, END_TIME_RE, reviewOpenUntil } from '../utils/bookingTimes.js'
 import asyncHandler from '../middleware/asyncHandler.js'
 import { removeBookingFromGoogle } from '../utils/googleCalendar.js'
 import { priceForTasks } from '../utils/servicePrices.js'
@@ -111,6 +111,7 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
   // 1. Input checks
   if (!mongoose.isValidObjectId(sitterId)) return res.status(400).json({ message: 'Choose a sitter.' })
   if (!Array.isArray(petIds) || petIds.length === 0) return res.status(400).json({ message: 'Select at least one pet.' })
+  if (String(notes).length > 1000) return res.status(400).json({ message: 'Notes to the sitter can be up to 1000 characters.' })
 
   const start = sgtMidnight(startDate)
   const end = sgtMidnight(endDate)
@@ -390,7 +391,8 @@ router.get('/:id', requireLogin, asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'This booking is not yours.' })
   }
 
-  res.json(booking)
+  // reviewOpenUntil: when the owner can no longer review (30 days after the last booked time)
+  res.json({ ...booking.toObject(), reviewOpenUntil: reviewOpenUntil(booking) })
 }))
 
 // PATCH /api/bookings/:id/cancel

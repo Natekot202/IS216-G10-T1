@@ -19,6 +19,8 @@ import Notification from '../models/notificationModel.js'
 import Availability from '../models/Availability.js'
 import { priceForTasks } from '../utils/servicePrices.js'
 import { pathLength } from '../utils/walkGeo.js'
+import Message from '../models/Message.js'
+import { seedSessionPage } from './seedSessions.js'
 import { recalcSitterRating } from '../utils/ratingsCalc.js'
 
 const SEED_PASSWORD = 'Password123!'
@@ -200,6 +202,8 @@ async function clearOldSeed() {
   await Payment.deleteMany({ $or: [{ ownerId: { $in: oldIds } }, { sitterId: { $in: oldIds } }] })
   await Notification.deleteMany({ recipient: { $in: oldIds } })
   await Walk.deleteMany({ $or: [{ owner: { $in: oldIds } }, { sitter: { $in: oldIds } }] })
+  await Message.deleteMany({ booking: { $in: oldBookingIds } })
+  await Review.deleteMany({ booking: { $in: oldBookingIds } })
   await Availability.deleteMany({ sitterId: { $in: oldIds } })
   await WalkRoute.deleteMany({ owner: { $in: oldIds } })
   await VisitSession.deleteMany({ booking: { $in: oldBookingIds } })
@@ -570,6 +574,16 @@ async function seed() {
 
   const counts = {}
   for (const b of bookings) counts[b.status] = (counts[b.status] ?? 0) + 1
+
+  // The Session page: today's sessions in different states, and finished bookings with care reports (seedSessions.js).
+  // seedSessions.js lists a booking's hours and tasks as plain arguments; this passes them on as makeBooking's opts.
+  const bookFor = (o, s, pets, day, start, end, status, notes, tasks, length = 1, hoursByDay = null) =>
+    makeBooking(o, s, pets, day, status, notes, { hours: hoursByDay ?? [start, end], length, tasks })
+  await seedSessionPage({ owner, sitter, sitter2, mochi, luna, smuLoop }, {
+    makeBooking: bookFor, dayString, SMU_HOME, SMU_LOOP, WALK_ROUTE, WALK_INSTRUCTIONS,
+    FEED_TWICE, FEED_ONCE, GROOM_ONCE, WIPE_PAWS, EYE_DROPS, CLEAN_ONCE, PLAY_ONCE, PLAY_FETCH
+  })
+
   console.log('Seed done ✅')
   console.log(`${bookings.length} bookings:`, counts)
   console.log(`Every seed account uses the password ${SEED_PASSWORD}`)

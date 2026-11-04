@@ -43,8 +43,15 @@ test.describe('Edit profile: sitter rules (API)', () => {
   test.use({ storageState: AUTH.sitter2 })
 
   test('an invalid "Sitting since" date is refused', async ({ page }) => {
+    // setup: SecondSitter's current profile. It is sent back unchanged, so even if the server ever accepted
+    // the request, SecondSitter would keep their services, pet types and area (and stay in the search).
+    const me = await (await page.request.get('/api/auth/me')).json()
+    const sp = me.sitterProfile
+    const profile = { petTypes: sp.petTypes, services: sp.services, serviceArea: sp.serviceArea?.label ?? '' }
+    // actions + assert: month 13 does not exist
+    // (NOT a word like 'abc': the server reads 'abc-01' as 1 Jan 2001 and accepts it, see the note in the guide)
     const res = await page.request.put('/api/users/me', {
-      data: { username: 'SecondSitter', sitterProfile: { experienceStart: 'not-a-month' } }
+      data: { username: me.username, bio: me.bio ?? '', sitterProfile: { ...profile, experienceStart: '2026-13' } }
     })
     await expectError(res, 400, 'Invalid experience date.')
   })

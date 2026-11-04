@@ -64,6 +64,10 @@ const walkSchema = new mongoose.Schema(
     endedEarlyReason: { type: String, trim: true, maxlength: 200, default: '' },
     backHomeRemindedAt: { type: Date, default: null }, // the sitter was reminded to end the walk (once per walk)
 
+    // While the walk is under way: the distance so far, as worked out by the sitter's phone from its recorded path
+    // (shown to the owner as "On a walk, 0.6 km so far"; distanceM takes over when the walk ends)
+    liveDistanceM: { type: Number, default: 0 },
+
     // Filled in when the walk ends
     walkedPath: { type: lineStringSchema, default: null },
     distanceM: { type: Number, default: 0 },

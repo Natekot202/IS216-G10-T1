@@ -11,6 +11,7 @@ import { AUTH, apiAs, seedData, day, bookingBody, createBooking, cleanUp, expect
 test.use({ storageState: AUTH.owner })
 
 // ---------- The page's own checks (before anything is sent) ----------
+// (The page shows each message twice: in the Summary box, and in the bar that phones use. .first() is the Summary one.)
 
 test.describe('Booking form: checks on the page', () => {
   // picks a one-day booking 15 days from today, 9am to 12pm
@@ -30,7 +31,7 @@ test.describe('Booking form: checks on the page', () => {
     await openBookingForm(page, 'SecondSitter')
     await page.getByRole('button', { name: 'Mochi' }).click()
     await page.getByRole('button', { name: 'Send Booking Request' }).click()
-    await expect(page.getByText('Choose a start and end date.')).toBeVisible()
+    await expect(page.getByText('Choose a start and end date.').first()).toBeVisible()
   })
 
   test('no care tasks → the price needs at least one', async ({ page }) => {
@@ -38,7 +39,7 @@ test.describe('Booking form: checks on the page', () => {
     await page.getByRole('button', { name: 'Mochi' }).click()
     await pickDayAndTimes(page)
     await page.getByRole('button', { name: 'Send Booking Request' }).click()
-    await expect(page.getByText('Add at least one care task. The price is based on the tasks.')).toBeVisible()
+    await expect(page.getByText('Add at least one care task. The price is based on the tasks.').first()).toBeVisible()
   })
 
   test('a task without a description is stopped', async ({ page }) => {
@@ -47,7 +48,7 @@ test.describe('Booking form: checks on the page', () => {
     await pickDayAndTimes(page)
     await page.getByRole('button', { name: '+ Add task' }).click()
     await page.getByRole('button', { name: 'Send Booking Request' }).click()
-    await expect(page.getByText('Give every care task a description, or remove it.')).toBeVisible()
+    await expect(page.getByText('Give every care task a description, or remove it.').first()).toBeVisible()
   })
 
   test('a walk task without a route choice is stopped', async ({ page }) => {
@@ -56,9 +57,9 @@ test.describe('Booking form: checks on the page', () => {
     await pickDayAndTimes(page)
     await page.getByRole('button', { name: '+ Add task' }).click()
     await page.locator('#task-type-0').selectOption('walk') // the first task's Type (its label is hidden on laptops)
-    await page.getByPlaceholder('e.g. Feed 1 cup kibble at 8am').fill('Walk around the block')
+    await page.locator('#task-title-0').fill('Walk around the block') // the first task's "What to do" box
     await page.getByRole('button', { name: 'Send Booking Request' }).click()
-    await expect(page.getByText('Choose a route for "Walk around the block"')).toBeVisible()
+    await expect(page.getByText('Choose a route for "Walk around the block"').first()).toBeVisible()
   })
 
   test('the price preview adds up the tasks (Walk $20 × 2 a day = $40)', async ({ page }) => {

@@ -131,11 +131,11 @@ export async function openSitterProfile(page, sitterName) {
   await expect(page).toHaveURL(/\/users\//)
 }
 
-// ...then press Request Booking, which opens the New Booking Request form
+// ...then press Request Booking, which opens the booking form (its heading is "Book a sitter" since PR #56)
 export async function openBookingForm(page, sitterName) {
   await openSitterProfile(page, sitterName)
   await page.getByRole('link', { name: 'Request Booking' }).click()
-  await expect(page.getByRole('heading', { name: 'New Booking Request' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Book a sitter' })).toBeVisible()
 }
 
 // Signs up through the Register page (a new user every time) and lands on Home

@@ -17,7 +17,8 @@ test.describe('Walk routes: server rules (API)', () => {
 
   test('a route needs at least 2 valid points', async ({ page }) => {
     await expectError(await save(page, { name: 'Tiny', path: [HOME] }), 400, 'A route needs at least 2 points.')
-    await expectError(await save(page, { name: 'Broken', path: [HOME, [999, 999]] }), 400, 'The route contains invalid points.')
+    // a point must be two numbers (the server does not check they are on Earth, so [999, 999] would pass this check)
+    await expectError(await save(page, { name: 'Broken', path: [HOME, ['a', 'b']] }), 400, 'The route contains invalid points.')
   })
 
   test('a route must start and end at the home', async ({ page }) => {

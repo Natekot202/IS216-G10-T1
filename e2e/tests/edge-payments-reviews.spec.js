@@ -75,7 +75,7 @@ test.describe('Reviews (API)', () => {
 
   test('the rating must be a whole number from 1 to 5', async () => {
     for (const rating of [0, 6, 3.5]) {
-      await expectError(await review(owner, { bookingId: ids.booking(SEED.paid), rating }), 400, 'Rating must be 1 to 5.')
+      await expectError(await review(owner, { bookingId: ids.booking(SEED.completed), rating }), 400, 'Rating must be 1 to 5.')
     }
   })
 
@@ -100,16 +100,16 @@ test.describe('Reviews (API)', () => {
   test('one review per booking, and the sitter rating updates', async () => {
     // setup: SeedSitter's review count before
     const countBefore = (await (await owner.api.get(`/api/users/${ids.seedSitter}`)).json()).sitterProfile?.ratingCount ?? 0
-    // actions: review the paid booking
-    const first = await review(owner, { bookingId: ids.booking(SEED.paid), rating: 5, comment: 'Mochi loved it (E2E test)' })
+    // actions: review the completed booking (the seed has no review on it; it already reviews the paid one)
+    const first = await review(owner, { bookingId: ids.booking(SEED.completed), rating: 5, comment: 'Mochi loved it (E2E test)' })
     expect(first.status()).toBe(201)
     // assert: a second review is refused, the sitter has one more rating, and both sides can read it
-    await expectError(await review(owner, { bookingId: ids.booking(SEED.paid), rating: 4 }), 409, 'You have already reviewed this booking.')
+    await expectError(await review(owner, { bookingId: ids.booking(SEED.completed), rating: 4 }), 409, 'You have already reviewed this booking.')
     await expect(async () => {
       const after = (await (await owner.api.get(`/api/users/${ids.seedSitter}`)).json()).sitterProfile?.ratingCount ?? 0
       expect(after).toBe(countBefore + 1)
     }).toPass({ timeout: 10_000 })
-    const seen = await (await sitter.api.get(`/api/reviews/booking/${ids.booking(SEED.paid)}`)).json()
+    const seen = await (await sitter.api.get(`/api/reviews/booking/${ids.booking(SEED.completed)}`)).json()
     expect(JSON.stringify(seen)).toContain('Mochi loved it (E2E test)')
   })
 })

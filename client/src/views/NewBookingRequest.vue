@@ -283,8 +283,8 @@ onMounted(async () => {
           <h3 class="step-head"><span class="step-num">4</span>Care checklist</h3>
           <!-- Care checklist -->
           <CareChecklistEditor :pets="selectedPetList" :dates="chosenDays" @change="tasks = $event" />
-          <!-- 
-          same concept as bookingDatePicker abv 
+          <!--
+          same concept as bookingDatePicker abv
           -->
       </section>
 
