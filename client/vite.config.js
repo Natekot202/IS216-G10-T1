@@ -10,6 +10,8 @@ export default defineConfig({
     exclude: ['maplibre-gl']
   },
   server: {
+    // Allow devices on the same local network to open the development site.
+    host: '0.0.0.0',
     port: 5173,
     // allows client server to accept requests from cloudflare addresses
     allowedHosts: ['.trycloudflare.com'],
