@@ -483,7 +483,7 @@ onBeforeUnmount(() => {
         <!-- search body  -->
         <div class="col-md-8 col-lg-5">
 
-          <div class="d-flex align-items-center gap-2 mb-2">
+          <div class="mobile-actions d-flex align-items-center gap-2 mb-2 d-lg-none">
             <button type="button" class="btn btn-brand-outline btn-sm fw-bold flex-fill d-md-none"
               data-bs-toggle="offcanvas"
               data-bs-target="#offcanvasBottom"
@@ -680,5 +680,9 @@ onBeforeUnmount(() => {
 .map-close:hover,
 .map-close:focus-visible {
   background: #2b2420;
+}
+/* large screens: cards start level with the filter panel and map */
+@media (min-width: 992px) {
+  .mobile-actions + .sitter-list { margin-top: 0; }
 }
 </style>
