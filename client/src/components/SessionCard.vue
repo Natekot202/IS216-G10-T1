@@ -533,7 +533,7 @@ const shownEvents = computed(() => (allEvents.value ? events.value : events.valu
           <div class="sc-where-grid">
             <div v-if="address?.location && active" class="sc-where-map">
               <WalkMap :home="address.location" markers="dots" />
-              <span class="sc-where-legend"><span class="sc-key-home" aria-hidden="true"></span> Home · circle: 75 m start zone</span>
+              <span class="sc-where-legend"><svg class="sc-key-home" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 1.8 11.2h3V21.5h14.4V11.2h3z" fill="#2b2420" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><rect x="10" y="14.5" width="4" height="7" rx=".6" fill="#fff"/></svg> Home · circle: 75 m start zone</span>
             </div>
             <div class="sc-where-info">
               <template v-if="address?.line1">
@@ -1066,10 +1066,8 @@ const shownEvents = computed(() => (allEvents.value ? events.value : events.valu
   font-size: 0.8rem;
 }
 .sc-key-home {
-  width: 0.65rem;
-  height: 0.65rem;
-  border-radius: 2px;
-  background: #2b2420;
+  width: 1.1rem;
+  height: 1.1rem;
 }
 .sc-address {
   display: flex;

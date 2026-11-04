@@ -15,7 +15,7 @@ const props = defineProps({
   plannedRoute: {type: Array, default: () => []}, // a saved route to show, [[lng, lat], ...]
   home: {type: Array, default: null},          // owner's home, [lng, lat]
   homeRadiusM: {type: Number, default: 75},    // size of the shaded "start and finish here" circle
-  // 'pins' (default): map pins. 'dots': home as a dark square and the sitter as a blue dot (the owner's Session page)
+  // 'pins' (default): map pins. 'dots': home as a dark house and the sitter as a blue teardrop pin (the Session page)
   markers: {type: String, default: 'pins'}
 })
 
@@ -28,16 +28,18 @@ const TEAL = '#2F6F62'
 const INK = '#2B2420'
 const BLUE = '#2563EB'
 
-// a small HTML marker for the 'dots' style: 'home' (dark square) or 'sitter' (blue dot)
+// a small HTML marker for the 'dots' style: 'home' (dark house) or 'sitter' (blue teardrop pin, like Google Maps)
+const PIN_SVG = '<svg viewBox="0 0 24 34" width="26" height="36" style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))"><path d="M12 1C5.9 1 1 5.9 1 12c0 8.3 11 21 11 21s11-12.7 11-21C23 5.9 18.1 1 12 1z" fill="#2563EB" stroke="#fff" stroke-width="2"/><circle cx="12" cy="12" r="4.2" fill="#fff"/></svg>'
+const HOUSE_SVG = '<svg viewBox="0 0 24 24" width="28" height="28" style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))"><path d="M12 2.5 1.8 11.2h3V21.5h14.4V11.2h3z" fill="#2B2420" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><rect x="10" y="14.5" width="4" height="7" rx=".6" fill="#fff"/></svg>'
 function dot(kind) {
   const el = document.createElement('span')
   el.setAttribute('aria-hidden', 'true')
-  Object.assign(el.style, kind === 'home'
-    ? { width: '14px', height: '14px', background: INK, border: '2px solid #fff', borderRadius: '3px' }
-    : { width: '16px', height: '16px', background: BLUE, border: '3px solid #fff', borderRadius: '50%', boxShadow: '0 0 0 1px rgba(0,0,0,.2)' })
+  el.style.display = 'block'
+  el.innerHTML = kind === 'home' ? HOUSE_SVG : PIN_SVG
   return el
 }
-const newMarker = (kind, pinColour) => new maplibregl.Marker(props.markers === 'dots' ? { element: dot(kind) } : { color: pinColour })
+// the pin's point (its bottom) sits on the sitter's position; the house is centred on the home
+const newMarker = (kind, pinColour) => new maplibregl.Marker(props.markers === 'dots' ? { element: dot(kind), anchor: kind === 'home' ? 'center' : 'bottom' } : { color: pinColour })
 
 // wraps a list of points as a GeoJSON line
 const line = (coords) => (
