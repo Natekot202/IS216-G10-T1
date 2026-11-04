@@ -78,3 +78,17 @@ export function dayHasFreeSlot(busy, date, slots) {
 }
 // loops through all slots within the whole day, checks if slotFree returns true for each slot 
 // (the day starts at 7am, nothing before that can be booked)
+
+// purpose : short date range for the search filter button and chip, no year unless it isn't this year
+// '2026-11-04', '2026-11-05' -> '4 – 5 Nov' ; '2026-11-28', '2026-12-02' -> '28 Nov – 2 Dec' ; same day -> '4 Nov'
+export function shortDateRange(from, to) {
+  const a = new Date(from + 'T00:00:00')
+  const b = new Date(to + 'T00:00:00')
+  const thisYear = new Date().getFullYear()
+  const year = a.getFullYear() !== thisYear || b.getFullYear() !== thisYear ? ` ${b.getFullYear()}` : ''
+  const month = (d) => d.toLocaleDateString('en-SG', { month: 'short' })
+  if (from === to) return `${a.getDate()} ${month(a)}${year}`
+  if (a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()) return `${a.getDate()} – ${b.getDate()} ${month(b)}${year}`
+  const startYear = a.getFullYear() !== b.getFullYear() ? ` ${a.getFullYear()}` : ''
+  return `${a.getDate()} ${month(a)}${startYear} – ${b.getDate()} ${month(b)}${year}`
+}

@@ -1,5 +1,5 @@
 import Booking from '../models/bookingModel.js'
-import { sgtMidnight, toSgtDateString } from '../models/Availability.js'
+import Availability, { sgtMidnight, toSgtDateString } from '../models/Availability.js'
 
 // Time maths for bookings. A booking runs from startDate + startTime to endDate + endTime (Singapore time).
 // Everything is turned into "milliseconds since 1970" so two bookings can be compared with < and >.
@@ -59,7 +59,7 @@ export function bookingRange(booking) {
 
 // The time a booking takes on EACH of its days: [{ start, end }, ...] in milliseconds.
 // A booking's times are the hours for every day, e.g. 3 Nov to 5 Nov, 09:00 to 17:00 = three ranges of 9am to 5pm.
-// Old bookings that ran non-stop (overnight stays, no times, or an end time before the start time) stay one range.
+// Old bookings with no times, or an end time before the start time, stay one range.
 export function dailyRanges(booking) {
   // Bookings made from now on store the hours for each day (they can be different every day)
   if (booking.dayTimes?.length) {
@@ -68,7 +68,7 @@ export function dailyRanges(booking) {
       return { start: midnight + toMinutes(d.startTime) * MINUTE_MS, end: midnight + toMinutes(d.endTime) * MINUTE_MS }
     })
   }
-  if (booking.overnight || !booking.startTime || !booking.endTime) return [bookingRange(booking)]
+  if (!booking.startTime || !booking.endTime) return [bookingRange(booking)]
   const startMinutes = toMinutes(booking.startTime)
   const endMinutes = toMinutes(booking.endTime)
   if (endMinutes <= startMinutes) return [bookingRange(booking)]
@@ -182,8 +182,7 @@ function formatDay(date) {
   return date.toLocaleDateString('en-SG', { timeZone: 'Asia/Singapore', day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-// For error messages: '21 Oct 2026, 9:00 am – 12:00 pm', '21 Oct 2026 – 23 Oct 2026, 9:00 am – 5:00 pm each day',
-// or (old overnight bookings) '21 Oct 2026, 9:00 am – 22 Oct 2026, 5:00 pm'
+// For error messages: '21 Oct 2026, 9:00 am – 12:00 pm', '21 Oct 2026 – 23 Oct 2026, 9:00 am – 5:00 pm each day'
 export function describeBooking(booking) {
   if (!booking.startTime || !booking.endTime) {
     const days = toSgtDateString(booking.startDate) === toSgtDateString(booking.endDate)
@@ -202,4 +201,64 @@ export function describeBooking(booking) {
     return `${formatDay(booking.startDate)} – ${formatDay(booking.endDate)}, ${formatTime(booking.startTime)} – ${formatTime(booking.endTime)} each day`
   }
   return `${formatDay(booking.startDate)}, ${formatTime(booking.startTime)} – ${formatDay(booking.endDate)}, ${formatTime(booking.endTime)}`
+}
+
+// minutes after midnight -> '2:00 pm' (1440 = '12:00 am', end of the day)
+function minutesLabel(minutes) {
+  return formatTime(`${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`)
+}
+
+// Is one sitter free on one day? Returns '' when free, or a short reason when not, e.g. 'Booked 2:00 pm – 4:00 pm'.
+// `availDay` is that day's Availability document (or undefined), `busy` is the sitter's booked times [{ start, end }] in milliseconds.
+// No times chosen (startMinutes null): free if the sitter is open at all that day.
+export function sitterFreeOnDay(availDay, dateString, startMinutes, endMinutes, busy) {
+  const slots = availDay ? slotsOf(availDay) : []
+  if (!slots.length) return 'Not open'
+  if (startMinutes === null) return ''
+  if (!slotsCover(slots, startMinutes, endMinutes)) {
+    // one block of free time: say what it is, e.g. 'Open 9:00 am – 6:00 pm only'
+    const first = Math.min(...slots)
+    const last = Math.max(...slots) + 30
+    return last - first === slots.length * 30 ? `Open ${minutesLabel(first)} – ${minutesLabel(last)} only` : 'Not free at those hours'
+  }
+  const midnight = sgtMidnight(dateString).getTime()
+  const want = { start: midnight + startMinutes * MINUTE_MS, end: midnight + endMinutes * MINUTE_MS }
+  const clash = busy.find((b) => rangesOverlap(b, want))
+  if (!clash) return ''
+  // the booked hours on this day only (a booking can run over several days)
+  const from = Math.max(clash.start, midnight)
+  const until = Math.min(clash.end, midnight + DAY_MS)
+  return `Booked ${minutesLabel((from - midnight) / MINUTE_MS)} – ${minutesLabel((until - midnight) / MINUTE_MS)}`
+}
+
+// For the owner's search: which of `days` each sitter is free on.
+// Loads everyone's days and bookings in two queries (not one per sitter or per day), then checks each day with sitterFreeOnDay.
+// Out: [{ sitterId, freeDays: ['2026-11-05', ...], blockedDays: { '2026-11-06': 'Booked 2:00 pm – 4:00 pm' } }, ...]
+export async function searchFreeDays(sitterIds, days, startMinutes, endMinutes) {
+  const first = sgtMidnight(days[0])
+  const last = sgtMidnight(days[days.length - 1])
+  const [availDocs, bookings] = await Promise.all([
+    Availability.find({ sitterId: { $in: sitterIds }, date: { $gte: first, $lte: last } }),
+    Booking.find({
+      sitterId: { $in: sitterIds },
+      status: { $in: BOOKED_STATUSES },
+      startDate: { $lte: new Date(last.getTime() + DAY_MS) },
+      endDate: { $gte: new Date(first.getTime() - DAY_MS) }
+    })
+  ])
+
+  return sitterIds.map((id) => {
+    const sitterId = String(id)
+    const daysById = {} // '2026-11-05' -> that day's Availability document
+    availDocs.filter((d) => String(d.sitterId) === sitterId).forEach((d) => (daysById[toSgtDateString(d.date)] = d))
+    const busy = bookings.filter((b) => String(b.sitterId) === sitterId).flatMap(dailyRanges)
+    const freeDays = []
+    const blockedDays = {}
+    for (const day of days) {
+      const reason = sitterFreeOnDay(daysById[day], day, startMinutes, endMinutes, busy)
+      if (reason) blockedDays[day] = reason
+      else freeDays.push(day)
+    }
+    return { sitterId, freeDays, blockedDays }
+  })
 }

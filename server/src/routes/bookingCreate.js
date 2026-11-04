@@ -102,7 +102,7 @@ function daysBetween(start, end) {
 // Each day has its own hours, e.g. Mon 10am–12am, Tue 7am–9am. Times are Singapore time in 30-minute steps
 // from 07:00 to 24:00 (24:00 = end of the day). An older page may send just startTime/endTime instead of
 // dayTimes: then those hours are used for every day.
-// Nothing runs overnight, so there are no overnight stays any more (an `overnight` sent by an old page is ignored).
+// Nothing runs overnight, so there are no overnight stays.
 // Creates a 'pending' booking if every check passes.
 router.post('/', requireOwner, asyncHandler(async (req, res) => {
   const { sitterId, petIds, startDate, startTime, endDate, endTime, dayTimes, notes = '', tasks = [] } = req.body

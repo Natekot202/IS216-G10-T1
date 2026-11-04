@@ -139,10 +139,6 @@ async function sendCancel(reason) {
   }
 }
 
-// (window.confirm is no longer used here: the reason window, CancelBookingModal, replaced it)
-//window.confirm -> built-in browser popup with two buttons: OK and Cancel.
-// if user clicks ok, returns true , so if block runs ; 
-// if user clicks cancel, returns false , if block doesnt run 
 // bookingsApi runs axios.patch to remove the booking via its id 
 
 onMounted(loadBookings)

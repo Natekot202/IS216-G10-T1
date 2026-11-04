@@ -3,7 +3,9 @@ import mongoose from 'mongoose'
 import Availability, { sgtMidnight, toSgtDateString } from '../models/Availability.js'
 import Booking from '../models/bookingModel.js'
 import { requireSitter } from '../middleware/authMiddleware.js'
-import { BOOKED_STATUSES, busyRanges, slotsOf, DAY_START_MIN } from '../utils/bookingTimes.js'
+import User from '../models/UserModel.js'
+import { listedFilter } from '../controllers/sitterController.js'
+import { BOOKED_STATUSES, busyRanges, slotsOf, DAY_START_MIN, START_TIME_RE, END_TIME_RE, toMinutes, searchFreeDays } from '../utils/bookingTimes.js'
 import asyncHandler from '../middleware/asyncHandler.js'
 
 const router = Router()
@@ -76,7 +78,6 @@ router.get('/me/bookings', requireSitter, asyncHandler(async (req, res) => {
     endDate: toSgtDateString(b.endDate),
     endTime: b.endTime,
     dayTimes: b.dayTimes, // the hours for each day (empty for old bookings, which use startTime/endTime every day)
-    overnight: b.overnight, // only old bookings: they ran non-stop through the night (new ones use the same hours each day)
     status: b.status,
     ownerName: b.ownerId?.username || 'Pet owner',
     petNames: b.petIds.map((pet) => pet.name),
@@ -84,6 +85,50 @@ router.get('/me/bookings', requireSitter, asyncHandler(async (req, res) => {
     notes: b.notes,
     totalPrice: b.totalPrice
   })))
+}))
+
+// GET /api/availability/search?from=2026-11-05&to=2026-11-08&start=09:00&end=17:00
+// Public: for the owner's sitter search. Which of those days each listed sitter is free (start/end are optional, the hours for every day).
+// Optional sitterIds=id1,id2 to check only those sitters.
+// Out: [{ sitterId, freeDays: ['2026-11-05', ...], blockedDays: { '2026-11-06': 'Booked 2:00 pm – 4:00 pm' } }, ...]
+// (must stay above /:sitterId, or "search" would be read as a sitter id)
+router.get('/search', asyncHandler(async (req, res) => {
+  const { from, to, start, end, sitterIds } = req.query
+  const today = toSgtDateString(new Date())
+  if (!sgtMidnight(from) || !sgtMidnight(to)) return res.status(400).json({ message: 'Choose a start and end date (YYYY-MM-DD).' })
+  if (from < today) return res.status(400).json({ message: 'The start date is in the past.' })
+  if (to < from) return res.status(400).json({ message: 'The end date is before the start date.' })
+
+  // every day from `from` to `to`
+  const days = []
+  for (let d = sgtMidnight(from).getTime(); d <= sgtMidnight(to).getTime(); d += 24 * 60 * 60 * 1000) days.push(toSgtDateString(d))
+  if (days.length > 60) return res.status(400).json({ message: 'Search at most 60 days at a time.' })
+
+  // times: both or neither
+  let startMinutes = null
+  let endMinutes = null
+  if (start || end) {
+    if (typeof start !== 'string' || typeof end !== 'string' || !START_TIME_RE.test(start) || !END_TIME_RE.test(end)) {
+      return res.status(400).json({ message: 'Choose both times: From 7:00 am to 11:30 pm, Until up to 12:00 am, in half hours.' })
+    }
+    startMinutes = toMinutes(start)
+    endMinutes = toMinutes(end)
+    if (endMinutes <= startMinutes) return res.status(400).json({ message: 'The Until time must be after the From time.' })
+    if (sgtMidnight(from).getTime() + startMinutes * 60 * 1000 <= Date.now()) {
+      return res.status(400).json({ message: 'That start time has already passed today.' })
+    }
+  }
+
+  // the sitters to check: the ones the client sent, or everyone shown on the search page
+  let ids
+  if (sitterIds) {
+    ids = String(sitterIds).split(',')
+    if (!ids.every((id) => mongoose.isValidObjectId(id))) return res.status(400).json({ message: 'Invalid sitter id' })
+  } else {
+    ids = await User.distinct('_id', await listedFilter())
+  }
+
+  res.json(await searchFreeDays(ids, days, startMinutes, endMinutes))
 }))
 
 // GET /api/availability/:sitterId

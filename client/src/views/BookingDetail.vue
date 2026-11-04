@@ -262,7 +262,6 @@ onMounted(async () => {
       </div>
       <p class="text-muted fw-semibold mb-3">
         {{ formatBookingWhen(booking) }} · {{ formatPrice(booking.totalPrice) }}
-        <span v-if="booking.overnight" class="badge rounded-pill text-bg-light border ms-1">🌙 Sitter stays overnight</span>
       </p>
       <!-- Different hours on different days: list them, e.g. "Fri 6 Nov: 10:00 am – 12:00 am" -->
       <ul v-if="hoursVary(booking)" class="small text-muted mb-3 ps-3">

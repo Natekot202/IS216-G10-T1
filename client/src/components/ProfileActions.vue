@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { currentUser } from '../services/auth.js'
 
 const props = defineProps({
@@ -10,6 +11,16 @@ const props = defineProps({
 const canRequestBooking = computed(() => 
   !props.editable && props.profile.role === 'sitter' && currentUser.value?.role === 'owner'
 )
+
+// dates and times from the owner's search (in this page's URL), passed on so the booking form can fill them in
+const route = useRoute()
+const bookingQuery = computed(() => {
+  const query = { sitterId: props.profile._id }
+  for (const key of ['startDate', 'endDate', 'startTime', 'endTime']) {
+    if (typeof route.query[key] === 'string') query[key] = route.query[key]
+  }
+  return query
+})
 
 const needsLogin = computed(() => 
   !props.editable && props.profile.role === 'sitter' && !currentUser.value
@@ -23,7 +34,7 @@ const needsLogin = computed(() =>
         Edit Details
     </router-link>
 
-    <router-link v-else-if="canRequestBooking" class="btn btn-brand w-100 button" :to="{ path: '/bookings/new', query: { sitterId: profile._id } }">
+    <router-link v-else-if="canRequestBooking" class="btn btn-brand w-100 button" :to="{ path: '/bookings/new', query: bookingQuery }">
         Request Booking
     </router-link>
 

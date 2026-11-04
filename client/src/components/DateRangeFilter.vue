@@ -1,8 +1,13 @@
 <script setup>
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
+import { DAY_MIN, DAY_START_MIN, toMinutes, toHHMM, momentOf, shortDateRange } from '../utils/bookingTimeHelpers.js'
+import { formatTime } from '../utils/bookingHelpers.js'
 
 const from = defineModel('from', { type: String, default: '' })
 const to = defineModel('to', { type: String, default: '' })
+// optional hours for every day in the range, e.g. '09:00' and '17:00' ('' = any time)
+const timeFrom = defineModel('timeFrom', { type: String, default: '' })
+const timeTo = defineModel('timeTo', { type: String, default: '' })
 
 const showDatePicker = ref(false)
 const dateRangeButton = ref(null)
@@ -10,6 +15,9 @@ const availabilityPicker = ref(null)
 const pickerPosition = ref({ top: '8px', left: '8px' })
 const draftFrom = ref('')
 const draftTo = ref('')
+const draftTimeFrom = ref('')
+const draftTimeTo = ref('')
+const now = ref(Date.now()) // updated each time the popup opens, so passed times drop out
 const calendarMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
 
 function dateKey(date) {
@@ -30,11 +38,42 @@ const calendarWeeks = computed(() => {
   while (days.length % 7) days.push(null)
   return Array.from({ length: days.length / 7 }, (_, i) => days.slice(i * 7, i * 7 + 7))
 })
+// button text once confirmed, line 1: '4 – 5 Nov', '28 Nov – 2 Dec' or '4 Nov' (year only if not this year)
 const dateRangeLabel = computed(() => {
   if (!from.value) return 'Select dates'
-  const format = (d) => new Date(`${d}T00:00:00`).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })
-  return to.value ? `${format(from.value)} – ${format(to.value)}` : `${format(from.value)} – choose end date`
+  if (!to.value) return `${shortDateRange(from.value, from.value)} – choose end date`
+  return shortDateRange(from.value, to.value)
 })
+// line 2: '9:00 am – 5:00 pm each day' ('each day' dropped for one day), or 'Any time' when no hours were picked
+const timeRangeLabel = computed(() => {
+  if (!timeFrom.value || !timeTo.value) return 'Any time'
+  return `${formatTime(timeFrom.value)} – ${formatTime(timeTo.value)}${from.value !== to.value ? ' each day' : ''}`
+})
+
+// From: half hours 7:00 am to 11:30 pm. If the first day is today, only times later than now (passed times can't be picked)
+const fromTimeOptions = computed(() => {
+  const list = []
+  for (let m = DAY_START_MIN; m < DAY_MIN; m += 30) {
+    if (draftFrom.value && momentOf(draftFrom.value, m) <= now.value) continue
+    list.push(toHHMM(m))
+  }
+  return list
+})
+// Until: starts 30 minutes after From (or after the first From option), up to 12:00 am ('24:00')
+const untilTimeOptions = computed(() => {
+  const first = draftTimeFrom.value || fromTimeOptions.value[0]
+  if (!first) return []
+  const list = []
+  for (let m = toMinutes(first) + 30; m <= DAY_MIN; m += 30) list.push(toHHMM(m))
+  return list
+})
+// a chosen time that is no longer in its list (new day picked, or From moved past Until) is cleared
+watch([fromTimeOptions, untilTimeOptions], () => {
+  if (draftTimeFrom.value && !fromTimeOptions.value.includes(draftTimeFrom.value)) draftTimeFrom.value = ''
+  if (draftTimeTo.value && !untilTimeOptions.value.includes(draftTimeTo.value)) draftTimeTo.value = ''
+})
+// only one of From / Until picked
+const halfTime = computed(() => Boolean(draftTimeFrom.value) !== Boolean(draftTimeTo.value))
 
 function changeCalendarMonth(offset) {
   calendarMonth.value = new Date(calendarMonth.value.getFullYear(), calendarMonth.value.getMonth() + offset, 1)
@@ -52,19 +91,31 @@ function isInSelectedRange(date) {
   return Boolean(date && draftFrom.value && draftTo.value && date >= draftFrom.value && date <= draftTo.value)
 }
 function confirmAvailabilityDates() {
-  if (!draftFrom.value || !draftTo.value) return
+  if (!draftFrom.value || !draftTo.value || halfTime.value) return
   from.value = draftFrom.value
   to.value = draftTo.value
+  timeFrom.value = draftTimeFrom.value
+  timeTo.value = draftTimeTo.value
   showDatePicker.value = false
 }
 function clearAvailabilityDates() {
   draftFrom.value = ''
   draftTo.value = ''
+  draftTimeFrom.value = ''
+  draftTimeTo.value = ''
   from.value = ''
   to.value = ''
+  timeFrom.value = ''
+  timeTo.value = ''
 }
 function toggleDatePicker() {
-  if (!showDatePicker.value) { draftFrom.value = from.value; draftTo.value = to.value }
+  if (!showDatePicker.value) {
+    now.value = Date.now()
+    draftFrom.value = from.value
+    draftTo.value = to.value
+    draftTimeFrom.value = timeFrom.value
+    draftTimeTo.value = timeTo.value
+  }
   showDatePicker.value = !showDatePicker.value
 }
 
@@ -113,7 +164,7 @@ watch(showDatePicker, async (isOpen) => {
 }, { flush: 'post' })
 
 // parent's "Clear filters" resets from/to; keep the drafts in step
-watch([from, to], ([f, t]) => { draftFrom.value = f; draftTo.value = t })
+watch([from, to, timeFrom, timeTo], ([f, t, tf, tt]) => { draftFrom.value = f; draftTo.value = t; draftTimeFrom.value = tf; draftTimeTo.value = tt })
 
 onBeforeUnmount(removePositionListeners)
 </script>
@@ -124,7 +175,11 @@ onBeforeUnmount(removePositionListeners)
     <div class="position-relative mb-3">
         <!-- paste your existing toggle button + v-if="showDatePicker" popup markup here, unchanged -->
         <button ref="dateRangeButton" type="button" class="form-control text-start d-flex justify-content-between align-items-center" aria-haspopup="dialog" :aria-expanded="showDatePicker" @click="toggleDatePicker">
-            <span>{{ dateRangeLabel }}</span><span aria-hidden="true">▦</span>
+            <span class="range-label me-2">
+                <span class="range-dates">{{ dateRangeLabel }}</span>
+                <span v-if="from && to" class="range-time" :title="timeRangeLabel">{{ timeRangeLabel }}</span>
+            </span>
+            <span aria-hidden="true">▦</span>
         </button>
         <!-- show date calandar to pick date  -->
         <Teleport to="body">
@@ -147,9 +202,29 @@ onBeforeUnmount(removePositionListeners)
                 </span>
                 </template>
             </div>
+            <!-- optional hours, the same for every day in the range -->
+            <div class="time-row">
+                <div>
+                    <label class="form-label small fw-bold mb-1" for="filter-time-from">From</label>
+                    <select id="filter-time-from" v-model="draftTimeFrom" class="form-select form-select-sm">
+                        <option value="">Any time</option>
+                        <option v-for="t in fromTimeOptions" :key="t" :value="t">{{ formatTime(t) }}</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label small fw-bold mb-1" for="filter-time-to">Until</label>
+                    <select id="filter-time-to" v-model="draftTimeTo" class="form-select form-select-sm">
+                        <option value="">Any time</option>
+                        <option v-for="t in untilTimeOptions" :key="t" :value="t">{{ formatTime(t) }}</option>
+                    </select>
+                </div>
+            </div>
+            <p class="small text-secondary mt-1 mb-0">
+                {{ halfTime ? 'Pick both From and Until, or leave both on Any time.' : 'Optional. Hours apply to every day in the range.' }}
+            </p>
             <div class="d-flex justify-content-between align-items-center mt-3">
                 <button type="button" class="btn btn-outline-secondary btn-sm" @click="clearAvailabilityDates">Clear days</button>
-                <button type="button" class="btn btn-brand btn-sm apply-days" :disabled="!draftFrom || !draftTo" @click="confirmAvailabilityDates">Confirm dates</button>
+                <button type="button" class="btn btn-brand btn-sm apply-days" :disabled="!draftFrom || !draftTo || halfTime" @click="confirmAvailabilityDates">Confirm dates</button>
             </div>
         </div>
         </Teleport>
@@ -226,6 +301,31 @@ onBeforeUnmount(removePositionListeners)
   background: #c46b17;
   color: white;
   font-weight: 700;
+}
+
+/* button text once confirmed: dates on top, hours underneath in grey */
+.range-label {
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* lets the lines shrink and end in "..." instead of wrapping */
+  line-height: 1.3;
+}
+.range-dates,
+.range-time {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.range-time { font-size: 0.85em; color: #6c757d; }
+
+/* From / Until dropdowns under the calendar */
+.time-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
 }
 
 </style>

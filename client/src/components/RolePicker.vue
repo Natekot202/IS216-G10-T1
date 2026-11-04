@@ -23,7 +23,7 @@ const router = useRouter();
                         <button type="button" class="role-card"
                                 @click="router.push({ path: '/register', query: { role: 'sitter' } })">
                             <span class="role-card__title">Become a sitter</span>
-                            <span class="role-card__sub">Set your rates and get booked</span>
+                            <span class="role-card__sub">Get booked for pet care</span>
                         </button>
                     </div>
 
