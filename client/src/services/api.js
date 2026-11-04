@@ -40,11 +40,15 @@ export const visitsApi = {
   today: () => api.get('/visits/today').then((res) => res.data),
   // body: { location, accuracy, note } (the note is for starting without a location check)
   start: (bookingId, body) => api.post(`/visits/booking/${bookingId}/start`, body).then((res) => res.data),
-  // body: { location, accuracy }, or { blocked: true } if location is switched off
+  // body: { location, accuracy, walkDistanceM }, or { blocked: true } if location is switched off
   sendLocation: (visitId, body) => api.post(`/visits/${visitId}/location`, body).then((res) => res.data),
   setTask: (visitId, taskId, count) =>
     api.patch(`/visits/${visitId}/tasks/${taskId}`, { count }).then((res) => res.data),
-  end: (visitId, formData) => api.post(`/visits/${visitId}/end`, formData).then((res) => res.data)
+  end: (visitId, formData) => api.post(`/visits/${visitId}/end`, formData).then((res) => res.data),
+  // owner: finished bookings from the last 30 days, with their care reports ({ bookings: [...] })
+  recent: async () => (await api.get('/visits/recent')).data,
+  // owner: one booking's care reports, for "View report" on a completed day
+  report: async (bookingId) => (await api.get(`/visits/booking/${bookingId}/report`)).data
 }
 
 export const reviewsApi = {

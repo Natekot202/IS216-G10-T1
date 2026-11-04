@@ -1,7 +1,8 @@
 import mongoose from 'mongoose'
 import Booking from '../models/bookingModel.js'
 import Review from '../models/reviewModel.js'
-import { recalcSitterRating } from '../utils/ratingsCalc.js'  
+import { recalcSitterRating } from '../utils/ratingsCalc.js'
+import { reviewOpenUntil } from '../utils/bookingTimes.js'
  
 export async function createReview(req, res) {
   const { bookingId, rating, comment } = req.body
@@ -21,6 +22,10 @@ export async function createReview(req, res) {
   // The owner can review once the sitter has finished: before paying (completed) or after (paid)
   if (!['completed', 'paid'].includes(booking.status)) {
     return res.status(400).json({ message: 'You can only review a booking once the sitter has completed it.' })
+  }
+  // Reviews stay open for 30 days after the booking's last booked time
+  if (Date.now() > reviewOpenUntil(booking)) {
+    return res.status(400).json({ message: 'Reviews close 30 days after a booking ends, so this booking can no longer be reviewed.' })
   }
   try {
     const review = await Review.create({

@@ -51,6 +51,27 @@ const lastLocationSchema = new mongoose.Schema(
   { _id: false }
 )
 
+// The sitter was more than 75 m from the home, not on a walk, for 3 location updates in a row (utils/locationRecords.js)
+const awayEpisodeSchema = new mongoose.Schema(
+  {
+    startedAt: { type: Date, required: true }, // the first of those updates
+    endedAt: { type: Date },                   // back home, a walk started, or the session ended
+    maxDistanceM: { type: Number, default: 0 }
+  },
+  { _id: false }
+)
+
+// A stretch with no location: blocked in the browser, or no update for over a minute (e.g. the app was closed)
+const locationGapSchema = new mongoose.Schema(
+  {
+    startedAt: { type: Date, required: true },
+    endedAt: { type: Date },
+    reason: { type: String, enum: ['blocked', 'stopped'], required: true },
+    resumedAtHome: { type: Boolean } // the first location after the gap was at the home
+  },
+  { _id: false }
+)
+
 const visitSessionSchema = new mongoose.Schema(
   {
     booking: { 
@@ -82,6 +103,11 @@ const visitSessionSchema = new mongoose.Schema(
     home: { type: [Number], default: undefined },  // the owner's home when it started, [lng, lat]
     lastLocation: { type: lastLocationSchema, default: undefined },
     locationBlocked: { type: Boolean, default: false }, // the sitter's browser says location is switched off
+    // For the care report. Only what the report needs is kept, never a trail of every location.
+    awayEpisodes: { type: [awayEpisodeSchema], default: [] },
+    locationGaps: { type: [locationGapSchema], default: [] },
+    // the away updates in a row so far: { count, startedAt, maxDistanceM } (an episode opens on the 3rd)
+    awayStreak: { type: Object, default: undefined },
     completedTasks: [completedTaskSchema],
     report: {
       notes: { 
