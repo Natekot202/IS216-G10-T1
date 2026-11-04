@@ -43,16 +43,16 @@ export function dayPart(b, date) {
   if (own) return [toMinutes(own.startTime), toMinutes(own.endTime)]
   // The times are the hours for EACH day (e.g. 9am to 5pm on every day from 3 Nov to 5 Nov)
   if (sameHoursEachDay(b)) return [toMinutes(b.startTime), toMinutes(b.endTime)]
-  // Old bookings that ran non-stop (overnight stays): the first day from the start time, the last day to the end time
+  // Old bookings with no usable hours: the first day from the start time, the last day to the end time
   const startMinutes = date === b.startDate && b.startTime ? toMinutes(b.startTime) : 0
   const endMinutes = date === b.endDate && b.endTime ? toMinutes(b.endTime) : DAY_MIN
   return [startMinutes, endMinutes]
 }
 
 // True when a booking's times are the hours for each of its days (every booking made from now on).
-// False for old bookings that ran non-stop: overnight stays, no times, or an end time before the start time.
+// False for old bookings with no times, or an end time before the start time.
 export function sameHoursEachDay(b) {
-  return Boolean(!b.overnight && b.startTime && b.endTime && toMinutes(b.endTime) > toMinutes(b.startTime))
+  return Boolean(b.startTime && b.endTime && toMinutes(b.endTime) > toMinutes(b.startTime))
 }
 
 // What one booking looks like inside one day's square, e.g. '9am–12pm · Buddy'.
