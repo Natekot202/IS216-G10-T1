@@ -38,10 +38,11 @@ async function submit() {
   }
 }
 
-// Arrow keys move along the stars, like any radio group
+// Arrow keys move along the stars from the one with focus, like any radio group
 function onKey(e) {
-  if (['ArrowRight', 'ArrowUp'].includes(e.key)) rating.value = Math.min(5, rating.value + 1)
-  else if (['ArrowLeft', 'ArrowDown'].includes(e.key)) rating.value = Math.max(1, rating.value - 1)
+  const from = Number(e.target.dataset.star) || rating.value
+  if (['ArrowRight', 'ArrowUp'].includes(e.key)) rating.value = Math.min(5, from + 1)
+  else if (['ArrowLeft', 'ArrowDown'].includes(e.key)) rating.value = Math.max(1, from - 1)
   else return
   e.preventDefault()
   e.currentTarget.querySelector(`[data-star="${rating.value}"]`)?.focus()
