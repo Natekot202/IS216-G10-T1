@@ -20,8 +20,6 @@ const otherPerson = computed(() => {
 const petNames = computed(() =>
   (props.booking.petIds || []).map((p) => p?.name).filter(Boolean).join(', ')
 )
-
-const showRoute = computed(() => ['confirmed', 'in-progress'].includes(props.booking.status))
 </script>
 
 <template>
@@ -47,7 +45,6 @@ const showRoute = computed(() => ['confirmed', 'in-progress'].includes(props.boo
         <button class="btn btn-sm btn-outline-danger" :disabled="busy" @click="$emit('decline', booking._id)">Decline</button>
       </template>
       <router-link class="btn btn-sm btn-outline-secondary" :to="`/bookings/${booking._id}`">Booking page</router-link>
-      <router-link v-if="showRoute" class="btn btn-sm btn-outline-secondary" :to="`/bookings/${booking._id}/route`">Walk route</router-link>
       <router-link v-if="viewer === 'owner' && booking.status === 'completed'" class="btn btn-sm btn-brand" :to="`/bookings/${booking._id}/pay`">Pay now</router-link>
     </div>
   </div>

@@ -27,7 +27,9 @@ const initial = computed(() => (other.value?.username || '?').trim().charAt(0).t
 
 const timeRange = computed(() => {
   const b = props.session.booking
-  return b.startDate === b.endDate && b.startTime && b.endTime ? `${b.startTime} to ${b.endTime}` : ''
+  if (!b.startTime || !b.endTime) return ''
+  // the hours are for the session's own day, which can differ from day to day on a longer booking
+  return b.startDate === b.endDate ? `${b.startTime} to ${b.endTime}` : `${b.startTime} to ${b.endTime} on ${fmt(b.day)}`
 })
 
 const totalTicks = computed(() => props.session.items.reduce((sum, it) => sum + it.dailyFrequency, 0))

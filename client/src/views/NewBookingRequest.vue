@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import defaultAvatar from '../assets/img/tempProfile.jpg'
 import { useRoute } from 'vue-router'
-import { formatTime, formatDateRange } from '../utils/bookingHelpers.js'
+import { formatTime, formatBookingWhen, hoursVary } from '../utils/bookingHelpers.js'
 import { currentUser } from '../services/auth.js'
 import { sendNotification } from '../utils/sendNotification.js'
 import { toDateString, prettyDate } from '../utils/bookingTimeHelpers.js'
@@ -27,8 +27,9 @@ const loadError = ref('')
 
 // What the owner fills in
 const selectedPets = ref([]) // array of pet ids
-// What the date picker says was chosen (it sends this to us): { startDate, startTime, endDate, endTime, clash }
-const when = ref({ startDate: '', startTime: '', endDate: '', endTime: '', clash: false })
+// What the date picker says was chosen (it sends this to us):
+// { startDate, startTime, endDate, endTime, dayTimes: [{ date, startTime, endTime }], clash }
+const when = ref({ startDate: '', startTime: '', endDate: '', endTime: '', dayTimes: [], clash: false })
 const tasks = ref([]) // the care tasks (the checklist editor sends us this list)
 const notes = ref('')
 
@@ -151,7 +152,7 @@ onMounted(async () => {
       <div class="fs-1">🐾</div>
       <h2 class="h5">Request sent to {{ sitter.username }}</h2>
       <p class="text-muted mb-1">
-        {{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime) }} · ${{ booking.totalPrice }}
+        {{ formatBookingWhen(booking) }} · ${{ booking.totalPrice }}
       </p>
       <p class="small">Status: <span class="badge text-bg-warning">{{ booking.status }}</span></p>
       <p v-if="booking.tasks" class="small text-muted">{{ booking.tasks }} care task{{ booking.tasks === 1 ? '' : 's' }} included</p>
@@ -238,9 +239,16 @@ onMounted(async () => {
           </div>
           <p v-if="tasks.length === 0" class="small text-muted mb-1">Add a care task above to see the price.</p>
           <div class="d-flex justify-content-between small"><span>Days</span><span>{{ chosenDays.length || '–' }}</span></div>
-          <div v-if="when.startTime && when.endTime" class="d-flex justify-content-between small">
+          <!-- Hours: one line if every day is the same, otherwise one line per day -->
+          <div v-if="when.startTime && when.endTime && !hoursVary(when)" class="d-flex justify-content-between small">
             <span>Time</span><span>{{ formatTime(when.startTime) }} – {{ formatTime(when.endTime) }}{{ chosenDays.length > 1 ? ' each day' : '' }}</span>
           </div>
+          <template v-else-if="hoursVary(when)">
+            <div v-for="d in when.dayTimes" :key="d.date" class="d-flex justify-content-between small">
+              <span>{{ prettyDate(d.date) }}</span>
+              <span>{{ d.startTime && d.endTime ? `${formatTime(d.startTime)} – ${formatTime(d.endTime)}` : '–' }}</span>
+            </div>
+          </template>
           <hr />
           <div class="d-flex justify-content-between fw-bold"><span>Total</span><span>${{ totalPrice }}</span></div>
           <p class="small text-muted mt-2 mb-0">Same fixed prices for every sitter, per time a task is done: {{ PRICE_LIST_TEXT }}. You pay after the sitter has completed the booking.</p>
