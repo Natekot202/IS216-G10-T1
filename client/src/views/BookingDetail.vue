@@ -22,6 +22,7 @@ import SessionChat from '../components/SessionChat.vue'
 import { messageApi } from '../services/messageApi.js'
 import { prettyDate } from '../utils/bookingTimeHelpers.js'
 import { confirmDialog } from '../utils/useConfirm.js'
+import { sendNotification } from '../utils/sendNotification.js'
 import BackButton from '../components/BackButton.vue'
 
 const route = useRoute()
@@ -132,6 +133,13 @@ async function respond(newStatus) {
   try {
     const updated = await bookingsApi.updateStatus(booking.value._id, newStatus)
     booking.value.status = updated.status
+    sendNotification(
+      booking.value._id,
+      newStatus === 'accepted' ? 'booking-accepted' : 'booking-declined',
+      newStatus === 'accepted'
+        ? `${currentUser.value.username} accepted your booking request. Confirm it to lock it in.`
+        : `${currentUser.value.username} declined your booking request.`
+    )
     message.value = newStatus === 'accepted' ? 'Request accepted ✅ Waiting for the owner to confirm.' : 'Request declined.'
   } catch (err) {
     actionError.value = err.response?.data?.message || 'Could not update the booking.'
@@ -155,6 +163,7 @@ async function confirmBooking() {
   try {
     const updated = await bookingsApi.confirm(booking.value._id)
     booking.value.status = updated.status
+    sendNotification(booking.value._id, 'booking-confirmed', `${currentUser.value.username} confirmed your booking.`)
     message.value = 'Booking confirmed ✅ It is now final for you and the sitter.'
     if (canEditDetails.value) await openDetailsForm()
   } catch (err) {
@@ -177,6 +186,7 @@ function cancelBooking() {
 }
 // runs when the window sends the reason
 async function sendCancel(reason) {
+  const wasConfirmed = status.value === 'confirmed' // read before the status changes below
   busy.value = true
   cancelError.value = ''
   actionError.value = ''
@@ -186,6 +196,13 @@ async function sendCancel(reason) {
     booking.value.status = updated.status
     booking.value.cancelledBy = updated.cancelledBy
     booking.value.cancelReason = updated.cancelReason
+    sendNotification(
+      booking.value._id,
+      'booking-cancelled',
+      wasConfirmed
+        ? `${currentUser.value.username} cancelled your booking. Reason: ${reason}`
+        : `${currentUser.value.username} withdrew their booking request. Reason: ${reason}`
+    )
     cancelOpen.value = false
   } catch (err) {
     cancelError.value = err.response?.data?.message || 'Could not cancel the booking.'
@@ -279,7 +296,12 @@ onMounted(async () => {
   <div class="detail-wrap">
     <BackButton label="Back" :fallback="isSitter ? '/sitter/requests' : '/owner/bookings'" />
 
-    <div v-if="loading" class="text-muted mt-3">Loading this booking…</div>
+    <div v-if="loading" class="d-flex align-items-center text-muted">
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Loading this booking...
+    </div>
+
+    
     <div v-else-if="error" class="alert alert-warning mt-3">{{ error }}</div>
 
     <template v-else>

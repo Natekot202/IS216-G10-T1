@@ -8,7 +8,6 @@ import BookingTable from '../components/BookingTable.vue'
 import BookingTabs from '../components/BookingTabs.vue'
 import CancelBookingModal from '../components/CancelBookingModal.vue'
 import MessageBar from '../components/MessageBar.vue'
-import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { confirmDialog } from '../utils/useConfirm.js'
 
 // /sitter/requests: every booking made with this sitter, sorted into
@@ -171,7 +170,10 @@ onMounted(loadRequests)
     <MessageBar v-if="message" @close="message = ''">{{ message }}</MessageBar>
     <MessageBar v-if="actionError" type="error" @close="actionError = ''">{{ actionError }}</MessageBar>
 
-    <div v-if="loading" class="text-muted">Loading requests…</div>
+    <div v-if="loading" class="d-flex align-items-center text-muted">
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Loading requests...
+    </div>
 
     <template v-else-if="!error">
       <BookingTabs :tabs="tabsWithCounts" :active-tab="activeTab" @select="selectTab" />

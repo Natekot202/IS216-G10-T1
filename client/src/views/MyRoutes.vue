@@ -106,7 +106,10 @@ function reRecord(walkRoute) {
       <router-link v-if="home" :to="{ name: 'record-route' }" class="btn btn-brand ms-auto">Record new route</router-link>
     </header>
 
-    <p v-if="loading" class="text-body-secondary mb-0">Loading your routes…</p>
+    <div v-if="loading" class="d-flex align-items-center text-muted">
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Loading your routes...
+    </div>
 
     <div v-else-if="loadError" class="alert alert-danger mb-0">{{ loadError }}</div>
 

@@ -5,7 +5,6 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { bookingsApi } from '../services/bookingApi.js'
 import { paymentsApi } from '../services/paymentApi.js'
-import { currentUser } from '../services/auth.js'
 import { sendPaymentNotification } from '../utils/sendNotification.js'
 import { petNames, formatPrice, formatBookingWhen, hoursVary, dayTimesList } from '../utils/bookingHelpers.js'
 import { SERVICE_PRICES, SERVICE_LABELS, priceForTasks, daysForTask } from '../utils/servicePrices.js'
@@ -91,7 +90,10 @@ async function pay() {
 
     <h2 class="mt-3 mb-4">Payment</h2>
 
-    <div v-if="loading" class="text-muted">Loading booking…</div>
+    <div v-if="loading" class="d-flex align-items-center text-muted">
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Loading booking...
+    </div>
 
     <!-- Paid -->
     <div v-else-if="receipt" class="card shadow-sm pay-card text-center p-4 mx-auto success-card">

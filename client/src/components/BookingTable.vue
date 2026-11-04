@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed, toRef, watch } from 'vue'
 import StatusPill from './StatusPill.vue'
-import defaultAvatar from '../assets/img/tempProfile.jpg'
 import { formatPrice, formatBookingWhen } from '../utils/bookingHelpers'
 import { usePagination } from '../utils/usePagination.js'
 import PaginationBar from '../components/PaginationBar.vue'

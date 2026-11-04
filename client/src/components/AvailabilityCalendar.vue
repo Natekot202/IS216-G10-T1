@@ -143,17 +143,29 @@ function paintRange(date, startMinutes, endMinutes, on) {
 
 
 // Month view: press on a day, then drag across more days (the whole day is set)
+// A plain click only selects the day; nothing is painted until the drag moves into a second day,
+// so clicking a saved day to look at it doesn't overwrite its hours.
 // props not editable when parent renders calendar in view only mode, e.g. for owner to see sitter avialability
+const dragStartDay = ref(null) // the day the press started on, painted only once the drag reaches another day
 function startDayPaint(date) {
   emit('select', date)
   if (!props.editable || !canHover || !canChange(date)) return
   painting.value = true
-  paintDay(date) //to paint that first day itself 
+  dragStartDay.value = date
 }
 
 // 
 function paintDay(date) {
-  if (painting.value && canChange(date)) paintRange(date, DAY_START_MIN, DAY_MIN, mode.value === 'available') // the whole day = 7am to 12am
+  if (!painting.value) return
+  if (dragStartDay.value) {
+    if (date === dragStartDay.value) return // still on the first day: no drag yet
+    paintWholeDay(dragStartDay.value) // the drag has moved on, so paint the first day too
+    dragStartDay.value = null
+  }
+  paintWholeDay(date)
+}
+function paintWholeDay(date) {
+  if (canChange(date)) paintRange(date, DAY_START_MIN, DAY_MIN, mode.value === 'available') // the whole day = 7am to 12am
 }
   
 
@@ -169,6 +181,7 @@ function paintSlot(date, m) {
 }
 function stopPainting() {
   painting.value = false
+  dragStartDay.value = null
 }
 
 // Month view: click S M T W... to set every day of that weekday in the shown month
