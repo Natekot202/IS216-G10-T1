@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "seed": "node src/seed/seedBookings.js"
+    "seed": "node src/seed/seedBookings.js",
+    "seed:demo": "node src/seed/seedDemo.js"
   },
   "dependencies": {
     "@turf/turf": "^7.4.0",

@@ -105,6 +105,12 @@ pnpm exec playwright show-report
 - Sitter: seed.sitter@petsociety.com
 - Sitter 2: seed.sitter2@petsociety.com
 
+### Demo data (for showing the app)
+`cd server && pnpm seed:demo` creates 4 owners and 12 sitters with full histories, for demos. It only replaces `demo.*` accounts, so it never touches the test accounts above (and `pnpm seed` never touches the demo ones). Password `Password123!`.
+- Owner: demo.claire@petsociety.com (shibamumclaire), the fullest account, with enough bookings, receipts and reports to fill more than one page
+- Sitter: demo.benny@petsociety.com (petbuddybenny), with 7 new requests, 6 reviews and a session in progress today
+- Other owners: demo.rayyan, demo.meiling, demo.jun; other sitters: demo.priya, demo.wei, demo.carmen, demo.faiz, demo.lucas, demo.wendy, demo.bala, demo.tiffany, demo.kai, demo.sara, demo.harith (all @petsociety.com)
+
 ### Test cases
 | ID | Journey | File |
 |---|---|---|
