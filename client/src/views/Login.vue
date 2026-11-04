@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { authApi } from '../services/api.js'
 import { fetchUser } from "../services/auth.js";
 import PasswordInput from '../components/PasswordInput.vue'
+import { showToast } from '../utils/useToast.js'
 
 const router = useRouter();
 const form = ref({emailOrUser: "", password: ""});
@@ -14,6 +15,7 @@ async function submit() {
   try {
     await authApi.login(form.value)
     await fetchUser()             
+    showToast('Logged in successfully')
     router.push('/home')
   } catch (err) {
     message.value = err.response

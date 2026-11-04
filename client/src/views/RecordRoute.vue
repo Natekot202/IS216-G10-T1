@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { length, lineString, simplify } from '@turf/turf'
 import WalkMap from '../components/WalkMap.vue'
 import { useGeoTracker } from '../utils/useGeoTracker.js'

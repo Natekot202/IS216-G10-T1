@@ -5,6 +5,7 @@ import { useRoute, useRouter  } from 'vue-router'
 import { currentUser, logout } from "../services/auth.js";
 import { unreadCount, startCheckingUnread, stopCheckingUnread } from '../utils/useNotificationBadge.js'
 import NotificationIcon from './NotificationIcon.vue';
+import { showToast } from '../utils/useToast.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -95,6 +96,7 @@ async function handleLogout() {
   open.value = false
   accountOpen.value = false
   await logout();
+  showToast('Logged out successfully')
   router.push("/");
 }
 
@@ -130,22 +132,22 @@ async function handleLogout() {
               </router-link>
             </li>
             <li v-if="currentUser?.role === 'owner'" class="nav-item">
-              <router-link class="nav-link" to="/owner/bookings"><span class="nav-icon" aria-hidden="true">🗒</span>My Bookings</router-link>
+              <router-link class="nav-link" to="/owner/bookings"><span class="nav-icon" aria-hidden="true">📑</span>My Bookings</router-link>
             </li>
             <li v-if="currentUser" class="nav-item">
-              <router-link class="nav-link" to="/session"><span class="nav-icon" aria-hidden="true">𓃠</span>Session</router-link>
+              <router-link class="nav-link" to="/session"><span class="nav-icon" aria-hidden="true">🦮</span>Session</router-link>
             </li>
             <li v-if="currentUser?.role === 'owner'" class="nav-item">
               <router-link class="nav-link" to="/owner/routes"><span class="nav-icon" aria-hidden="true">🏞</span>My Routes</router-link>
             </li>
             <li v-if="currentUser?.role === 'sitter' && !hideElem" class="nav-item">
-              <router-link class="nav-link" to="/sitter/calendar"><span class="nav-icon" aria-hidden="true">𝄜</span>Calendar</router-link>
+              <router-link class="nav-link" to="/sitter/calendar"><span class="nav-icon" aria-hidden="true">🗓</span>Calendar</router-link>
             </li>
             <li v-if="currentUser?.role === 'sitter'" class="nav-item">
-              <router-link class="nav-link" to="/sitter/requests"><span class="nav-icon" aria-hidden="true">✉︎</span>Booking Requests</router-link>
+              <router-link class="nav-link" to="/sitter/requests"><span class="nav-icon" aria-hidden="true">📩</span>Booking Requests</router-link>
             </li>
             <li v-if="currentUser?.role === 'sitter'" class="nav-item">
-              <router-link class="nav-link" to="/sitter/transactions"><span class="nav-icon" aria-hidden="true">⛁</span>Transactions</router-link>
+              <router-link class="nav-link" to="/sitter/transactions"><span class="nav-icon" aria-hidden="true">💵</span>Transactions</router-link>
             </li>
           </ul>
         </div>
@@ -170,7 +172,7 @@ async function handleLogout() {
               <!-- phones only: the name, since the button shows just the avatar there -->
               <div class="nav-account-menu__name">{{ currentUser.username }}</div>
               <router-link to="/profile" class="nav-link">
-                <span class="nav-icon" aria-hidden="true">☺︎</span>Profile
+                <span class="nav-icon" aria-hidden="true">🙂</span>Profile
               </router-link>
               <button type="button" class="nav-link" @click="handleLogout">
                 <span class="nav-icon" aria-hidden="true">↪</span>Log out

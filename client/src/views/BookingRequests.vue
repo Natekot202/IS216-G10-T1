@@ -8,7 +8,6 @@ import BookingTable from '../components/BookingTable.vue'
 import BookingTabs from '../components/BookingTabs.vue'
 import CancelBookingModal from '../components/CancelBookingModal.vue'
 import MessageBar from '../components/MessageBar.vue'
-import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { confirmDialog } from '../utils/useConfirm.js'
 
 // /sitter/requests: every booking made with this sitter, sorted into
