@@ -120,7 +120,14 @@ export async function seedSessionPage({ owner, sitter, sitter2, mochi, luna, smu
 
   // 5. Both pets, waiting for payment, not reviewed
   const r5 = await book(owner, sitter, [mochi, luna], -11, '09:00', '17:00', 'completed', 'Day visit', [MEALS, h.PLAY_ONCE])
-  await session(r5, sitter, -11, '09:05', '16:40', { ticks: [['Meals', '09:20']], notes: 'Played with the feather toy, both were tired out.' })
+  const s5 = await session(r5, sitter, -11, '09:05', '16:40', { ticks: [['Meals', '09:20']], notes: 'Played with the feather toy, both were tired out.' })
+  // the location records the care report shows: left home without a walk, the app closed for a while, location blocked briefly
+  s5.awayEpisodes = [{ startedAt: at(-11, '12:30'), endedAt: at(-11, '12:58'), maxDistanceM: 380 }]
+  s5.locationGaps = [
+    { startedAt: at(-11, '15:05'), endedAt: at(-11, '15:30'), reason: 'stopped', resumedAtHome: true },
+    { startedAt: at(-11, '10:00'), endedAt: at(-11, '10:12'), reason: 'blocked', resumedAtHome: true }
+  ]
+  await s5.save()
   await chat(r5, [[sitter, 'Running 5 minutes late, sorry']])
 
   // 6. Evening, paid and reviewed

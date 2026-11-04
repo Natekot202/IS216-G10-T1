@@ -5,6 +5,7 @@ import { notify, notifyPaymentDue } from '../models/notificationModel.js'
 import { toSgtDateString } from '../models/Availability.js'
 import { autoEndWalk } from '../controllers/walkController.js'
 import { bookingRange, sessionEndTime } from './bookingTimes.js'
+import { closeRecords } from './locationRecords.js'
 
 // A session only ends when the sitter submits the report, so one they forget would stay open forever,
 // and the owner could never pay. This closes it a generous while after the booked end time.
@@ -28,9 +29,14 @@ async function endSession(visit, booking) {
   const walks = await Walk.find({ visit: visit._id, status: 'in-progress' })
   for (const walk of walks) await autoEndWalk(walk)
 
+  const endedAt = new Date()
   const ended = await VisitSession.findOneAndUpdate(
     { _id: visit._id, status: 'active' }, // not if the sitter has ended it just now
-    { $set: { status: 'completed', endedAt: new Date(), autoEnded: true, 'report.notes': NO_REPORT }, $unset: { lastLocation: 1 } },
+    {
+      // anything still open in the care report's location records ends here too
+      $set: { status: 'completed', endedAt, autoEnded: true, 'report.notes': NO_REPORT, ...closeRecords(visit, endedAt) },
+      $unset: { lastLocation: 1 }
+    },
     { new: true }
   )
   if (!ended) return

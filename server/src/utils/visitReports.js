@@ -15,7 +15,7 @@ import { bookingRange, bookedDays, reviewOpenUntil } from './bookingTimes.js'
 export async function buildReportEntries(bookings) {
   const ids = bookings.map((b) => b._id)
   const [visits, checklists, reviews, counts] = await Promise.all([
-    VisitSession.find({ booking: { $in: ids } }).select('-lastLocation -home').sort({ date: 1 }),
+    VisitSession.find({ booking: { $in: ids } }).select('-lastLocation -home -awayStreak').sort({ date: 1 }),
     CareChecklist.find({ bookingId: { $in: ids } }),
     Review.find({ booking: { $in: ids } }),
     Message.aggregate([{ $match: { booking: { $in: ids } } }, { $group: { _id: '$booking', n: { $sum: 1 } } }])

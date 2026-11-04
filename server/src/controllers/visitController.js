@@ -10,6 +10,7 @@ import { notify, notifyPaymentDue } from '../models/notificationModel.js'
 import { HOME_RADIUS_M, MAX_START_ACCURACY_M, isValidPoint, metresBetween } from '../utils/walkGeo.js'
 import { sharingEndTime, bookingRange, bookedDays } from '../utils/bookingTimes.js'
 import { buildReportEntries } from '../utils/visitReports.js'
+import { closeRecords, recordBlocked, recordReading } from '../utils/locationRecords.js'
 
 const STARTABLE = ['confirmed', 'in-progress'] // owners pay at the end, so sessions start once the owner has confirmed
 const PAUSED_AFTER_MS = 60 * 1000 // no update for this long: the owner sees "Location paused"
@@ -282,8 +283,9 @@ export async function updateLocation(req, res) {
     return res.json({ sharing: false })
   }
 
+  // (from here on it's before the sharing cutoff, so the care report's location records are kept too)
   if (req.body.blocked === true) {
-    await VisitSession.updateOne({ _id: visit._id }, { $set: { locationBlocked: true }, $unset: { lastLocation: 1 } })
+    await VisitSession.updateOne({ _id: visit._id }, { $set: { locationBlocked: true, ...recordBlocked(visit) }, $unset: { lastLocation: 1 } })
     return res.json({ sharing: true })
   }
 
@@ -292,8 +294,13 @@ export async function updateLocation(req, res) {
   if (!isValidPoint(location) || !Number.isFinite(accuracy)) {
     return res.status(400).json({ message: 'Your location is missing.' })
   }
+  const walking = Boolean(await Walk.exists({ visit: visit._id, status: 'in-progress' }))
   await VisitSession.updateOne({ _id: visit._id }, {
-    $set: { locationBlocked: false, lastLocation: { coordinates: location, accuracy, at: new Date() } }
+    $set: {
+      locationBlocked: false,
+      lastLocation: { coordinates: location, accuracy, at: new Date() },
+      ...recordReading(visit, { location, accuracy }, walking) // left home, location gaps
+    }
   })
   const walkDistanceM = Number(req.body.walkDistanceM)
   if (req.body.walkDistanceM != null && Number.isFinite(walkDistanceM) && walkDistanceM >= 0 && walkDistanceM <= MAX_WALK_DISTANCE_M) {
@@ -381,6 +388,7 @@ export async function endVisit(req, res) {
     visit.report = { notes, photos }
     visit.status = 'completed'
     visit.endedAt = new Date()
+    visit.set(closeRecords(visit, visit.endedAt)) // anything still open in the location records ends here
     visit.lastLocation = undefined // sharing stops when the session ends
     await visit.save()
   } catch (err) {
