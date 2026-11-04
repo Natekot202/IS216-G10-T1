@@ -50,8 +50,8 @@ const mapRef = ref(null)
       <button v-if="position" type="button" class="live-recentre" @click="mapRef?.recentre()">Recentre</button>
       <!-- which mark is which (the same shapes as the 'dots' markers in WalkMap) -->
       <ul class="live-legend" aria-label="Map key">
-        <li><span class="live-key live-key--sitter" aria-hidden="true"></span>{{ sitterName }}</li>
-        <li v-if="home"><span class="live-key live-key--home" aria-hidden="true"></span>Home</li>
+        <li><svg class="live-key live-key--sitter" viewBox="0 0 24 34" aria-hidden="true"><path d="M12 1C5.9 1 1 5.9 1 12c0 8.3 11 21 11 21s11-12.7 11-21C23 5.9 18.1 1 12 1z" fill="#2563eb" stroke="#fff" stroke-width="2"/><circle cx="12" cy="12" r="4.2" fill="#fff"/></svg>{{ sitterName }}</li>
+        <li v-if="home"><svg class="live-key live-key--home" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 1.8 11.2h3V21.5h14.4V11.2h3z" fill="#2b2420" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><rect x="10" y="14.5" width="4" height="7" rx=".6" fill="#fff"/></svg>Home</li>
         <li v-if="plannedRoute.length"><span class="live-key live-key--route" aria-hidden="true"></span>dashed: planned route</li>
       </ul>
     </div>
@@ -160,16 +160,12 @@ const mapRef = ref(null)
   display: inline-block;
 }
 .live-key--sitter {
-  width: 0.7rem;
-  height: 0.7rem;
-  border-radius: 50%;
-  background: #2563eb;
+  width: 0.8rem;
+  height: 1.1rem;
 }
 .live-key--home {
-  width: 0.65rem;
-  height: 0.65rem;
-  border-radius: 2px;
-  background: #2b2420;
+  width: 1.1rem;
+  height: 1.1rem;
 }
 .live-key--route {
   width: 1.1rem;

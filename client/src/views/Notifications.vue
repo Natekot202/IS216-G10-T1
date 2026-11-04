@@ -24,6 +24,7 @@ const TYPE_LABELS = {
   'walk-back-on-route': { text: 'Back on route', badge: 'text-bg-success' },
   'walk-ended-early': { text: 'Ended early', badge: 'text-bg-warning' },
   'walk-back-home': { text: 'End your walk', badge: 'text-bg-warning' },
+  'session-started': { text: 'Session started', badge: 'text-bg-success' },
   'session-unverified': { text: 'No location check', badge: 'text-bg-warning' },
   'session-auto-ended': { text: 'Session ended', badge: 'text-bg-warning' },
   'booking-requested': { text: 'New request', badge: 'badge-theme' }, // theme colour instead of Bootstrap blue

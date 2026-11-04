@@ -244,13 +244,15 @@ export async function startVisit(req, res) {
       booking.status = 'in-progress'
       await booking.save()
     }
-    if (startCheck) {
-      try {
-        await notify(booking.ownerId, 'session-unverified', `The sitter started without a location check: "${startCheck.note}"`, { booking: booking._id })
-      } catch (err) {
-        // The session should stand even if its notification cannot be saved (the owner still sees the note on the Session page).
-        console.error('Could not create session-unverified notification:', err.message)
-      }
+    // Tell the owner the session has started (a start without the location check gets the warning instead)
+    const [type, message] = startCheck
+      ? ['session-unverified', `The sitter started without a location check: "${startCheck.note}"`]
+      : ['session-started', 'Your sitter has started today\'s session.']
+    try {
+      await notify(booking.ownerId, type, message, { booking: booking._id })
+    } catch (err) {
+      // The session should stand even if its notification cannot be saved (the owner still sees it on the Session page).
+      console.error(`Could not create ${type} notification:`, err.message)
     }
     return res.status(201).json(visit)
   } catch (err) {

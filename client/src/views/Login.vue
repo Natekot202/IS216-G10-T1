@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { authApi } from '../services/api.js'
 import { fetchUser } from "../services/auth.js";
 import PasswordInput from '../components/PasswordInput.vue'
+import { showToast } from '../utils/useToast.js'
 
 const route = useRoute();
 const router = useRouter();
@@ -15,6 +16,7 @@ async function submit() {
   try {
     await authApi.login(form.value)
     await fetchUser()             
+    showToast('Logged in successfully')
     // go back to the page they were trying to open (only paths inside our app)
     const redirect = route.query.redirect
     const goodRedirect = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')

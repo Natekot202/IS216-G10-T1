@@ -130,6 +130,8 @@ function reviewSaved(e, review) {
           </button>
           <SessionChat v-if="e.messageCount > 0" class="re-chat" :booking-id="e.booking._id" :can-send="false"
                        :label="`Chat history with ${sitterName(e)}`" />
+          <!-- no chat: an empty slot keeps the Show button and chips in the same place as the rows that have one -->
+          <span v-else class="re-chat-slot" aria-hidden="true"></span>
         </div>
 
         <div v-if="openIds.has(e.booking._id)" class="re-body">
@@ -293,6 +295,30 @@ function reviewSaved(e, review) {
 .re-chat :deep(.chat-btn) {
   width: 40px;
   height: 40px;
+}
+.re-chat-slot {
+  flex: none;
+  width: 40px;
+  height: 40px;
+}
+
+/* wide screens: every row uses the same columns (avatar, who, Ended, Review, Show) so the chips line up */
+@media (min-width: 768px) {
+  .re-toggle {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 7.5rem 12.5rem 4.5rem;
+    gap: 0 0.9rem;
+  }
+  .re-chips {
+    display: contents;
+  }
+  .re-chip {
+    justify-self: stretch;
+    text-align: center;
+  }
+  .re-showhide {
+    text-align: right;
+  }
 }
 
 .re-body {

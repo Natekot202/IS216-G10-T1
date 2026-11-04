@@ -7,6 +7,7 @@ import { useRoute } from 'vue-router';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import { answerConfirm } from './utils/useConfirm.js';
 import { resumeTracking, stopTracking } from './utils/sessionTracker.js';
+import ToastHost from './components/ToastHost.vue'
 
 const route = useRoute()
 
@@ -31,5 +32,6 @@ watch(() => currentUser.value?.role, (role) => {
       <router-view />
     </main>
     <ConfirmDialog />
+    <ToastHost />
 
 </template>
