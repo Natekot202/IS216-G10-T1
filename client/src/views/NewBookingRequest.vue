@@ -21,7 +21,7 @@ const sitterId = route.query.sitterId // from the URL: /bookings/new?sitterId=..
 const fromQuery = (key) => (typeof route.query[key] === 'string' ? route.query[key] : '')
 const searchedWhen = { startDate: fromQuery('startDate'), endDate: fromQuery('endDate'), startTime: fromQuery('startTime'), endTime: fromQuery('endTime') }
 
-const sitter = ref(null) // { username, sitterProfile: { petsittingRates, ... } }
+const sitter = ref(null) // { username, sitterProfile: { services, ratingAvg, ... } }
 const pets = ref([]) // the logged-in owner's pets
 const availability = ref({}) // { '2026-10-20': { status: 'available' | 'blocked', slots: [540, 570, ...] } }
 const busy = ref([]) // times the sitter is already booked: [{ start, end }] as moments (milliseconds) e.g. busy = [  { start: 1792476000000,  end: 1792486800000 } ]
@@ -145,7 +145,7 @@ onMounted(async () => {
   if (!sitterId) return (loadError.value = 'No sitter selected. Pick a sitter from Search Sitters first.')
   try {
     const [s, p, a, b] = await Promise.all([
-      usersApi.getById(sitterId), // sitter's public profile (name, rate)
+      usersApi.getById(sitterId), // sitter's public profile (name, services, rating)
       petsApi.getAll(), // my pets
       availabilityApi.getForSitter(sitterId), // sitter's available days
       availabilityApi.getBusy(sitterId) // times the sitter is already booked

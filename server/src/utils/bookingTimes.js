@@ -59,7 +59,7 @@ export function bookingRange(booking) {
 
 // The time a booking takes on EACH of its days: [{ start, end }, ...] in milliseconds.
 // A booking's times are the hours for every day, e.g. 3 Nov to 5 Nov, 09:00 to 17:00 = three ranges of 9am to 5pm.
-// Old bookings that ran non-stop (overnight stays, no times, or an end time before the start time) stay one range.
+// Old bookings with no times, or an end time before the start time, stay one range.
 export function dailyRanges(booking) {
   // Bookings made from now on store the hours for each day (they can be different every day)
   if (booking.dayTimes?.length) {
@@ -68,7 +68,7 @@ export function dailyRanges(booking) {
       return { start: midnight + toMinutes(d.startTime) * MINUTE_MS, end: midnight + toMinutes(d.endTime) * MINUTE_MS }
     })
   }
-  if (booking.overnight || !booking.startTime || !booking.endTime) return [bookingRange(booking)]
+  if (!booking.startTime || !booking.endTime) return [bookingRange(booking)]
   const startMinutes = toMinutes(booking.startTime)
   const endMinutes = toMinutes(booking.endTime)
   if (endMinutes <= startMinutes) return [bookingRange(booking)]
@@ -165,8 +165,7 @@ function formatDay(date) {
   return date.toLocaleDateString('en-SG', { timeZone: 'Asia/Singapore', day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-// For error messages: '21 Oct 2026, 9:00 am – 12:00 pm', '21 Oct 2026 – 23 Oct 2026, 9:00 am – 5:00 pm each day',
-// or (old overnight bookings) '21 Oct 2026, 9:00 am – 22 Oct 2026, 5:00 pm'
+// For error messages: '21 Oct 2026, 9:00 am – 12:00 pm', '21 Oct 2026 – 23 Oct 2026, 9:00 am – 5:00 pm each day'
 export function describeBooking(booking) {
   if (!booking.startTime || !booking.endTime) {
     const days = toSgtDateString(booking.startDate) === toSgtDateString(booking.endDate)
