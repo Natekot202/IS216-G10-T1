@@ -25,8 +25,6 @@ const bookingSchema = new mongoose.Schema(
       default: []
     },
     notes: { type: String, default: '' },
-    // Only OLD bookings can be true (they ran non-stop through the night). There are no overnight stays or fees any more.
-    overnight: { type: Boolean, default: false },
     totalPrice: { type: Number, required: true, min: 0 },
     // pending -> accepted (sitter says yes) -> confirmed (owner picks this sitter) -> in-progress -> completed -> paid
     // declined: the sitter said no (from pending or accepted)
