@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { walkRoutesApi } from '../services/walkRouteApi.js'
-import { SERVICE_PRICES, SERVICE_LABELS, SERVICE_HINTS, priceForTasks } from '../utils/servicePrices.js'
+import { SERVICE_PRICES, SERVICE_LABELS, priceForTasks } from '../utils/servicePrices.js'
 import { prettyDate } from '../utils/bookingTimeHelpers.js'
 
 // The care checklist part of the booking form: the owner adds tasks (feed, walk, medication...).
@@ -16,6 +16,16 @@ const emit = defineEmits(['change'])
 const categories = Object.keys(SERVICE_PRICES) // same 6 types the server accepts (each has a fixed price)
 const tasks = ref([]) // each task: { category, title, dailyFrequency, petIds, walkRouteId, someDays, days }
 const dayCount = computed(() => props.dates.length)
+
+// An example for the "What to do" box, different for each type of task
+const PLACEHOLDERS = {
+  feed: 'e.g. Feed 1 cup of kibble at 8am',
+  walk: 'e.g. 30-minute walk in the park',
+  groom: 'e.g. Clean ears and brush coat',
+  medication: 'e.g. Half a tablet with dinner',
+  clean: 'e.g. Empty the litter tray and wash the bowls',
+  play: 'e.g. 20 minutes of fetch in the garden'
+}
 
 // The owner's recorded walking routes, for the route dropdown on walk tasks
 const walkRoutes = ref([])
@@ -51,22 +61,10 @@ function changeTimes(task, step) {
 const taskPrice = (task) => (SERVICE_PRICES[task.category] ?? 0) * (Number(task.dailyFrequency) || 0)
 const total = computed(() => priceForTasks(tasks.value, dayCount.value))
 
-// Which "certain days" tasks have their day picker open (UI only, not sent to the page)
-const openPickers = ref(new Set())
-const isOpen = (task) => openPickers.value.has(task)
-function togglePicker(task) {
-  if (isOpen(task)) openPickers.value.delete(task)
-  else openPickers.value.add(task)
-}
-
+// "Certain days" shows the day boxes straight away; "Every day" hides them and clears the days
 function setSomeDays(task, someDays) {
   task.someDays = someDays
-  if (!someDays) {
-    task.days = []
-    openPickers.value.delete(task)
-  } else {
-    openPickers.value.add(task) // open the picker straight away so the owner can choose
-  }
+  if (!someDays) task.days = []
 }
 
 function toggleTaskDay(task, date) {
@@ -79,22 +77,7 @@ const toDate = (date) => new Date(`${date}T00:00:00`)
 const weekday = (date) => toDate(date).getDay() // 0 = Sunday ... 6 = Saturday
 const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const dayNum = (date) => toDate(date).getDate()
-const monthShort = (date) => toDate(date).toLocaleDateString('en-SG', { month: 'short' })
 const shortDay = (date) => `${WEEKDAY_SHORT[weekday(date)]} ${dayNum(date)}` // "Wed 11"
-
-// Quick picks: each one sets the task's days in one tap
-const quickPicks = computed(() => {
-  const d = props.dates
-  return [
-    { key: 'other', label: 'Every other day', days: d.filter((_, i) => i % 2 === 0) },
-    { key: 'weekdays', label: 'Weekdays', days: d.filter((x) => weekday(x) >= 1 && weekday(x) <= 5) },
-    { key: 'weekends', label: 'Weekends', days: d.filter((x) => weekday(x) === 0 || weekday(x) === 6) },
-    { key: 'first', label: 'First day', days: d.slice(0, 1) },
-    { key: 'last', label: 'Last day', days: d.slice(-1) }
-  ]
-})
-const sameDays = (a, b) => a.length === b.length && a.every((x) => b.includes(x))
-const matchingPick = (task) => quickPicks.value.find((p) => p.days.length && sameDays(p.days, task.days))
 
 // The week grid: Mon–Sun columns, starting on the Monday before the first booked day.
 // Days in the range that aren't booked (and the padding) are null, so they show as blanks.
@@ -116,23 +99,11 @@ const weeks = computed(() => {
   }
   return rows
 })
-// Show the month on the first booked day and whenever a new month starts
-const showMonth = (date) => date === props.dates[0] || dayNum(date) === 1
 
 // "Wed 11, Sat 14, Tue 17" (long lists are cut short)
 function dayList(days, max = 6) {
   const names = days.map(shortDay)
   return names.length > max ? `${names.slice(0, max).join(', ')} and ${names.length - max} more` : names.join(', ')
-}
-// The link shown on a closed picker: "Every other day · 5 days", or "3 days · Wed 11, Sat 14, Tue 17"
-function daysSummary(task) {
-  const n = task.days.length
-  if (!n) return 'Choose days'
-  const count = `${n} day${n === 1 ? '' : 's'}`
-  const pick = matchingPick(task)
-  if (pick) return `${pick.label} · ${count}`
-  const skipped = props.dates.filter((d) => !task.days.includes(d))
-  return skipped.length <= 3 && skipped.length < n ? `${count} · not ${dayList(skipped)}` : `${count} · ${dayList(task.days, 4)}`
 }
 
 // Schedule at a glance: is this task on this day?
@@ -171,8 +142,7 @@ watch(tasks, () => emit('change', tasks.value), { deep: true })
 
 <template>
   <h3 class="h6 text-uppercase text-muted fw-bold mt-4">Care Checklist</h3>
-  <p class="small text-muted">What should the sitter do? Tasks are done every day unless you choose certain days, and every day needs at least one task. The price is based on these tasks.
-    Pick the type that really matches the job; the sitter can decline a request whose tasks don't match.</p>
+  <p class="small text-muted">Add your tasks here. Don't worry, more details can be added once the booking is confirmed.</p>
 
   <!-- Labels written once, above every task (on phones each task shows its own labels instead) -->
   <div v-if="tasks.length" class="cl-grid cl-head">
@@ -190,7 +160,7 @@ watch(tasks, () => emit('change', tasks.value), { deep: true })
       </div>
       <div class="cl-what">
         <label class="cl-label" :for="`task-title-${i}`">What to do</label>
-        <input :id="`task-title-${i}`" v-model="task.title" type="text" maxlength="120" class="form-control form-control-sm" placeholder="e.g. Feed 1 cup kibble at 8am" />
+        <input :id="`task-title-${i}`" v-model="task.title" type="text" maxlength="120" class="form-control form-control-sm" :placeholder="PLACEHOLDERS[task.category]" />
       </div>
       <div>
         <span class="cl-label">Times a day</span>
@@ -205,9 +175,6 @@ watch(tasks, () => emit('change', tasks.value), { deep: true })
         <button type="button" class="cl-x" aria-label="Remove task" @click="removeTask(i)">✕</button>
       </div>
     </div>
-
-    <!-- the extras sit under "What to do", all at the same indent -->
-    <div class="cl-sub"><span></span><span class="small text-muted">{{ SERVICE_HINTS[task.category] }}</span></div>
 
     <!-- Walk tasks: which route the sitter should follow -->
     <div v-if="task.category === 'walk'" class="cl-sub">
@@ -238,23 +205,10 @@ watch(tasks, () => emit('change', tasks.value), { deep: true })
             <button type="button" :aria-pressed="!task.someDays" @click="setSomeDays(task, false)">Every day</button>
             <button type="button" :aria-pressed="task.someDays" @click="setSomeDays(task, true)">Certain days</button>
           </div>
-          <!-- closed picker: its days as one line, tap to open -->
-          <button v-if="task.someDays && !isOpen(task)" type="button" class="days-link"
-                  :class="{ 'days-link--empty': !task.days.length }" :aria-expanded="false" @click="togglePicker(task)">{{ daysSummary(task) }}</button>
         </div>
       </div>
 
-      <template v-if="task.someDays && isOpen(task)">
-        <div class="cl-sub">
-          <span class="cl-sub-label">Quick</span>
-          <div class="d-flex flex-wrap align-items-center gap-2">
-            <button v-for="p in quickPicks" :key="p.key" type="button" class="chip"
-                    :aria-pressed="!!task.days.length && sameDays(p.days, task.days)" :disabled="!p.days.length"
-                    @click="task.days = [...p.days]">{{ p.label }}</button>
-            <button type="button" class="clear-link" :disabled="!task.days.length" @click="task.days = []">Clear</button>
-          </div>
-        </div>
-
+      <template v-if="task.someDays">
         <div class="cl-sub cl-sub--top">
           <span class="cl-sub-label">Tap days</span>
           <div class="week">
@@ -266,18 +220,14 @@ watch(tasks, () => emit('change', tasks.value), { deep: true })
                 <button v-if="d" type="button" class="day" :aria-pressed="task.days.includes(d)" :aria-label="prettyDate(d)" @click="toggleTaskDay(task, d)">
                   <strong>{{ dayNum(d) }}</strong>
                   <span v-if="task.days.includes(d)" class="day-note">✓</span>
-                  <span v-else-if="showMonth(d)" class="day-note">{{ monthShort(d) }}</span>
                 </button>
                 <span v-else></span>
               </template>
             </div>
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-1">
-              <p class="week-summary mb-0" aria-live="polite">
-                <template v-if="task.days.length"><strong>{{ task.days.length }} of {{ dayCount }} days</strong> · {{ dayList(task.days) }}</template>
-                <template v-else>Choose at least one day.</template>
-              </p>
-              <button type="button" class="clear-link" :aria-expanded="true" @click="togglePicker(task)">Done</button>
-            </div>
+            <p class="week-summary mb-0 mt-1" aria-live="polite">
+              <template v-if="task.days.length"><strong>{{ task.days.length }} of {{ dayCount }} days</strong> · {{ dayList(task.days) }}</template>
+              <template v-else>Choose at least one day.</template>
+            </p>
           </div>
         </div>
       </template>
@@ -287,17 +237,18 @@ watch(tasks, () => emit('change', tasks.value), { deep: true })
     <div v-if="pets.length > 1" class="cl-sub">
       <span class="cl-sub-label">For</span>
       <div class="d-flex flex-wrap align-items-center gap-2">
+        <!-- "All pets" is picked when no single pet is (petIds: [] means all the selected pets); tapping it clears the picks -->
+        <button type="button" class="pet-chip" :aria-pressed="task.petIds.length === 0" @click="task.petIds = []">All pets</button>
         <button
           v-for="pet in pets"
           :key="pet._id"
           type="button"
-          class="btn btn-sm rounded-pill px-2 py-0"
-          :class="task.petIds.includes(pet._id) ? 'btn-dark' : 'btn-outline-secondary'"
+          class="pet-chip"
+          :aria-pressed="task.petIds.includes(pet._id)"
           @click="toggleTaskPet(task, pet._id)"
         >
           {{ pet.name }}
         </button>
-        <span v-if="task.petIds.length === 0" class="small text-muted">(all selected pets)</span>
       </div>
     </div>
   </div>
@@ -397,10 +348,10 @@ watch(tasks, () => emit('change', tasks.value), { deep: true })
 .seg button { border: 0; background: none; border-radius: 999px; padding: 0 14px; min-height: 32px; font-size: 0.85rem; font-weight: 700; color: #6b5f56; }
 .seg button[aria-pressed='true'] { background: var(--accent); color: #fff; font-weight: 800; }
 
-.days-link, .clear-link { border: 0; background: none; padding: 0; min-height: 32px; font-size: 0.85rem; font-weight: 700; color: var(--accent); text-decoration: underline; }
-.days-link:hover, .clear-link:hover { color: var(--accent-hover); }
-.days-link--empty { color: #b3412b; }
-.clear-link:disabled { color: #b8aca2; text-decoration: none; }
+/* the "For" pets: same look as the day boxes (light border, picked = app colour with white text) */
+.pet-chip { border: 1.5px solid var(--line); background: #fff; color: #2b2420; border-radius: 999px; padding: 0 14px; min-height: 32px; font-size: 0.85rem; font-weight: 700; }
+.pet-chip:hover { border-color: var(--accent-main); }
+.pet-chip[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 .chip { border: 1.5px solid var(--line); background: #fff; color: #2b2420; border-radius: 999px; padding: 0 12px; min-height: 32px; font-size: 0.82rem; font-weight: 700; white-space: nowrap; }
 .chip:hover:not(:disabled) { border-color: var(--accent-main); }
@@ -427,7 +378,7 @@ watch(tasks, () => emit('change', tasks.value), { deep: true })
 .sched-grid th { font-size: 0.72rem; font-weight: 700; color: #6b5f56; text-align: center; white-space: nowrap; padding: 2px 0; border-radius: 6px; line-height: 1.15; }
 .sched-wd { display: block; font-weight: 600; }
 .sched-grid td { padding: 0; }
-.sched-name { text-align: left !important; font-size: 0.85rem !important; color: #2b2420 !important; overflow: hidden; text-overflow: ellipsis; }
+.sched-name { text-align: left !important; font-size: 0.85rem !important; color: #2b2420 !important; white-space: normal !important; overflow-wrap: anywhere; line-height: 1.2; } /* long task names wrap onto the next line instead of being cut off with "…" */
 .cell { display: block; width: 100%; height: 30px; border: 0; border-radius: 6px; background: var(--bar-track); }
 .cell[aria-pressed='true'] { background: var(--accent-main); }
 .cell:hover { filter: brightness(0.94); }

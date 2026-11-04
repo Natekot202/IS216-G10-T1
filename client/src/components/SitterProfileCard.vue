@@ -5,8 +5,17 @@ import defaultAvatar from '../assets/img/tempProfile.jpg'
 
 const props = defineProps({
     sitter: Object,
-    reasons: { type: Array, default: () => [] } // why this sitter is recommended, e.g. ['Takes Dog, Cat', 'Offers Grooming'] (only with "Recommended for me" on)
+    reasons: { type: Array, default: () => [] }, // why this sitter is recommended, e.g. ['Takes Dog, Cat', 'Offers Grooming'] (only with "Recommended for me" on)
+    // only when the owner searched by dates: e.g. 'Free 9:00 am – 5:00 pm, all 3 days' or 'Free 2 of 3 days'
+    freeNote: { type: String, default: '' },
+    // partly free sitters: one chip per day, e.g. [{ day: '2026-11-05', free: true }, { day: '2026-11-06', free: false }]
+    dayChips: { type: Array, default: () => [] },
+    freeReason: { type: String, default: '' } // why some days are not free, e.g. 'Fri 6: Booked 2:00 pm – 4:00 pm'
 })
+// any day not free = amber pill, otherwise green
+const partly = computed(() => props.dayChips.some((d) => !d.free))
+// '2026-11-05' -> 'Thu 5'
+const chipLabel = (day) => new Date(`${day}T00:00:00`).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric' })
 const isNewSitter = computed(() => {
     const createdAt = new Date(props.sitter?.createdAt).getTime()
     const ageMs = Date.now() - createdAt
@@ -50,6 +59,14 @@ const isNewSitter = computed(() => {
             <div v-if="reasons.length" class="d-flex flex-wrap gap-2 mb-1">
                 <span v-for="r in reasons" :key="r" class="reason-tag">✓ {{ r }}</span>
             </div>
+            <!-- searched by dates: is this sitter free on them -->
+            <div v-if="freeNote" class="mb-1">
+                <span class="free-pill" :class="partly ? 'free-pill--part' : 'free-pill--all'">{{ freeNote }}</span>
+                <div v-if="dayChips.length" class="d-flex flex-wrap gap-1 mt-2">
+                    <span v-for="d in dayChips" :key="d.day" class="day-chip" :class="{ 'day-chip--off': !d.free }">{{ chipLabel(d.day) }}</span>
+                </div>
+                <small v-if="freeReason" class="d-block text-secondary mt-1">{{ freeReason }}</small>
+            </div>
             <!-- pushed to the bottom so the buttons line up when cards are the same height -->
             <div class="mt-auto">
                 <slot></slot>
@@ -85,6 +102,23 @@ const isNewSitter = computed(() => {
   font-size: 0.8rem;
   font-weight: 600;
 }
+.free-pill {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.free-pill--all { background: #e6f5ee; color: #1f7a53; }
+.free-pill--part { background: #fbf0d9; color: #8a5600; }
+.day-chip {
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+  background: #e6f5ee;
+  color: #1f7a53;
+  font-size: 0.75rem;
+}
+.day-chip--off { background: #eee; color: #777; }
 .pet-tag {
   padding: 0.15rem 0.7rem;
   border-radius: 10px;
