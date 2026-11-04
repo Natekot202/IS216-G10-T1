@@ -23,6 +23,7 @@ const sitterProfiles = ref([])
 const errorMsg = ref("")
 const selectedPets = ref([])
 const otherPets = ref("")
+const loadingSitters = ref(true)
 
 const showMapModal = ref(false)
 const isLg = ref(false)
@@ -290,6 +291,8 @@ async function loadSitterProfiles(){
   } catch (error) {
     console.log(error)
     errorMsg.value = "Error loading data"
+  } finally {
+    loadingSitters.value = false
   }
 }
 
@@ -493,44 +496,52 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
-          <!-- on, but no sitter suits this owner -->
-          <p v-if="showRecommended && canRecommend && !searchResults.length" class="rec-empty">
-            No sitters match what your pets need yet. Turn this off to see everyone.
-          </p>
-
-          <!-- searching by dates: sitters free on every day first -->
-          <div v-if="datesError" class="alert alert-warning py-2 small">{{ datesError }}</div>
-          <template v-else-if="requestedDates.length">
-            <h2 class="group-title">Free for the whole range <span v-if="!checkingDates">{{ searchResults.length }} sitter{{ searchResults.length === 1 ? '' : 's' }}</span></h2>
-            <p v-if="checkingDates" class="text-secondary small mb-0">Checking availability…</p>
-            <div v-else-if="!searchResults.length" class="dates-empty">
-              {{ requestedDates.length === 1 ? `No sitter is free on ${fmtDate(availableFrom)}` : `No single sitter is free for all ${requestedDates.length} days` }}{{ timeLabel ? ' at those hours' : '' }}.
-              <template v-if="partialResults.length"> See who covers part of it below.</template>
-              <div v-if="coverNote" class="mt-1 fw-semibold">{{ coverNote }}</div>
-            </div>
-          </template>
-
-          <!-- grid with equal rows, so every card is as tall as the tallest one on the page -->
-          <div ref="listEl" class="sitter-list" :class="{ 'rec-dim': showRecommended && !canRecommend }">
-            <div v-for="sitter in pagedSitters" :key="sitter._id">
-              <SitterProfileCard :sitter="sitter" :reasons="sitter.match?.reasons || []" :free-note="freeNoteFor(sitter)">
-                <router-link :to="{ path: `/users/${sitter._id}`, query: bookingQuery }" class="btn btn-brand-outline rounded col-12 fw-semibold mt-1">View Profile</router-link>
-              </SitterProfileCard>
-            </div>
+          <div v-if="errorMsg" class="alert alert-warning">{{ errorMsg }}</div>
+          <div v-else-if="loadingSitters" class="d-flex align-items-center text-muted"> 
+            <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span> 
+            Loading sitters... 
           </div>
-          <PaginationBar :page="page" :total="searchResults.length" :page-size="PAGE_SIZE" @change="goPage" />
 
-          <!-- free on some of the days, not all -->
-          <template v-if="partialShown.length && !checkingDates">
-            <h2 class="group-title">Partly available <span>book each part separately</span></h2>
-            <div class="sitter-list">
-              <div v-for="sitter in partialShown" :key="sitter._id">
-                <SitterProfileCard :sitter="sitter" :reasons="sitter.match?.reasons || []" :free-note="freeNoteFor(sitter)"
-                  :day-chips="dayChipsFor(sitter)" :free-reason="freeReasonFor(sitter)">
-                  <router-link :to="{ path: `/users/${sitter._id}`, query: bookingQuery }" class="btn btn-brand-outline rounded col-12 fw-semibold mt-3">View Profile</router-link>
+          <template v-else>
+            <!-- on, but no sitter suits this owner -->
+            <p v-if="showRecommended && canRecommend && !searchResults.length" class="rec-empty">
+              No sitters match what your pets need yet. Turn this off to see everyone.
+            </p>
+
+            <!-- searching by dates: sitters free on every day first -->
+            <div v-if="datesError" class="alert alert-warning py-2 small">{{ datesError }}</div>
+            <template v-else-if="requestedDates.length">
+              <h2 class="group-title">Free for the whole range <span v-if="!checkingDates">{{ searchResults.length }} sitter{{ searchResults.length === 1 ? '' : 's' }}</span></h2>
+              <p v-if="checkingDates" class="text-secondary small mb-0">Checking availability…</p>
+              <div v-else-if="!searchResults.length" class="dates-empty">
+                {{ requestedDates.length === 1 ? `No sitter is free on ${fmtDate(availableFrom)}` : `No single sitter is free for all ${requestedDates.length} days` }}{{ timeLabel ? ' at those hours' : '' }}.
+                <template v-if="partialResults.length"> See who covers part of it below.</template>
+                <div v-if="coverNote" class="mt-1 fw-semibold">{{ coverNote }}</div>
+              </div>
+            </template>
+
+            <!-- grid with equal rows, so every card is as tall as the tallest one on the page -->
+            <div ref="listEl" class="sitter-list" :class="{ 'rec-dim': showRecommended && !canRecommend }">
+              <div v-for="sitter in pagedSitters" :key="sitter._id">
+                <SitterProfileCard :sitter="sitter" :reasons="sitter.match?.reasons || []" :free-note="freeNoteFor(sitter)">
+                  <router-link :to="{ path: `/users/${sitter._id}`, query: bookingQuery }" class="btn btn-brand-outline rounded col-12 fw-semibold mt-1">View Profile</router-link>
                 </SitterProfileCard>
               </div>
             </div>
+            <PaginationBar :page="page" :total="searchResults.length" :page-size="PAGE_SIZE" @change="goPage" />
+
+            <!-- free on some of the days, not all -->
+            <template v-if="partialShown.length && !checkingDates">
+              <h2 class="group-title">Partly available <span>book each part separately</span></h2>
+              <div class="sitter-list">
+                <div v-for="sitter in partialShown" :key="sitter._id">
+                  <SitterProfileCard :sitter="sitter" :reasons="sitter.match?.reasons || []" :free-note="freeNoteFor(sitter)"
+                    :day-chips="dayChipsFor(sitter)" :free-reason="freeReasonFor(sitter)">
+                    <router-link :to="{ path: `/users/${sitter._id}`, query: bookingQuery }" class="btn btn-brand-outline rounded col-12 fw-semibold mt-3">View Profile</router-link>
+                  </SitterProfileCard>
+                </div>
+              </div>
+            </template>
           </template>
         </div>
 
