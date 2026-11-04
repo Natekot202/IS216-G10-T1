@@ -1,95 +1,23 @@
-import 'dotenv/config'
-import express from 'express'
-import cors from 'cors'
-import MongoStore from 'connect-mongo'
-import connectDB from './src/config/db.js'
-import session from 'express-session'
-import petRoutes from './src/routes/petRoutes.js'
-import authRoutes from './src/routes/authRoute.js'
-import sitterRoute from './src/routes/sitterRoute.js'
-import errorHandler from './src/middleware/errorHandler.js'
-import bookingRoutes from './src/routes/bookingRoute.js'
-import userRoutes from './src/routes/userRoutes.js'
-import availabilityRoutes from './src/routes/availability.js'
-import bookingCreateRoutes from './src/routes/bookingCreate.js'
-import googleCalendarRoutes from './src/routes/googleCalendar.js'
-import visitRoutes from './src/routes/visitRoutes.js'
-import reviewRoutes from './src/routes/reviewRoutes.js'
-import walkRouteRoutes from './src/routes/walkRoutes.js'
-import paymentRoutes from './src/routes/paymentRoute.js'
-import walksRoutes from './src/routes/walks.js'
-import notificationRoutes from './src/routes/notifications.js'
-import bookingMessageRoutes from './src/routes/bookingMessages.js'
+// Local starter only. On Vercel, the "server" service (vercel.json) loads app.js directly and
+// the background jobs below run via the daily cron (/api/cron/daily) instead.
 import mongoose from 'mongoose'
+import app, { ensureDB } from './app.js'
 import { recalcAllRatings, watchReviews } from './src/utils/ratingsCalc.js'
 import { startExpiringBookings } from './src/utils/expireBookings.js'
 import { startEndingForgottenSessions } from './src/utils/endForgottenSessions.js'
 
-if (!process.env.SESSION_SECRET){
-  console.error('Session Secret is missing from .env')
-  process.exit(1)
-}
-
-const app = express()
 const PORT = process.env.PORT || 5000
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173'
-
-app.use(cors({
-  origin: CLIENT_ORIGIN ,
-  credentials: true
-}))
-app.use(express.json())
-
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
-  cookie: {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: false, 
-    maxAge: 1000 * 60 * 60 * 24 * 7
-  }
-}))
-
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' })
-})
-
-app.use("/api/auth", authRoutes);
-app.use('/api/pets', petRoutes);
-app.use('/api/bookings', bookingRoutes);
-app.use('/api/sitters', sitterRoute);
-app.use('/api/users', userRoutes)  
-app.use('/api/availability', availabilityRoutes)
-app.use('/api/bookings', bookingCreateRoutes)
-app.use('/api/bookings', bookingMessageRoutes)
-app.use('/api/visits', visitRoutes)   
-app.use('/api/reviews', reviewRoutes)
-app.use('/api/google', googleCalendarRoutes)
-app.use('/api/walk-routes', walkRouteRoutes)
-app.use('/api/payments', paymentRoutes)
-app.use('/api/walks', walksRoutes)
-app.use('/api/notifications', notificationRoutes)
-
-// Fallback 404 for unmatched API routes
-app.use('/api', (req, res) => {
-  res.status(404).json({ message: 'Not found' })
-})
-
-app.use(errorHandler)
 
 async function start() {
   try {
-    await connectDB()
+    await ensureDB()
     startExpiringBookings() // unconfirmed requests expire once their start time passes
     startEndingForgottenSessions() // sessions the sitter never ended close 6 hours after their end time
-    recalcAllRatings().catch((err) => console.error('Rating recalculation failed', err)) 
+    recalcAllRatings().catch((err) => console.error('Rating recalculation failed', err))
     watchReviews()
     app.listen(PORT, () => {
       console.log(`PetSociety API listening on http://localhost:${PORT}`)
-      console.log('Connected to DB ✅:', mongoose.connection.name, 'on', mongoose.connection.host) // checking which collection
+      console.log('Connected to DB âœ…:', mongoose.connection.name, 'on', mongoose.connection.host) // checking which collection
     })
   } catch (err) {
     console.error('Failed to start server:', err.message)
