@@ -127,6 +127,9 @@ onMounted(() => {
   startChecking()
 })
 onBeforeUnmount(() => clearInterval(timer))
+
+// so other parts of the page can open the chat, e.g. "Message Alex" in the sitter's Alert box
+defineExpose({ openChat: () => { open.value = true } })
 </script>
 
 <template>
@@ -178,10 +181,17 @@ onBeforeUnmount(() => clearInterval(timer))
   width: 44px;
   height: 44px;
   place-items: center;
-  border: 1px solid currentColor;
-  border-radius: 10px;
-  background: none;
-  color: inherit;
+  border: 1px solid #e6dcd3;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--accent);
+}
+.chat-btn:hover {
+  border-color: var(--accent-main);
+}
+.chat-btn:focus-visible {
+  outline: 3px solid var(--accent-deep);
+  outline-offset: 2px;
 }
 .chat-badge {
   position: absolute;

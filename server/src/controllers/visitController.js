@@ -111,6 +111,9 @@ export async function getTodaySessions(req, res) {
   const walks = await Walk.find({ visit: { $in: visits.map((v) => v._id) }, status: 'in-progress' })
     .select('visit task startedAt plannedPath liveDistanceM')
   const walkByVisit = new Map(walks.map((w) => [String(w.visit), w]))
+  // every walk started in these sessions, for the owner's timeline ("Walk finished · 1.3 km"); no paths
+  const dayWalks = await Walk.find({ visit: { $in: visits.map((v) => v._id) }, startedAt: { $ne: null } })
+    .select('visit task routeName status startedAt endedAt distanceM').sort({ startedAt: 1 })
 
   const isSitterViewer = req.session.role === 'sitter'
 
@@ -176,6 +179,7 @@ export async function getTodaySessions(req, res) {
       const walk = session.visit ? walkByVisit.get(String(session.visit._id)) : null
       // distanceSoFarM: for the owner's "On a walk, 0.6 km so far"
       session.activeWalk = walk ? { ...walk.toObject(), distanceSoFarM: walk.liveDistanceM } : null
+      session.walks = session.visit ? dayWalks.filter((w) => String(w.visit) === String(session.visit._id)) : []
       if (session.visit?.status === 'active') {
         const located = locationByVisit.get(String(session.visit._id))
         if (located) session.liveLocation = liveLocationFor(located, b, session.activeWalk)
