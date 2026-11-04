@@ -1,9 +1,8 @@
 // Turns a booking's tasklist into short summary lines for a card,
 // e.g. "Feeding ×16", "Walking ×4 (6 km)".
-// Works with the sample data now and with the real GET /api/bookings/:id/tasklist later.
+// Works on the care checklist items of a booking.
 // It only uses the short-version fields (category, times, days, distanceKm), so it also
 // works on the cut-down tasklist a sitter sees before the booking is paid.
-import {sampleTasklists} from '../sampleData/taskLists.js'
 
 const LABELS = {
   feed: 'Feeding',
@@ -12,9 +11,8 @@ const LABELS = {
   medication: 'Medication',
   clean: 'Clean-up',
   play: 'Playtime',
-  other: 'Other tasks', // only old bookings made before 'other' was removed
 }
-const ORDER = ['feed', 'walk', 'groom', 'medication', 'clean', 'play', 'other'];
+const ORDER = ['feed', 'walk', 'groom', 'medication', 'clean', 'play'];
 
 // Inclusive, so 22 Oct to 25 Oct is 4 days.
 function bookingDuration(start, end) {
@@ -107,22 +105,6 @@ export function summariseTasks(tasklist, booking) {
   return Object.values(summary);
 }
 
-
-// Finds the tasklist for one booking, like GET /api/bookings/:id/tasklist would.
-// Pass { sitterView: true } to get the short version a sitter sees before the booking is paid.
-export function findTasklist(bookingId, { sitterView = false } = {}) {
-  const found = sampleTasklists.find((t) => t.bookingId === bookingId)
-  if (!found) return null
-  if (!sitterView) return found
-  return {
-    ...found,
-    items: found.items.map((item) => {
-      const copy = { ...item }
-      DETAIL_FIELDS.forEach((f) => delete copy[f])
-      return copy
-    }),
-  }
-}
 
 // task.petIds holds ids like 'p1', the booking's petIds holds { _id, name }
 // temporary function
