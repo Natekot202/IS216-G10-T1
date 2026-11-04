@@ -17,6 +17,9 @@ import Notification from '../models/notificationModel.js'
 import Availability from '../models/Availability.js'
 import { priceForTasks } from '../utils/servicePrices.js'
 import { pathLength } from '../utils/walkGeo.js'
+import Message from '../models/Message.js'
+import Review from '../models/reviewModel.js'
+import { seedSessionPage } from './seedSessions.js'
 
 const SEED_OWNER_EMAIL = 'seed.owner@petsociety.com'
 const SEED_SITTER_EMAIL = 'seed.sitter@petsociety.com'
@@ -73,6 +76,7 @@ function makeBooking(owner, sitter, pets, day, startTime, endTime, status, notes
       endDate: daysFromToday(day + length - 1),
       startTime,
       endTime,
+      dayTimes, // the hours for each day
       notes: `${SEED_TAG} ${notes}`,
       totalPrice: priceForTasks(tasks, length),
       status
@@ -95,6 +99,8 @@ async function clearOldSeed() {
   await Payment.deleteMany({ $or: [{ ownerId: { $in: oldIds } }, { sitterId: { $in: oldIds } }] })
   await Notification.deleteMany({ recipient: { $in: oldIds } })
   await Walk.deleteMany({ $or: [{ owner: { $in: oldIds } }, { sitter: { $in: oldIds } }] })
+  await Message.deleteMany({ booking: { $in: oldBookingIds } })
+  await Review.deleteMany({ booking: { $in: oldBookingIds } })
   await Availability.deleteMany({ sitterId: { $in: oldIds } })
   await WalkRoute.deleteMany({ owner: { $in: oldIds } })
   await VisitSession.deleteMany({ booking: { $in: oldBookingIds } })
@@ -209,6 +215,12 @@ async function seed() {
     { bookingId: paid._id, ownerId: owner._id, sitterId: sitter._id, amount: paid.totalPrice, method: 'visa', cardLast4: '4242', status: 'successful' },
     { bookingId: unpaid._id, ownerId: owner._id, sitterId: sitter._id, amount: unpaid.totalPrice, status: 'rejected' }
   ])
+
+  // The Session page: today's sessions in different states, and finished bookings with care reports (seedSessions.js)
+  await seedSessionPage({ owner, sitter, sitter2, mochi, luna, smuLoop }, {
+    makeBooking, dayString, SMU_HOME, SMU_LOOP, WALK_ROUTE, WALK_INSTRUCTIONS,
+    FEED_TWICE, FEED_ONCE, GROOM_ONCE, WIPE_PAWS, EYE_DROPS, CLEAN_ONCE, PLAY_ONCE, PLAY_FETCH
+  })
 
   console.log('Seed done ✅')
   console.log(`Owner    login: ${SEED_OWNER_EMAIL} / ${SEED_PASSWORD}`)

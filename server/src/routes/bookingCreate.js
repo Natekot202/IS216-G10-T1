@@ -111,6 +111,7 @@ router.post('/', requireOwner, asyncHandler(async (req, res) => {
   // 1. Input checks
   if (!mongoose.isValidObjectId(sitterId)) return res.status(400).json({ message: 'Choose a sitter.' })
   if (!Array.isArray(petIds) || petIds.length === 0) return res.status(400).json({ message: 'Select at least one pet.' })
+  if (String(notes).length > 1000) return res.status(400).json({ message: 'Notes to the sitter can be up to 1000 characters.' })
 
   const start = sgtMidnight(startDate)
   const end = sgtMidnight(endDate)

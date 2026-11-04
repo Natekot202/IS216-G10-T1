@@ -220,9 +220,17 @@ onMounted(async () => {
 
           <!-- Care checklist -->
           <CareChecklistEditor :pets="selectedPetList" :dates="chosenDays" @change="tasks = $event" />
-          <!-- 
-          same concept as bookingDatePicker abv 
+          <!--
+          same concept as bookingDatePicker abv
           -->
+
+          <!-- Notes: anything that isn't one task (each task's own details are added after confirming) -->
+          <h3 class="h6 text-uppercase text-muted fw-bold mt-4">
+            <label for="sitter-notes" class="mb-0">Notes to Sitter</label>
+          </h3>
+          <textarea id="sitter-notes" v-model="notes" class="form-control" rows="4" maxlength="1000"
+                    placeholder="Anything the sitter should know, e.g. Mochi is shy with new people"></textarea>
+          <p class="small text-muted text-end mb-0">{{ notes.length }}/1000</p>
         </div>
       </div>
     </div>
