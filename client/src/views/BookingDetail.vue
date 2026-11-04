@@ -15,6 +15,7 @@ import CareDetailsSummary from '../components/CareDetailsSummary.vue'
 import { formatPrice, formatBookingWhen, hoursVary, dayTimesList } from '../utils/bookingHelpers.js'
 import { reviewsApi } from '../services/api.js'
 import ReviewForm from '../components/ReviewForm.vue'
+import { shortDate } from '../utils/visitReport.js'
 import { prettyDate } from '../utils/bookingTimeHelpers.js'
 import { confirmDialog } from '../utils/useConfirm.js'
 import BackButton from '../components/BackButton.vue'
@@ -188,6 +189,9 @@ const review = ref(null)
 const reviewLoaded = ref(false)
 const canSeeReview = computed(() => ['completed', 'paid'].includes(booking.value?.status))
 const reviewStars = computed(() => (review.value ? '★'.repeat(review.value.rating) + '☆'.repeat(5 - review.value.rating) : ''))
+// Reviews close 30 days after the booking's last booked time (the server sends the date and checks it too)
+const reviewUntil = computed(() => (booking.value?.reviewOpenUntil ? shortDate(new Date(booking.value.reviewOpenUntil)) : ''))
+const reviewClosed = computed(() => booking.value?.reviewOpenUntil != null && Date.now() > booking.value.reviewOpenUntil)
 
 onMounted(async () => {
   try {
@@ -410,7 +414,11 @@ onMounted(async () => {
           <p v-if="!isSitter" class="small text-muted mb-0">Thanks, your review has been posted.</p>
         </template>
         <p v-else-if="isSitter" class="small text-muted mb-0">The owner hasn't left a review yet.</p>
-        <ReviewForm v-else :booking-id="booking._id" @saved="review = $event" />
+        <p v-else-if="reviewClosed" class="small text-muted mb-0">Reviews for this booking closed on {{ reviewUntil }}.</p>
+        <template v-else>
+          <ReviewForm :booking-id="booking._id" @saved="review = $event" />
+          <p v-if="reviewUntil" class="small text-muted mt-2 mb-0">You can review until {{ reviewUntil }}.</p>
+        </template>
       </div>
     </template>
 

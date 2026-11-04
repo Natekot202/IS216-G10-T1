@@ -1,11 +1,13 @@
 <script setup>
-// /session: today's sessions, for sitters and owners. One session shows at a time.
+// /session: today's sessions for sitters and owners, one showing at a time, and the owner's Recently ended list.
 // Every session's card stays on the page (only hidden), so a half-written report or a chat
 // keeps going while the sitter looks at another session.
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+// Owners on phones see two tabs, Today and Recently ended, switched by tapping or swiping.
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { currentUser } from '../services/auth.js'
 import { visitsApi } from '../services/api.js'
 import SessionCard from '../components/SessionCard.vue'
+import RecentlyEnded from '../components/RecentlyEnded.vue'
 
 const data = ref(null)
 const loading = ref(true)
@@ -17,7 +19,12 @@ const listOpen = ref(false)
 const unread = reactive({}) // unread chat messages per booking id
 
 const isSitter = computed(() => currentUser.value?.role === 'sitter')
-const sessions = computed(() => data.value?.sessions ?? [])
+
+// Once a booking's last day has been completed it leaves the owner's Today and is only under Recently ended
+// (an earlier day that's finished stays until midnight, with View report)
+const finished = (s) => !isSitter.value && ['completed', 'paid'].includes(s.booking.status)
+  && s.visit?.status === 'completed' && s.booking.dayNumber === s.booking.totalDays
+const sessions = computed(() => (data.value?.sessions ?? []).filter((s) => !finished(s)))
 
 const allDone = computed(
   () => sessions.value.length > 0 && sessions.value.every((s) => s.visit?.status === 'completed')
@@ -48,19 +55,24 @@ function pickDefault() {
 
 function selectSession(id) {
   selectedId.value = id
-  // owners keep the list open (they close it with the button); sitters get it out of the way
-  if (isSitter.value) listOpen.value = false
+  listOpen.value = false
 }
 
+// ---- Recently ended (owners) ----
+const recentRef = ref(null)
+const recentCount = ref(0)
+
 async function load(quiet = false) {
+  const before = new Set(sessions.value.map((s) => s.booking._id))
   try {
     data.value = await visitsApi.today()
     error.value = ''
     if (!sessions.value.some((s) => s.booking._id === selectedId.value)) {
       selectedId.value = pickDefault()
       listOpen.value = !sessions.value.some(isInProgress) // the list stays out of the way during a session
-      if (!isSitter.value) listOpen.value = true // owners: the list starts open
     }
+    // a booking just finished its last day: it has moved to Recently ended
+    if ([...before].some((id) => !sessions.value.some((s) => s.booking._id === id))) recentRef.value?.load()
   } catch (err) {
     if (!quiet) {
       error.value = err.response?.data?.message || 'Could not load today’s sessions.'
@@ -81,82 +93,169 @@ onMounted(() => {
   }, 10000)
 })
 onBeforeUnmount(() => clearInterval(timer))
+
+// ---- Owner's phone tabs ----
+const tab = ref('today')
+function showTab(name) {
+  if (tab.value === name) return
+  tab.value = name
+  nextTick(() => window.scrollTo({ top: 0 }))
+}
+// A sideways swipe of more than 70 px switches tabs, unless it started on a map, the session list or a form field
+let swipeStart = null
+function onTouchStart(e) {
+  const t = e.touches[0]
+  swipeStart = e.target.closest('.map, .maplibregl-map, .sesh-list, input, textarea, select') ? null : { x: t.clientX, y: t.clientY }
+}
+function onTouchEnd(e) {
+  if (!swipeStart) return
+  const t = e.changedTouches[0]
+  const dx = t.clientX - swipeStart.x
+  const dy = t.clientY - swipeStart.y
+  swipeStart = null
+  if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.5) showTab(dx < 0 ? 'recent' : 'today')
+}
 </script>
 
 <template>
-  <div class="sesh">
-    <div class="sesh-head">
-      <div>
-        <h3 class="mb-0">Today's sessions</h3>
-        <p v-if="data" class="text-muted small mb-0">{{ fmt(data.today) }}</p>
+  <div class="sesh" :class="{ 'sesh--owner': !isSitter }" @touchstart.passive="onTouchStart" @touchend="onTouchEnd">
+    <!-- owners: the page title, and on phones the two tabs -->
+    <template v-if="!isSitter">
+      <h2 class="sesh-title">Sessions</h2>
+      <p v-if="data" class="sesh-date">{{ fmt(data.today) }}</p>
+      <div class="sesh-tabs" role="tablist" aria-label="Sessions">
+        <button id="tab-today" type="button" role="tab" class="sesh-tab" :aria-selected="tab === 'today'"
+                aria-controls="panel-today" @click="showTab('today')">
+          <span class="sesh-tab__dot sesh-tab__dot--today" aria-hidden="true"></span>Today ({{ sessions.length }})
+        </button>
+        <button id="tab-recent" type="button" role="tab" class="sesh-tab" :aria-selected="tab === 'recent'"
+                aria-controls="panel-recent" @click="showTab('recent')">
+          <span class="sesh-tab__dot" aria-hidden="true"></span>Recently ended ({{ recentCount }})
+        </button>
       </div>
-      <button v-if="sessions.length > 1" type="button" class="sesh-switch" :aria-expanded="listOpen"
-              @click="listOpen = !listOpen">
-        Session {{ selectedNumber }} of {{ sessions.length }}
-        <span aria-hidden="true">{{ listOpen ? '▴' : '▾' }}</span>
-      </button>
-    </div>
+    </template>
 
-    <div v-if="error" class="alert alert-warning">{{ error }}</div>
+    <section id="panel-today" class="sesh-panel" :class="{ 'sesh-panel--off': tab !== 'today' }" role="tabpanel" aria-labelledby="tab-today">
+      <div class="sesh-head">
+        <span class="sesh-head__dot" aria-hidden="true"></span>
+        <h3 class="sesh-head__title">Today</h3>
+        <button v-if="sessions.length > 1" type="button" class="sesh-switch" :aria-expanded="listOpen"
+                @click="listOpen = !listOpen">
+          Session {{ selectedNumber }} of {{ sessions.length }}
+          <span aria-hidden="true">{{ listOpen ? '▴' : '▾' }}</span>
+        </button>
+      </div>
 
-    <div v-else-if="loading" class="d-flex align-items-center text-muted">
-      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-      Loading today's sessions…
-    </div>
+      <div v-if="error" class="alert alert-warning">{{ error }}</div>
 
-    <div v-else-if="!sessions.length" class="text-center text-muted py-5">
-      <p class="fs-5 mb-1">No sessions for today</p>
-      <p class="small mb-0">Confirmed bookings that are happening today will show up here.</p>
-    </div>
+      <div v-else-if="loading" class="d-flex align-items-center text-muted">
+        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+        Loading today's sessions…
+      </div>
 
-    <template v-else>
-      <ul v-if="listOpen && sessions.length > 1" class="sesh-list" aria-label="Today's sessions">
-        <li v-for="s in sessions" :key="s.booking._id">
-          <button type="button" class="sesh-item" :class="{ 'sesh-item--on': s.booking._id === selectedId }"
-                  :aria-current="s.booking._id === selectedId ? 'true' : undefined"
-                  @click="selectSession(s.booking._id)">
-            <span class="sesh-item__time">{{ s.booking.startTime }} – {{ s.booking.endTime }}</span>
-            <span class="sesh-item__pets">{{ s.booking.pets.map((p) => p.name).join(', ') }}</span>
-            <span class="sesh-state" :class="`sesh-state--${sessionState(s)}`">
-              <span class="sesh-state__dot" aria-hidden="true"></span>{{ STATE_LABELS[sessionState(s)] }}
-            </span>
-            <span v-if="unread[s.booking._id]" class="sesh-item__unread">
-              <span class="visually-hidden">{{ unread[s.booking._id] }} new messages</span>
-            </span>
-          </button>
-        </li>
-      </ul>
+      <div v-else-if="!sessions.length" class="sesh-empty">
+        <p class="fs-5 mb-1">No sessions for today</p>
+        <p class="small mb-0">Confirmed bookings that are happening today will show up here.</p>
+      </div>
 
-      <SessionCard v-for="s in sessions" v-show="s.booking._id === selectedId" :key="s.booking._id" :session="s"
-                   :is-sitter="isSitter" :active="s.booking._id === selectedId"
-                   @visit-change="s.visit = $event" @unread="unread[s.booking._id] = $event" @walk-ended="load(true)"
-                   @items-change="s.items = $event" />
+      <template v-else>
+        <ul v-if="listOpen && sessions.length > 1" class="sesh-list" aria-label="Today's sessions">
+          <li v-for="s in sessions" :key="s.booking._id">
+            <button type="button" class="sesh-item" :class="{ 'sesh-item--on': s.booking._id === selectedId }"
+                    :aria-current="s.booking._id === selectedId ? 'true' : undefined"
+                    @click="selectSession(s.booking._id)">
+              <span class="sesh-item__time">{{ s.booking.startTime }} – {{ s.booking.endTime }}</span>
+              <span class="sesh-item__pets">{{ s.booking.pets.map((p) => p.name).join(', ') }}</span>
+              <span class="sesh-state" :class="`sesh-state--${sessionState(s)}`">
+                <span class="sesh-state__dot" aria-hidden="true"></span>{{ STATE_LABELS[sessionState(s)] }}
+              </span>
+              <span v-if="unread[s.booking._id]" class="sesh-item__unread">
+                <span class="visually-hidden">{{ unread[s.booking._id] }} new messages</span>
+              </span>
+            </button>
+          </li>
+        </ul>
+
+        <SessionCard v-for="s in sessions" v-show="s.booking._id === selectedId" :key="s.booking._id" :session="s"
+                     :is-sitter="isSitter" :active="s.booking._id === selectedId"
+                     @visit-change="s.visit = $event" @unread="unread[s.booking._id] = $event" @walk-ended="load(true)"
+                     @items-change="s.items = $event" />
+      </template>
+    </section>
+
+    <!-- owners: finished bookings from the last 30 days -->
+    <template v-if="!isSitter">
+      <hr class="sesh-rule" />
+      <section id="panel-recent" class="sesh-panel" :class="{ 'sesh-panel--off': tab !== 'recent' }" role="tabpanel" aria-labelledby="tab-recent">
+        <RecentlyEnded ref="recentRef" @count="recentCount = $event" />
+      </section>
     </template>
   </div>
 </template>
 
 <style scoped>
+.sesh-title {
+  margin: 0;
+  color: #2b2420;
+  font-size: 2rem;
+  font-weight: 800;
+}
+.sesh-date {
+  margin: 0 0 1.25rem;
+  color: #6b5f56;
+}
+.sesh-tabs {
+  display: none;
+}
 .sesh-head {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 1rem;
+  gap: 0.6rem;
   margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--line);
+}
+.sesh-head__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #1f8a4c;
+}
+.sesh-head__title {
+  margin: 0;
+  color: #2b2420;
+  font-size: 1.5rem;
+  font-weight: 800;
 }
 .sesh-switch {
   min-height: 44px;
-  padding: 0 0.9rem;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  margin-left: auto;
+  padding: 0 1rem;
+  border: 1px solid #e6dcd3;
+  border-radius: 999px;
   background: #fff;
   color: #2b2420;
-  font-weight: 700;
+  font-weight: 800;
 }
 .sesh-switch:hover {
   background: var(--tint-soft);
+}
+.sesh-switch:focus-visible,
+.sesh-item:focus-visible,
+.sesh-tab:focus-visible {
+  outline: 3px solid var(--accent-deep);
+  outline-offset: 2px;
+}
+.sesh-empty {
+  padding: 2.5rem 1rem;
+  border: 2px dashed #e6dcd3;
+  border-radius: 14px;
+  color: #6b5f56;
+  text-align: center;
+}
+.sesh-rule {
+  margin: 2rem 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  opacity: 1;
 }
 
 /* the session list scrolls sideways inside its own row */
@@ -179,7 +278,7 @@ onBeforeUnmount(() => clearInterval(timer))
   flex-direction: column;
   gap: 0.15rem;
   padding: 0.6rem 0.75rem;
-  border: 1px solid var(--line);
+  border: 1px solid #e6dcd3;
   border-radius: 10px;
   background: #fff;
   color: #2b2420;
@@ -193,7 +292,7 @@ onBeforeUnmount(() => clearInterval(timer))
   box-shadow: inset 0 0 0 1px var(--accent-deep);
 }
 .sesh-item__time {
-  font-weight: 700;
+  font-weight: 800;
 }
 .sesh-item__pets {
   font-size: 0.9rem;
@@ -222,12 +321,69 @@ onBeforeUnmount(() => clearInterval(timer))
   background: currentColor;
 }
 .sesh-state--not-started {
-  color: #6f6259;
+  color: #6b5f56;
 }
 .sesh-state--in-progress {
-  color: #a84217;
+  color: #14532d;
 }
 .sesh-state--completed {
-  color: #2f6f62;
+  color: #5c524b;
+}
+
+/* owners on phones: tabs instead of one long page */
+@media (max-width: 767.98px) {
+  .sesh-title {
+    font-size: 1.6rem;
+  }
+  .sesh-date {
+    margin-bottom: 0.5rem;
+  }
+  .sesh--owner .sesh-tabs {
+    display: flex;
+    gap: 1.25rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .sesh-tab {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: -1px;
+    padding: 0;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    background: none;
+    color: #6b5f56;
+    font-weight: 700;
+  }
+  .sesh-tab[aria-selected='true'] {
+    border-bottom-color: #2b2420;
+    color: #2b2420;
+    font-weight: 800;
+  }
+  .sesh-tab__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #8a7d73;
+  }
+  .sesh-tab__dot--today {
+    background: #1f8a4c;
+  }
+  /* the tab names the section, so its own heading is hidden (the session switcher stays) */
+  .sesh--owner .sesh-head__dot,
+  .sesh--owner .sesh-head__title,
+  .sesh--owner .sesh-rule,
+  .sesh--owner :deep(.re-dot),
+  .sesh--owner :deep(.re-title) {
+    display: none;
+  }
+  .sesh--owner .sesh-head:not(:has(.sesh-switch)) {
+    display: none;
+  }
+  .sesh--owner .sesh-panel--off {
+    display: none;
+  }
 }
 </style>

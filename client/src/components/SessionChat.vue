@@ -8,7 +8,8 @@ const props = defineProps({
   bookingId: { type: String, required: true },
   isSitter: { type: Boolean, default: false },
   canSend: { type: Boolean, default: true }, // false once the booking is over: old messages can still be read
-  active: { type: Boolean, default: true }   // false while another session is showing
+  active: { type: Boolean, default: true },  // false while another session is showing
+  label: { type: String, default: '' }       // the button's name for screen readers, e.g. "Chat history with Priya"
 })
 const emit = defineEmits(['unread'])
 
@@ -30,7 +31,7 @@ const error = ref('')
 const listEl = ref(null)
 let timer = null
 
-const title = computed(() => (props.isSitter ? 'Chat with owner' : 'Chat with sitter'))
+const title = computed(() => props.label || (props.isSitter ? 'Chat with owner' : 'Chat with sitter'))
 
 // Messages from the other person that came after the last one read (an open chat has none)
 const unreadCount = computed(() => {
@@ -100,9 +101,11 @@ function formatTime(iso) {
   return new Date(iso).toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit' })
 }
 
-// The chat checks every 3 seconds while it is open and every 10 seconds while it is closed (only when the tab is visible)
+// The chat checks every 3 seconds while it is open and every 10 seconds while it is closed (only when the tab is visible).
+// A booking that has ended gets no new messages, so its chat only loads when it's opened.
 function startChecking() {
   clearInterval(timer)
+  if (!props.canSend && !open.value) return
   timer = setInterval(() => {
     if (!document.hidden) load(true)
   }, open.value ? CHECK_EVERY_MS : CHECK_CLOSED_EVERY_MS)
@@ -123,7 +126,7 @@ watch(() => props.active, (isActive) => {
 
 // One check when the card appears, so the icon can show the unread count
 onMounted(() => {
-  load(true)
+  if (props.canSend) load(true)
   startChecking()
 })
 onBeforeUnmount(() => clearInterval(timer))
@@ -169,7 +172,7 @@ defineExpose({ openChat: () => { open.value = true } })
                placeholder="Write a message" aria-label="Message" />
         <button type="submit" class="btn btn-brand" :disabled="sending || !draft.trim()">Send</button>
       </form>
-      <p v-else class="text-muted small mt-2 mb-0">This booking has ended, so messages can't be sent.</p>
+      <p v-else class="text-muted small mt-2 mb-0">This booking has ended, so the chat is read-only.</p>
     </div>
   </div>
 </template>
