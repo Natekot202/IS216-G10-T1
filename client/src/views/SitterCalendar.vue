@@ -327,7 +327,7 @@ onMounted(async () => {
               <div class="col-6">
                 <label class="form-label small mb-1" for="day-end">Until</label>
                 <select id="day-end" v-model="dayEnd" class="form-select">
-                  <option v-for="m in toOptions" :key="m" :value="m">{{ shortTime(m) }}{{ m === 1440 ? ' (end of day)' : '' }}</option>
+                  <option v-for="m in toOptions" :key="m" :value="m">{{ shortTime(m) }}</option>
                 </select>
               </div>
             </div>
@@ -366,7 +366,7 @@ onMounted(async () => {
               <div class="col-6">
                 <label class="form-label small mb-1" for="pat-end">Until</label>
                 <select id="pat-end" v-model="patEndMinutes" class="form-select">
-                  <option v-for="m in toOptions" :key="m" :value="m">{{ shortTime(m) }}{{ m === 1440 ? ' (end of day)' : '' }}</option>
+                  <option v-for="m in toOptions" :key="m" :value="m">{{ shortTime(m) }}</option>
                 </select>
               </div>
             </div>

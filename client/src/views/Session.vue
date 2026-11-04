@@ -194,6 +194,11 @@ function onTouchEnd(e) {
             </button>
           </li>
         </ul>
+        <!-- small phones: one dot per session, so it's clear the row above swipes -->
+        <div v-if="listOpen && sessions.length > 1" class="sesh-dots" aria-hidden="true">
+          <span v-for="s in sessions" :key="s.booking._id" class="sesh-dot"
+                :class="{ 'sesh-dot--on': s.booking._id === selectedId }"></span>
+        </div>
 
         <SessionCard v-for="s in sessions" v-show="s.booking._id === selectedId" :key="s.booking._id" :session="s"
                      :is-sitter="isSitter" :active="s.booking._id === selectedId"
@@ -291,6 +296,9 @@ function onTouchEnd(e) {
 }
 .sesh-list li {
   flex: 0 0 12.5rem;
+}
+.sesh-dots {
+  display: none;
 }
 .sesh-item {
   position: relative;
@@ -406,6 +414,33 @@ function onTouchEnd(e) {
   }
   .sesh--owner .sesh-panel--off {
     display: none;
+  }
+}
+
+/* small phones (under 576px): each session card is 75% wide so the next one peeks in, it snaps into place, and dots show how many there are */
+@media (max-width: 575.98px) {
+  .sesh-list {
+    margin-bottom: 0.4rem;
+    scroll-snap-type: x mandatory;
+  }
+  .sesh-list li {
+    flex: 0 0 75%;
+    scroll-snap-align: start;
+  }
+  .sesh-dots {
+    display: flex;
+    justify-content: center;
+    gap: 0.4rem;
+    margin: 0 0 1rem;
+  }
+  .sesh-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #d9cdc2;
+  }
+  .sesh-dot--on {
+    background: var(--accent);
   }
 }
 </style>

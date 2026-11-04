@@ -58,6 +58,15 @@ router.beforeEach(async (to) => {
     if (!currentUser.value) await fetchUser() 
     if (currentUser.value) return '/home'
   }
+
+  // pages that need someone logged in: /home plus any route marked auth or role
+  const needsLogin = to.path === '/home' || to.meta.auth || to.meta.role
+  if (needsLogin) {
+    if (!currentUser.value) await fetchUser()
+    if (!currentUser.value) {
+      return { path: '/login', query: { redirect: to.fullPath } }
+    }
+  }
 })
 
 export default router
