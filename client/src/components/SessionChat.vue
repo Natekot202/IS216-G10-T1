@@ -9,7 +9,8 @@ const props = defineProps({
   isSitter: { type: Boolean, default: false },
   canSend: { type: Boolean, default: true }, // false once the booking is over: old messages can still be read
   active: { type: Boolean, default: true },  // false while another session is showing
-  label: { type: String, default: '' }       // the button's name for screen readers, e.g. "Chat history with Priya"
+  label: { type: String, default: '' },      // the button's name for screen readers, e.g. "Chat history with Priya"
+  buttonText: { type: String, default: '' }  // a word beside the icon, e.g. "Chat" on Booking Detail
 })
 const emit = defineEmits(['unread'])
 
@@ -137,12 +138,13 @@ defineExpose({ openChat: () => { open.value = true } })
 
 <template>
   <div class="chat" @keydown.esc="open = false">
-    <button type="button" class="chat-btn" :aria-expanded="open"
+    <button type="button" class="chat-btn" :class="{ 'chat-btn--text': buttonText }" :aria-expanded="open"
             :aria-label="unreadCount ? `${title}, ${unreadCount} new` : title" @click="open = !open">
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
         <path d="M4 5h16v11H9l-5 4V5z" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round" />
       </svg>
+      <span v-if="buttonText" aria-hidden="true">{{ buttonText }}</span>
       <span v-if="unreadCount" class="chat-badge">{{ unreadCount }}</span>
     </button>
 
@@ -188,6 +190,15 @@ defineExpose({ openChat: () => { open.value = true } })
   border-radius: 50%;
   background: #fff;
   color: var(--accent);
+}
+.chat-btn--text {
+  display: inline-flex;
+  width: auto;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 1rem;
+  border-radius: 999px;
+  font-weight: 800;
 }
 .chat-btn:hover {
   border-color: var(--accent-main);
