@@ -10,6 +10,7 @@ import {
   syncError, backOnRouteMessage, sendInOrder, beginWalk, resumeWalk, endWalk, simplifiedPath, resumeTracking, startGps, stopGpsIfIdle
 } from '../utils/sessionTracker.js'
 import { walkApi } from '../services/walkApi.js'
+import BackButton from '../components/BackButton.vue'
 
 const pageRoute = useRoute()
 const router = useRouter()
@@ -142,6 +143,7 @@ async function endWalkEarly() {
 </script>
 
 <template>
+  <BackButton label='Back' class="mt-1 mb-0"></BackButton>
   <div class="d-flex flex-column vh-100 p-3 gap-3">
     <header>
       <h1 class="page-title mb-1">{{ walk?.routeName || 'Walk' }}</h1>
