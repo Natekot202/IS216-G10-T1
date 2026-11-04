@@ -9,7 +9,7 @@ import WalkRoute from '../models/walkRouteModel.js'
 import { requireOwner, requireLogin } from '../middleware/authMiddleware.js'
 import { uploadPhoto } from '../middleware/upload.js'
 import { uploadImage, deleteImage } from '../config/cloudinary.js'
-import { bookingRange, dailyRanges, findClash, describeBooking, toMinutes, slotsOf, slotsCover, START_TIME_RE, END_TIME_RE } from '../utils/bookingTimes.js'
+import { bookingRange, dailyRanges, findClash, describeBooking, toMinutes, slotsOf, slotsCover, START_TIME_RE, END_TIME_RE, reviewOpenUntil } from '../utils/bookingTimes.js'
 import asyncHandler from '../middleware/asyncHandler.js'
 import { removeBookingFromGoogle } from '../utils/googleCalendar.js'
 import { priceForTasks } from '../utils/servicePrices.js'
@@ -390,7 +390,8 @@ router.get('/:id', requireLogin, asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'This booking is not yours.' })
   }
 
-  res.json(booking)
+  // reviewOpenUntil: when the owner can no longer review (30 days after the last booked time)
+  res.json({ ...booking.toObject(), reviewOpenUntil: reviewOpenUntil(booking) })
 }))
 
 // PATCH /api/bookings/:id/cancel

@@ -4,7 +4,7 @@
 //   - only during a walk: records the path, saved on the phone as it grows, and checks for going off route
 // Browsers pause all of this when the phone locks or the browser closes. Only a phone app could carry on.
 import { computed, ref, watch } from 'vue'
-import { distance, lineString, simplify } from '@turf/turf'
+import { distance, length, lineString, simplify } from '@turf/turf'
 import { createGeoTracker } from './useGeoTracker.js'
 import { HOME_RADIUS_M, useHomeCheck } from './useHomeCheck.js'
 import { useDeviationCheck } from './useDeviationCheck.js'
@@ -191,10 +191,15 @@ async function endWalkAtCutoff() {
 async function sendLocation() {
   if (document.hidden) return // nothing is live while the page is hidden, so the owner sees "Location paused"
   const { reading } = geo
-  const body = blocked.value
+  let body = blocked.value
     ? { blocked: true }
     : reading.value && reading.value.accuracy <= MAX_SHARED_ACCURACY_M ? reading.value : null
   if (!body) return
+  // During a walk, also send its distance so far, measured along the path this phone has recorded
+  // (the owner sees "On a walk, 0.6 km so far")
+  if (!body.blocked && isWalking.value && path.value.length >= 2) {
+    body = { ...body, walkDistanceM: Math.round(length(lineString(path.value), { units: 'meters' })) }
+  }
   try {
     const res = await visitsApi.sendLocation(visitId.value, body)
     if (res.sharing === false) sharingEndsAt.value = Date.now()

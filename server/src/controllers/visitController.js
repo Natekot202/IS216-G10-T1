@@ -8,10 +8,13 @@ import { uploadImage, deleteImage } from '../config/cloudinary.js'
 import User from '../models/UserModel.js'
 import { notify, notifyPaymentDue } from '../models/notificationModel.js'
 import { HOME_RADIUS_M, MAX_START_ACCURACY_M, isValidPoint, metresBetween } from '../utils/walkGeo.js'
-import { sharingEndTime } from '../utils/bookingTimes.js'
+import { sharingEndTime, bookingRange, bookedDays } from '../utils/bookingTimes.js'
+import { buildReportEntries } from '../utils/visitReports.js'
 
 const STARTABLE = ['confirmed', 'in-progress'] // owners pay at the end, so sessions start once the owner has confirmed
 const PAUSED_AFTER_MS = 60 * 1000 // no update for this long: the owner sees "Location paused"
+const RECENT_MS = 30 * 24 * 60 * 60 * 1000 // a finished booking stays under "Recently ended" this long after its last booked time
+const MAX_WALK_DISTANCE_M = 100000 // a phone sending more than 100 km for one walk is sending nonsense
 
 // to ensure only valid bookings can be started
 function startBlockReason(booking, todaysVisits, today) {
@@ -106,7 +109,7 @@ export async function getTodaySessions(req, res) {
 
   // Any walk happening now, so the checklist still shows it after the page reloads
   const walks = await Walk.find({ visit: { $in: visits.map((v) => v._id) }, status: 'in-progress' })
-    .select('visit task startedAt plannedPath')
+    .select('visit task startedAt plannedPath liveDistanceM')
   const walkByVisit = new Map(walks.map((w) => [String(w.visit), w]))
 
   const isSitterViewer = req.session.role === 'sitter'
@@ -148,6 +151,8 @@ export async function getTodaySessions(req, res) {
       const day = visit?.date ?? today
       // That day's hours: bookings made from now on store hours for each day; old ones use the same hours every day
       const dayHours = b.dayTimes?.find((d) => d.date === day)
+      // "Day 2 of 3": counted among the booked days, so the browser never has to count dates itself
+      const booked = bookedDays(b)
       const session = {
         booking: {
           _id: b._id,
@@ -157,6 +162,8 @@ export async function getTodaySessions(req, res) {
           endDate: toSgtDateString(b.endDate),
           endTime: dayHours?.endTime ?? b.endTime,
           day, // the day startTime and endTime are for
+          dayNumber: booked.findIndex((d) => d.date === day) + 1,
+          totalDays: booked.length,
           owner: b.ownerId,
           sitter: b.sitterId,
           pets: b.petIds,
@@ -166,7 +173,9 @@ export async function getTodaySessions(req, res) {
       }
       // the tasks for this session's day
       session.items = (itemsByBooking.get(String(b._id)) ?? []).filter((item) => taskIsOn(item, day))
-      session.activeWalk = session.visit ? walkByVisit.get(String(session.visit._id)) ?? null : null
+      const walk = session.visit ? walkByVisit.get(String(session.visit._id)) : null
+      // distanceSoFarM: for the owner's "On a walk, 0.6 km so far"
+      session.activeWalk = walk ? { ...walk.toObject(), distanceSoFarM: walk.liveDistanceM } : null
       if (session.visit?.status === 'active') {
         const located = locationByVisit.get(String(session.visit._id))
         if (located) session.liveLocation = liveLocationFor(located, b, session.activeWalk)
@@ -248,8 +257,9 @@ export async function startVisit(req, res) {
 }
 
 // PATCH /api/visits/:visitId/tasks/:taskId   body: { count }  (sitter)
-// POST /api/visits/:visitId/location  (sitter)   body: { location: [lng, lat], accuracy } or { blocked: true }
-// Only the latest location is kept. Out: { sharing }, false once the booked time plus 30 minutes has passed.
+// POST /api/visits/:visitId/location  (sitter)   body: { location: [lng, lat], accuracy, walkDistanceM } or { blocked: true }
+// Only the latest location is kept. walkDistanceM (optional) is the walk's distance so far, worked out by the phone
+// from the path it records. Out: { sharing }, false once the booked time plus 30 minutes has passed.
 export async function updateLocation(req, res) {
   if (!mongoose.isValidObjectId(req.params.visitId)) {
     return res.status(404).json({ message: 'Session not found.' })
@@ -281,6 +291,10 @@ export async function updateLocation(req, res) {
   await VisitSession.updateOne({ _id: visit._id }, {
     $set: { locationBlocked: false, lastLocation: { coordinates: location, accuracy, at: new Date() } }
   })
+  const walkDistanceM = Number(req.body.walkDistanceM)
+  if (req.body.walkDistanceM != null && Number.isFinite(walkDistanceM) && walkDistanceM >= 0 && walkDistanceM <= MAX_WALK_DISTANCE_M) {
+    await Walk.updateOne({ visit: visit._id, status: 'in-progress' }, { $set: { liveDistanceM: Math.round(walkDistanceM) } })
+  }
   res.json({ sharing: true })
 }
 
@@ -384,4 +398,46 @@ export async function endVisit(req, res) {
     }
   }
   res.json(visit)
+}
+
+// the people and pets a care report shows
+const populateForReport = (query) => query
+  .populate('sitterId', 'username profilePicture')
+  .populate('ownerId', 'username profilePicture')
+  .populate('petIds', 'name species')
+
+// GET /api/visits/recent  (owner)
+// The owner's finished bookings (completed or paid) whose last booked time was in the last 30 days, newest first,
+// with each day's care report. Bookings where no session was ever started are left out.
+// Out: { bookings: [entry, ...] }, see utils/visitReports.js
+export async function getRecentBookings(req, res) {
+  const cutoff = Date.now() - RECENT_MS
+  // a rough filter in the database first (endDate is that day's midnight), then the exact end time below
+  const candidates = await populateForReport(Booking.find({
+    ownerId: req.session.userId,
+    status: { $in: ['completed', 'paid'] },
+    endDate: { $gte: new Date(cutoff - 24 * 60 * 60 * 1000) }
+  }))
+  const recent = candidates
+    .filter((b) => bookingRange(b).end >= cutoff)
+    .sort((a, b) => bookingRange(b).end - bookingRange(a).end)
+  const entries = await buildReportEntries(recent)
+  res.json({ bookings: entries.filter((e) => e.days.length > 0) })
+}
+
+// GET /api/visits/booking/:bookingId/report  (that booking's owner)
+// One booking's care reports, whatever its status. Used by "View report" on a completed day of the Today card.
+export async function getBookingReport(req, res) {
+  if (!mongoose.isValidObjectId(req.params.bookingId)) {
+    return res.status(404).json({ message: 'Booking not found.' })
+  }
+  const booking = await populateForReport(Booking.findById(req.params.bookingId))
+  if (!booking) {
+    return res.status(404).json({ message: 'Booking not found.' })
+  }
+  if (String(booking.ownerId?._id) !== String(req.session.userId)) {
+    return res.status(403).json({ message: 'Only the owner of this booking can see its reports.' })
+  }
+  const [entry] = await buildReportEntries([booking])
+  res.json(entry)
 }

@@ -79,6 +79,23 @@ export function dailyRanges(booking) {
   return ranges
 }
 
+// Every booked day, oldest first, with that day's hours: [{ date: 'YYYY-MM-DD', startTime, endTime }]
+// (bookings with hours for each day use dayTimes; older ones use the same hours every day)
+export function bookedDays(booking) {
+  if (booking.dayTimes?.length) {
+    return booking.dayTimes.map((d) => ({ date: d.date, startTime: d.startTime, endTime: d.endTime }))
+  }
+  const days = []
+  for (let t = booking.startDate.getTime(); t <= booking.endDate.getTime(); t += DAY_MS) {
+    days.push({ date: toSgtDateString(new Date(t)), startTime: booking.startTime, endTime: booking.endTime })
+  }
+  return days
+}
+
+// Owners can review a sitter for 30 days after the booking's last booked time
+export const REVIEW_OPEN_MS = 30 * DAY_MS
+export const reviewOpenUntil = (booking) => bookingRange(booking).end + REVIEW_OPEN_MS
+
 // True when a booking's days don't all have the same hours (e.g. Mon 10am–12am, Tue 7am–9am)
 export function hoursVary(booking) {
   const days = booking.dayTimes || []
