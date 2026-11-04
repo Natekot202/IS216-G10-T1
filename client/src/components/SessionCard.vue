@@ -1309,4 +1309,17 @@ fieldset:disabled .photo-slot {
     margin: 0 0.75rem 0.5rem;
   }
 }
+
+/* small phones (under 576px): the white cards sit edge to edge inside the session card, one box less, so the checklist has more width */
+@media (max-width: 575.98px) {
+  .sc-body {
+    padding: 0.75rem 0;
+  }
+  .sc-card {
+    padding: 0.9rem 1rem;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+}
 </style>

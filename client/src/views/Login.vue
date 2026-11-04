@@ -1,10 +1,11 @@
 <script setup>
 import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { authApi } from '../services/api.js'
 import { fetchUser } from "../services/auth.js";
 import PasswordInput from '../components/PasswordInput.vue'
 
+const route = useRoute();
 const router = useRouter();
 const form = ref({emailOrUser: "", password: ""});
 const message = ref('');
@@ -14,7 +15,10 @@ async function submit() {
   try {
     await authApi.login(form.value)
     await fetchUser()             
-    router.push('/home')
+    // go back to the page they were trying to open (only paths inside our app)
+    const redirect = route.query.redirect
+    const goodRedirect = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
+    router.push(goodRedirect ? redirect : '/home')
   } catch (err) {
     message.value = err.response
       ? (err.response.data?.message || 'Could not log in.')
