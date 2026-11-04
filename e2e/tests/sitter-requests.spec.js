@@ -30,14 +30,18 @@ test.describe('Sitter: booking requests', () => {
 })
 
 test.describe('Sitter: transactions', () => {
-  test('TC-13 sitter sees the payment they received', async ({ page }) => {
-    // setup: the seed has one successful Visa payment from SeedOwner
+  test('TC-13 sitter sees the payments they received', async ({ page }) => {
+    // setup: the seed has successful Visa payments from SeedOwner to SeedSitter
+    // (how many changes as the team adds seed data, so the test doesn't depend on an exact number)
     await page.goto('/sitter/transactions')
     // actions: show only successful payments
     await page.getByRole('button', { name: /^Successful/ }).click()
-    // assert: exactly one row, from SeedOwner, marked Successful
-    const rows = page.getByRole('row').filter({ hasText: 'SeedOwner' })
-    await expect(rows).toHaveCount(1)
-    await expect(rows.first()).toContainText('Successful')
+    // assert: at least one row from SeedOwner, marked Successful
+    const fromSeedOwner = page.getByRole('row').filter({ hasText: 'SeedOwner' })
+    await expect(fromSeedOwner.first()).toBeVisible()
+    await expect(fromSeedOwner.first()).toContainText('Successful')
+    // and the filter really works: no rejected or unpaid rows are shown
+    await expect(page.getByRole('row').filter({ hasText: 'Rejected' })).toHaveCount(0)
+    await expect(page.getByRole('row').filter({ hasText: 'Awaiting payment' })).toHaveCount(0)
   })
 })

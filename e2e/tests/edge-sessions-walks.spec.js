@@ -34,9 +34,10 @@ const farAway = { location: FAR, accuracy: 10 }
 const task = (match) => tasks.find(match)
 
 test.describe.serial('A session from start to finish (API)', () => {
-  test('only the booking\'s own sitter can start it', async () => {
+  test('only the booking\'s own sitter can start it (owners and other sitters are refused)', async () => {
     await expectError(await start(owner, walkBooking, atHome), 403, 'Sitters only.')
-    await expectError(await start(sitter2, walkBooking, atHome), 403, "Only this booking's sitter can start a session.")
+    // a sitter who isn't on this booking is stopped by the first check ("is this booking yours at all?")
+    await expectError(await start(sitter2, walkBooking, atHome), 403, 'This booking is not yours.')
   })
 
   test("a booking that isn't today, or isn't confirmed, can't be started", async () => {
