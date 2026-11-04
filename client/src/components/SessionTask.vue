@@ -432,4 +432,40 @@ button.task-flag:hover {
     padding: 0.35rem 0;
   }
 }
+
+/* small phones (under 576px): the buttons go on their own row under the task text, so the text gets the full width */
+@media (max-width: 575.98px) {
+  .task-top {
+    flex-wrap: wrap;
+  }
+  .task-controls {
+    flex-direction: row;
+    flex-basis: calc(100% - 22px - 0.65rem);
+    justify-content: flex-start;
+    max-width: none;
+    margin-left: calc(22px + 0.65rem); /* lines up with the text, not the icon */
+  }
+  .task-controls .task-pill {
+    flex: 1 1 0;
+  }
+}
+
+/* reference photos: the caption sits beside the picture and uses the rest of the row */
+.task-details :deep(.tp) {
+  flex-direction: column;
+}
+.task-details :deep(.tp-item) {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+.task-details :deep(.tp-img) {
+  flex: none;
+}
+.task-details :deep(.tp-caption) {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+}
 </style>
