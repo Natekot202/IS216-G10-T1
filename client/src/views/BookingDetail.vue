@@ -12,7 +12,7 @@ import WalkMap from '../components/WalkMap.vue'
 import CancelBookingModal from '../components/CancelBookingModal.vue'
 import CareDetailsForm from '../components/CareDetailsForm.vue'
 import CareDetailsSummary from '../components/CareDetailsSummary.vue'
-import { formatPrice, formatBookingWhen, hoursVary, dayTimesList, formatDateRange } from '../utils/bookingHelpers.js'
+import { formatPrice, formatBookingWhen, hoursVary, dayTimesList } from '../utils/bookingHelpers.js'
 import { reviewsApi } from '../services/api.js'
 import ReviewForm from '../components/ReviewForm.vue'
 import { prettyDate } from '../utils/bookingTimeHelpers.js'
@@ -182,6 +182,13 @@ async function sendCancel(reason) {
   }
 }
 
+// Review: once the sitter has finished (completed, or paid after that), the owner can rate the sitter here.
+// The sitter sees the owner's review here too. (Same review as on the Sessions page; a booking has at most one.)
+const review = ref(null)
+const reviewLoaded = ref(false)
+const canSeeReview = computed(() => ['completed', 'paid'].includes(booking.value?.status))
+const reviewStars = computed(() => (review.value ? '★'.repeat(review.value.rating) + '☆'.repeat(5 - review.value.rating) : ''))
+
 onMounted(async () => {
   try {
     if (!currentUser.value) await fetchUser()
@@ -190,6 +197,10 @@ onMounted(async () => {
     tasks.value = care.items
     detailsSavedAt.value = care.detailsSavedAt
     selectedPetId.value = booking.value.petIds?.[0]?._id || null // start on the first pet
+    if (canSeeReview.value) {
+      review.value = await reviewsApi.getForBooking(route.params.id).catch(() => null)
+      reviewLoaded.value = true
+    }
   } catch (err) {
     error.value = err.response?.data?.message || 'Could not load this booking.'
   } finally {
@@ -227,9 +238,13 @@ onMounted(async () => {
         <StatusPill :status="booking.status" />
       </div>
       <p class="text-muted fw-semibold mb-3">
-        {{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime, booking.overnight) }} · {{ formatPrice(booking.totalPrice) }}
+        {{ formatBookingWhen(booking) }} · {{ formatPrice(booking.totalPrice) }}
         <span v-if="booking.overnight" class="badge rounded-pill text-bg-light border ms-1">🌙 Sitter stays overnight</span>
       </p>
+      <!-- Different hours on different days: list them, e.g. "Fri 6 Nov: 10:00 am – 12:00 am" -->
+      <ul v-if="hoursVary(booking)" class="small text-muted mb-3 ps-3">
+        <li v-for="line in dayTimesList(booking)" :key="line">{{ line }}</li>
+      </ul>
 
       <div v-if="booking.status === 'cancelled'" class="alert alert-secondary">
         {{ booking.cancelledBy === 'owner' ? 'The owner withdrew or cancelled this booking.' : booking.cancelledBy === 'sitter' ? 'The sitter cancelled this booking.' : 'This booking was cancelled.' }}
@@ -384,6 +399,18 @@ onMounted(async () => {
             <p class="small text-muted mt-2 mb-0">You can cancel until the booking starts. Once it is paid, it can't be cancelled here.</p>
           </template>
         </div>
+      </div>
+
+      <!-- Review: the owner rates the sitter (or sees their review); the sitter sees the owner's review -->
+      <div v-if="canSeeReview && reviewLoaded" id="review" class="detail-card p-4 mb-3">
+        <h6 class="section-title">{{ isSitter ? "Owner's review" : 'Review your sitter' }}</h6>
+        <template v-if="review">
+          <div class="fs-5" style="color:#FFD700;">{{ reviewStars }}</div>
+          <p v-if="review.comment" class="mb-1 text-break">{{ review.comment }}</p>
+          <p v-if="!isSitter" class="small text-muted mb-0">Thanks, your review has been posted.</p>
+        </template>
+        <p v-else-if="isSitter" class="small text-muted mb-0">The owner hasn't left a review yet.</p>
+        <ReviewForm v-else :booking-id="booking._id" @saved="review = $event" />
       </div>
     </template>
 

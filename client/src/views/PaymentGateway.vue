@@ -7,7 +7,7 @@ import { bookingsApi } from '../services/bookingApi.js'
 import { paymentsApi } from '../services/paymentApi.js'
 import { currentUser } from '../services/auth.js'
 import { sendPaymentNotification } from '../utils/sendNotification.js'
-import { petNames, formatPrice, formatBookingWhen, formatDateRange } from '../utils/bookingHelpers.js'
+import { petNames, formatPrice, formatBookingWhen, hoursVary, dayTimesList } from '../utils/bookingHelpers.js'
 import { SERVICE_PRICES, SERVICE_LABELS, priceForTasks, daysForTask } from '../utils/servicePrices.js'
 import BackButton from '../components/BackButton.vue'
 const route = useRoute()
@@ -118,7 +118,11 @@ async function pay() {
               <dt class="col-4">Pets</dt>
               <dd class="col-8">{{ petNames(booking) }}</dd>
               <dt class="col-4">When</dt>
-              <dd class="col-8">{{ formatDateRange(booking.startDate, booking.endDate, booking.startTime, booking.endTime) }}</dd>
+              <dd class="col-8">
+                {{ formatBookingWhen(booking) }}
+                <!-- different hours on different days: one line per day -->
+                <div v-for="line in hoursVary(booking) ? dayTimesList(booking) : []" :key="line" class="text-muted">{{ line }}</div>
+              </dd>
               <dt class="col-4">Days</dt>
               <dd class="col-8">{{ days }}</dd>
             </dl>

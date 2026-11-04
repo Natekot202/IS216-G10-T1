@@ -13,8 +13,13 @@ export function checkBookingRequest({ selectedPets, when, chosenDays, tasks, cla
   if (selectedPets.length === 0) return 'Select at least one pet.'
   if (!when.startDate || !when.endDate) return 'Choose a start and end date.'
   if (when.endDate < when.startDate) return 'End date must be on or after the start date.'
-  if (!when.startTime || !when.endTime) return 'Choose a start time and an end time.'
-  if (when.endTime <= when.startTime) return 'The end time must be after the start time (the times are the hours for each day).'
+  // Every day needs its hours, and each day's end must be after its start
+  const missingDay = (when.dayTimes || []).find((d) => !d.startTime || !d.endTime)
+  if (!when.dayTimes?.length || missingDay) {
+    return missingDay ? `Choose a start time and an end time for ${prettyDate(missingDay.date)}.` : 'Choose a start time and an end time.'
+  }
+  const backwardsDay = when.dayTimes.find((d) => d.endTime <= d.startTime)
+  if (backwardsDay) return `On ${prettyDate(backwardsDay.date)}, the end time must be after the start time.`
   if (clash) return 'The sitter is already booked during this time. Please choose different times.'
   if (unavailableDays.length) {
     return `The sitter is not available on ${unavailableDays.map(prettyDate).join(', ')}.`
@@ -43,9 +48,8 @@ export function buildBookingPayload(sitterId, { selectedPets, when, tasks, notes
     sitterId,
     petIds: selectedPets,
     startDate: when.startDate,
-    startTime: when.startTime,
     endDate: when.endDate,
-    endTime: when.endTime,
+    dayTimes: when.dayTimes, // the hours for each day: [{ date, startTime, endTime }]
     notes,
     tasks: tasks.map((t) => {
       // keep only pets that are still selected; if none are left, the task is for all selected pets

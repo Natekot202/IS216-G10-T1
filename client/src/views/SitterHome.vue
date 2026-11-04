@@ -155,7 +155,7 @@ onMounted(loadDashboard)
                 <li v-for="b in newRequests.slice(0, 3)" :key="b._id" class="py-2 border-top">
                   <div class="fw-semibold">{{ petNames(b) }}</div>
                   <div class="small text-muted">
-                    {{ ownerName(b) }} · {{ formatDate(b.startDate) }}{{ b.startTime ? ' ' + formatTime(b.startTime) : '' }} – {{ formatDate(b.endDate) }}{{ b.endTime ? ' ' + formatTime(b.endTime) : '' }} · ${{ b.totalPrice }}
+                    {{ ownerName(b) }} · {{ formatBookingWhen(b) }} · ${{ b.totalPrice }}
                   </div>
                 </li>
               </ul>

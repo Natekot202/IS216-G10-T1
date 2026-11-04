@@ -143,25 +143,29 @@ export async function getTodaySessions(req, res) {
 
   const sessions = bookings
     .map((b) => {
-      // Today's hours: bookings made from now on store hours for each day; old ones use the same hours every day
-      const todayHours = b.dayTimes?.find((d) => d.date === today)
+      // The session's day is today, or an earlier day if its session is still open from then
+      const visit = visitByBooking.get(String(b._id)) ?? null
+      const day = visit?.date ?? today
+      // That day's hours: bookings made from now on store hours for each day; old ones use the same hours every day
+      const dayHours = b.dayTimes?.find((d) => d.date === day)
       const session = {
         booking: {
           _id: b._id,
           status: b.status,
           startDate: toSgtDateString(b.startDate),
-          startTime: todayHours?.startTime ?? b.startTime,
+          startTime: dayHours?.startTime ?? b.startTime,
           endDate: toSgtDateString(b.endDate),
-          endTime: todayHours?.endTime ?? b.endTime,
+          endTime: dayHours?.endTime ?? b.endTime,
+          day, // the day startTime and endTime are for
           owner: b.ownerId,
           sitter: b.sitterId,
           pets: b.petIds,
           notes: b.notes || ''
         },
-        visit: visitByBooking.get(String(b._id)) ?? null
+        visit
       }
-      // the tasks for this session's day, which is an earlier day if it's still open from then
-      session.items = (itemsByBooking.get(String(b._id)) ?? []).filter((item) => taskIsOn(item, session.visit?.date ?? today))
+      // the tasks for this session's day
+      session.items = (itemsByBooking.get(String(b._id)) ?? []).filter((item) => taskIsOn(item, day))
       session.activeWalk = session.visit ? walkByVisit.get(String(session.visit._id)) ?? null : null
       if (session.visit?.status === 'active') {
         const located = locationByVisit.get(String(session.visit._id))
