@@ -58,7 +58,10 @@ test.describe('Owner: manage bookings', () => {
     await page.getByRole('button', { name: 'Confirm', exact: true }).first().click()
     await page.getByRole('alertdialog').getByRole('button', { name: 'Confirm booking' }).click()
     // assert: the app opens that booking's page with the care details form
-    await expect(page).toHaveURL(/\/bookings\/\w+\?details=open/)
+        // assert: the app opens that booking's page (24-character booking id), now confirmed
+    await expect(page).toHaveURL(/\/bookings\/[a-f0-9]{24}$/)
+    await expect(page.getByRole('heading', { name: 'Booking Detail' })).toBeVisible()
+    await expect(page.getByText('Confirmed', { exact: true }).first()).toBeVisible()
   })
 
   test('TC-12 "Recommended for me" shows sitters that offer what my pets need', async ({ page }) => {
