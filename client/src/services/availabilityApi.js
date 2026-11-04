@@ -13,6 +13,8 @@ export const availabilityApi = {
   getForSitter: (sitterId) => api.get(`/availability/${sitterId}`).then((res) => res.data),
   // the times the sitter is already booked: [{ start: '2026-10-21T01:00:00.000Z', end: '...' }, ...]
   getBusy: (sitterId) => api.get(`/availability/${sitterId}/busy`).then((res) => res.data),
+  // owner search: params { from, to, start?, end? } -> [{ sitterId, freeDays: ['2026-11-05', ...], blockedDays: { date: reason } }, ...]
+  search: (params) => api.get('/availability/search', { params }).then((res) => res.data),
 
   // ----- The sitter's own calendar data (sitter login needed) -----
   // [{ date: '2026-10-20', status: 'available', slots: [540, 570, ...] }, ...]

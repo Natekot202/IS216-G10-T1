@@ -27,7 +27,10 @@ import {
 // what the owner chose (the 'change' event).
 const props = defineProps({
   availability: { type: Object, required: true }, // { '2026-10-20': { status: 'available' | 'blocked', slots: [540, 570, ...] } }
-  busy: { type: Array, required: true } // times the sitter is already booked: [{ start, end }] as moments
+  busy: { type: Array, required: true }, // times the sitter is already booked: [{ start, end }] as moments
+  initial: { type: Object, default: null }, // from the owner's search: { startDate, endDate, startTime, endTime } (filled in once, only if it suits this sitter)
+  dayStep: { type: Number, default: null }, // the step number shown on the Days card (e.g. 2), none if not given
+  timeStep: { type: Number, default: null } // the step number shown on the Times card (e.g. 3)
 })
 const emit = defineEmits(['change'])
 // lets BookingDatePicker.vue send a custom event named "change" to its parent component.
@@ -250,6 +253,26 @@ const clash = computed(() =>
     isBusy(props.busy, momentOf(d.date, toMinutes(d.startTime)), momentOf(d.date, toMinutes(d.endTime))))
 )
 
+// Fill in the dates (and hours) the owner searched for, once the sitter's days have loaded.
+// Skipped silently if those days don't work for this sitter; the hours are only kept if they are free on every day.
+let initialDone = false
+watch(() => Object.keys(props.availability).length, (count) => {
+  if (initialDone || !count || !props.initial) return
+  initialDone = true
+  const { startDate: start, endDate: end, startTime: from, endTime: until } = props.initial
+  if (!start || !end || end < start || !dayOpen(start)) return
+  startDate.value = start
+  if (end > lastEndDate.value) return (startDate.value = '') // runs into a day the sitter is off
+  endDate.value = end
+  const shown = new Date(start + 'T00:00:00') // show the start date's month
+  viewYear.value = shown.getFullYear()
+  viewMonth.value = shown.getMonth()
+  if (from && allowed(startSlots.value, from)) {
+    startTime.value = from
+    if (until && allowed(endSlots.value, until)) endTime.value = until
+  }
+}, { immediate: true })
+
 // Tell the page whenever the choice changes (immediately too, so it starts with the empty choice)
 watch(
   () => ({
@@ -266,8 +289,16 @@ watch(
 </script>
 
 <template>
+  <!-- Two cards: Days (the calendar + Start date / End date) and Times (the time boxes). The page puts them in its list of steps. -->
+  <section class="step-card">
   <!-- Dates: pick a start day, then an end day (greyed-out days can't be picked) -->
-  <h3 class="h6 text-uppercase text-muted fw-bold">Dates</h3>
+  <h3 class="step-head"><span v-if="dayStep" class="step-num">{{ dayStep }}</span>Days</h3>
+  <!-- what the colours mean -->
+  <div class="legend">
+    <span><i class="key key--open"></i>Available</span>
+    <span><i class="key key--off"></i>Not available</span>
+    <span><i class="key key--mine"></i>Your booking</span>
+  </div>
   <div class="mb-2">
     <!-- 44px round buttons right beside the month name (same look as the sitter's My Calendar), easy to hit with a thumb -->
     <div class="d-flex justify-content-center align-items-center gap-2 mb-2">
@@ -300,7 +331,7 @@ watch(
   </div>
   <p class="small text-muted mb-3">
     <template v-if="!startDate">Tap the start date. Greyed-out days can't be chosen.</template>
-    <template v-else-if="!endDate">Now tap the end date (tap the same day again for a one-day booking).</template>
+    <template v-else-if="!endDate">Now tap the end date (<strong>tap the same day again for a one-day booking</strong>).</template>
     <template v-else>{{ rangeDays.length }} day{{ rangeDays.length === 1 ? '' : 's' }}. Tap a new start date to change.</template>
     <button v-if="startDate" type="button" class="btn btn-link btn-sm p-0 ms-2" @click="clearDates">Clear</button>
   </p>
@@ -316,6 +347,10 @@ watch(
       <input id="end-date" class="form-control" readonly :value="endDate ? prettyDate(endDate) : ''" placeholder="Tap the last day" />
     </div>
   </div>
+  </section>
+
+  <section class="step-card">
+  <h3 class="step-head"><span v-if="timeStep" class="step-num">{{ timeStep }}</span>Times</h3>
 
   <!-- Times: every 30 minutes from 7:00 am to 12:00 am; booked or passed times are greyed out. A whole day is 7:00 am to 12:00 am. -->
   <div v-if="rangeDays.length > 1 && endDate" class="form-check mb-2">
@@ -372,6 +407,7 @@ watch(
     </button>
     <p v-if="copyNote" class="small text-muted mt-1 mb-0">{{ copyNote }}</p>
   </template>
+  </section>
 </template>
 
 <style scoped>
@@ -400,11 +436,25 @@ watch(
   border-radius: 6px;
   background: #fff;
 }
-.rday:disabled { /* greyed out: can't be picked */
-  background: #f1f1f1;
-  color: #aaa;
+.rday:disabled { /* greyed out: can't be picked (the sitter isn't available, it has passed, or it's fully booked) */
+  background: #f3f3f3;
+  border-color: #ececec;
+  color: #b5b5b5;
+  text-decoration: line-through;
   cursor: not-allowed;
 }
-.rday.inrange { background: #fbeee4; border-color: #e8cdb9; }
-.rday.start, .rday.end { background: #2b2420; border-color: #2b2420; color: #fff; }
+.rday:hover:not(:disabled) { border-color: var(--accent-main); }
+.rday.inrange { background: var(--tint-soft); border-color: var(--line); }
+.rday.start, .rday.end { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 800; }
+
+/* the key above the calendar: same colours as the day boxes */
+.legend { display: flex; flex-wrap: wrap; gap: 0.35rem 1rem; font-size: 0.8rem; color: #6b5f56; margin-bottom: 0.75rem; }
+.legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.key { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+.key--open { background: #fff; border: 1px solid #e0e0e0; }
+.key--off { background: #f3f3f3; border: 1px solid #ececec; background-image: linear-gradient(to bottom right, transparent 45%, #b5b5b5 45%, #b5b5b5 55%, transparent 55%); }
+.key--mine { background: var(--accent); }
+/* the Clear link and the tick box in the app colour instead of Bootstrap blue */
+.btn-link { color: var(--accent); font-weight: 700; text-decoration: none; } /* no underline on Clear (or "Use ...'s hours for every day") */
+.form-check-input:checked { background-color: var(--accent); border-color: var(--accent); }
 </style>

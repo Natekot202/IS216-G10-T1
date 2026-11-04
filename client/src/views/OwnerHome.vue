@@ -13,6 +13,9 @@ import AdditionalFilters from "../components/AdditionalFilters.vue";
 import { usePagination } from '../utils/usePagination.js'
 import PaginationBar from '../components/PaginationBar.vue'
 import { petsApi } from '../services/api.js'
+import { availabilityApi } from '../services/availabilityApi.js'
+import { formatTime } from '../utils/bookingHelpers.js'
+import { shortDateRange } from '../utils/bookingTimeHelpers.js'
 import { matchReasons, sortByMatch } from '../utils/recommendSitters.js'
 
 const URL = ''
@@ -59,7 +62,12 @@ const availableFrom = ref("")
 
 // search date
 const availableTo = ref("")
-const sitterAvailability = ref({})
+// optional hours for every day, e.g. '09:00' and '17:00' ('' = any time)
+const availableTimeFrom = ref("")
+const availableTimeTo = ref("")
+const freeBySitter = ref({}) // from the server: { sitterId: { freeDays: ['2026-11-05', ...], blockedDays: { '2026-11-06': 'Booked 2:00 pm – 4:00 pm' } } }
+const checkingDates = ref(false)
+const datesError = ref("")
 let availabilityRequestId = 0
 
 const requestedDates = computed(() => {
@@ -74,22 +82,33 @@ const requestedDates = computed(() => {
   return dates
 })
 
-watch([availableFrom, availableTo, sitterProfiles], async () => {
+// one call for every sitter: which of the chosen days each one is free (at the chosen hours, if any)
+watch([availableFrom, availableTo, availableTimeFrom, availableTimeTo], async () => {
   const requestId = ++availabilityRequestId
-  sitterAvailability.value = {}
-  if (!requestedDates.value.length || !sitterProfiles.value.length) return
+  freeBySitter.value = {}
+  datesError.value = ""
+  if (!requestedDates.value.length) return
 
-  const entries = await Promise.all(sitterProfiles.value.map(async (sitter) => {
-    try {
-      const response = await axios.get(`${URL}/api/availability/${sitter._id}`)
-      return [sitter._id, Object.fromEntries(response.data.map(({ date, status }) => [date, status]))]
-    } catch (error) {
-      console.warn(`Could not load availability for sitter ${sitter._id}`, error)
-      return [sitter._id, {}]
-    }
-  }))
-  if (requestId === availabilityRequestId) sitterAvailability.value = Object.fromEntries(entries)
+  const params = { from: availableFrom.value, to: availableTo.value }
+  if (availableTimeFrom.value && availableTimeTo.value) {
+    params.start = availableTimeFrom.value
+    params.end = availableTimeTo.value
+  }
+  checkingDates.value = true
+  try {
+    const list = await availabilityApi.search(params)
+    if (requestId === availabilityRequestId) freeBySitter.value = Object.fromEntries(list.map((s) => [s.sitterId, s]))
+  } catch (error) {
+    if (requestId === availabilityRequestId) datesError.value = error.response?.data?.message || "Could not check the sitters' availability."
+  } finally {
+    if (requestId === availabilityRequestId) checkingDates.value = false
+  }
 })
+
+// the chosen days this sitter is free (empty when not searching by dates)
+function freeDaysOf(sitter) {
+  return requestedDates.value.filter((day) => freeBySitter.value[sitter._id]?.freeDays.includes(day))
+}
 
 function filterByPets(list) {
   const targetPets = [...selectedPets.value].map((p) => p.toLowerCase().trim());
@@ -116,17 +135,12 @@ function filterBySearch(list) {
   return list.filter((sitter) => sitter.username.toLowerCase().includes(key));
 }
 
-const searchResults = computed(() => {
+// every filter except the dates
+const filteredSitters = computed(() => {
   let results = sittersWithDistance.value
   results = filterByPets(results);
   results = filterByRating(results);
   results = filterBySearch(results);
-  if (requestedDates.value.length) {
-    results = results.filter((sitter) => {
-      const availability = sitterAvailability.value[sitter._id]
-      return availability && requestedDates.value.every((date) => availability[date] === 'available')
-    })
-  }
   results = filterByDistance(results)
   // "Recommended for me" is on: keep only the sitters that suit this owner, with the reasons why, best match first
   if (showRecommended.value && canRecommend.value) {
@@ -137,6 +151,75 @@ const searchResults = computed(() => {
   }
   return sortByDistance(results)
 });
+
+// searching by dates: only the sitters free on every chosen day
+const searchResults = computed(() => {
+  if (!requestedDates.value.length) return filteredSitters.value
+  return filteredSitters.value.filter((sitter) => freeDaysOf(sitter).length === requestedDates.value.length)
+})
+
+// "Partly available": free on some of the chosen days but not all (at most 6 shown)
+const partialResults = computed(() => {
+  if (!requestedDates.value.length) return []
+  return filteredSitters.value.filter((sitter) => {
+    const free = freeDaysOf(sitter).length
+    return free > 0 && free < requestedDates.value.length
+  })
+})
+const partialShown = computed(() => partialResults.value.slice(0, 6))
+
+// '9:00 am – 5:00 pm' when hours are chosen
+const timeLabel = computed(() =>
+  availableTimeFrom.value && availableTimeTo.value ? `${formatTime(availableTimeFrom.value)} – ${formatTime(availableTimeTo.value)}` : ''
+)
+
+// green / amber pill on each card, e.g. 'Free 9:00 am – 5:00 pm, all 3 days' or 'Free 2 of 3 days'
+function freeNoteFor(sitter) {
+  const total = requestedDates.value.length
+  if (!total) return ''
+  const free = freeDaysOf(sitter).length
+  if (free < total) return `Free ${free} of ${total} days`
+  const days = total === 1 ? fmtDate(availableFrom.value) : `all ${total} days`
+  return timeLabel.value ? `Free ${timeLabel.value}, ${days}` : `Free ${days}`
+}
+// one chip per chosen day, for partly free sitters
+function dayChipsFor(sitter) {
+  const free = freeDaysOf(sitter)
+  return requestedDates.value.map((day) => ({ day, free: free.includes(day) }))
+}
+// why the first two days aren't free, e.g. 'Fri 6: Booked 2:00 pm – 4:00 pm'
+const dayName = d => new Date(`${d}T00:00:00`).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric' })
+function freeReasonFor(sitter) {
+  const blocked = freeBySitter.value[sitter._id]?.blockedDays || {}
+  return requestedDates.value.filter((day) => blocked[day]).slice(0, 2).map((day) => `${dayName(day)}: ${blocked[day]}`).join(' · ')
+}
+
+// no one is free every day: do the partly free sitters cover every day between them?
+// e.g. 'Daniel K. and Priya R. together cover every day.' (most days first, then whoever adds a missing day)
+const coverNote = computed(() => {
+  const covered = new Set()
+  const names = []
+  const byMostDays = [...partialResults.value].sort((a, b) => freeDaysOf(b).length - freeDaysOf(a).length)
+  for (const sitter of byMostDays) {
+    const adds = freeDaysOf(sitter).filter((day) => !covered.has(day))
+    if (!adds.length) continue
+    adds.forEach((day) => covered.add(day))
+    names.push(sitter.username)
+  }
+  if (covered.size < requestedDates.value.length || names.length < 2) return ''
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]} together cover every day.`
+})
+
+// the searched dates and times go along to the profile and the booking form, so they can be filled in
+const bookingQuery = computed(() => {
+  if (!requestedDates.value.length) return {}
+  const query = { startDate: availableFrom.value, endDate: availableTo.value }
+  if (timeLabel.value) {
+    query.startTime = availableTimeFrom.value
+    query.endTime = availableTimeTo.value
+  }
+  return query
+})
 
 //display for active filters
 const fmtDate = d => new Date(`${d}T00:00:00`).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })
@@ -154,9 +237,12 @@ const activeFilters = computed(() => {
     clear: () => { maxDistanceKm.value = maxDistanceLimit }
   })
 
+  // same wording as the date button, e.g. '5 – 8 Nov, 9:00 am – 5:00 pm each day'
   if (availableFrom.value && availableTo.value) chips.push({
-    key: 'dates', label: `${fmtDate(availableFrom.value)} – ${fmtDate(availableTo.value)}`,
-    clear: () => { availableFrom.value = ''; availableTo.value = '' }
+    key: 'dates',
+    label: shortDateRange(availableFrom.value, availableTo.value) +
+      (timeLabel.value ? `, ${timeLabel.value}${availableFrom.value !== availableTo.value ? ' each day' : ''}` : ''),
+    clear: () => { availableFrom.value = ''; availableTo.value = ''; availableTimeFrom.value = ''; availableTimeTo.value = '' }
   })
 
 
@@ -190,6 +276,8 @@ function clearFilters(){
   maxDistanceKm.value = maxDistanceLimit
   availableFrom.value = ""
   availableTo.value = ""
+  availableTimeFrom.value = ""
+  availableTimeTo.value = ""
   showRecommended.value = false
 }
 
@@ -312,7 +400,7 @@ const { page, pageItems: pagedSitters, goPage, reset } = usePagination(searchRes
 })
 
 watch(
-  [searchKey, selectedPets, otherPets, userRating, origin, maxDistanceKm, availableFrom, availableTo, showRecommended],
+  [searchKey, selectedPets, otherPets, userRating, origin, maxDistanceKm, availableFrom, availableTo, availableTimeFrom, availableTimeTo, showRecommended],
   reset,
   { deep: true }
 )
@@ -349,7 +437,7 @@ onBeforeUnmount(() => {
 
         <!-- the sitter count, (owners only) the "Recommended for me" on/off button, then the active filter chips -->
         <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-          <span class="text-secondary">{{ searchResults.length }} sitters</span>
+          <span class="text-secondary">{{ searchResults.length }} sitters<template v-if="partialResults.length"> · {{ partialResults.length }} partly available</template></span>
           <button v-if="isOwner" type="button" class="rec-btn" :class="{ 'rec-btn--on': showRecommended }"
                   :aria-pressed="showRecommended" @click="showRecommended = !showRecommended">
             ✨ Recommended for me <span v-if="showRecommended" aria-hidden="true">✕</span>
@@ -383,7 +471,7 @@ onBeforeUnmount(() => {
 
             <DistanceFilter v-model="maxDistanceKm" :limit="maxDistanceLimit" :reference-label="referenceLabel" />
 
-            <DateRangeFilter v-model:from="availableFrom" v-model:to="availableTo" />
+            <DateRangeFilter v-model:from="availableFrom" v-model:to="availableTo" v-model:time-from="availableTimeFrom" v-model:time-to="availableTimeTo" />
 
             <AdditionalFilters v-model:pets="selectedPets" v-model:other="otherPets" v-model:rating="userRating" />
           </FilterPanel>
@@ -399,7 +487,7 @@ onBeforeUnmount(() => {
               aria-controls="offcanvasBottom">
               ⫶☰ Filters
             </button>
-            <button type="button" class="btn btn-brand-outline btn-sm fw-bold flex-fill flex-md-grow-0 ms-md-auto d-lg-none"
+            <button type="button" class="btn btn-brand-outline btn-sm fw-bold flex-fill d-lg-none"
                 @click="showMapModal = true">
               🗺 Show map
             </button>
@@ -410,15 +498,40 @@ onBeforeUnmount(() => {
             No sitters match what your pets need yet. Turn this off to see everyone.
           </p>
 
+          <!-- searching by dates: sitters free on every day first -->
+          <div v-if="datesError" class="alert alert-warning py-2 small">{{ datesError }}</div>
+          <template v-else-if="requestedDates.length">
+            <h2 class="group-title">Free for the whole range <span v-if="!checkingDates">{{ searchResults.length }} sitter{{ searchResults.length === 1 ? '' : 's' }}</span></h2>
+            <p v-if="checkingDates" class="text-secondary small mb-0">Checking availability…</p>
+            <div v-else-if="!searchResults.length" class="dates-empty">
+              {{ requestedDates.length === 1 ? `No sitter is free on ${fmtDate(availableFrom)}` : `No single sitter is free for all ${requestedDates.length} days` }}{{ timeLabel ? ' at those hours' : '' }}.
+              <template v-if="partialResults.length"> See who covers part of it below.</template>
+              <div v-if="coverNote" class="mt-1 fw-semibold">{{ coverNote }}</div>
+            </div>
+          </template>
+
           <!-- grid with equal rows, so every card is as tall as the tallest one on the page -->
           <div ref="listEl" class="sitter-list" :class="{ 'rec-dim': showRecommended && !canRecommend }">
             <div v-for="sitter in pagedSitters" :key="sitter._id">
-              <SitterProfileCard :sitter="sitter" :reasons="sitter.match?.reasons || []">
-                <router-link :to="`/users/${sitter._id}`" class="btn btn-brand-outline rounded col-12 fw-semibold mt-3">View Profile</router-link>
+              <SitterProfileCard :sitter="sitter" :reasons="sitter.match?.reasons || []" :free-note="freeNoteFor(sitter)">
+                <router-link :to="{ path: `/users/${sitter._id}`, query: bookingQuery }" class="btn btn-brand-outline rounded col-12 fw-semibold mt-1">View Profile</router-link>
               </SitterProfileCard>
             </div>
           </div>
           <PaginationBar :page="page" :total="searchResults.length" :page-size="PAGE_SIZE" @change="goPage" />
+
+          <!-- free on some of the days, not all -->
+          <template v-if="partialShown.length && !checkingDates">
+            <h2 class="group-title">Partly available <span>book each part separately</span></h2>
+            <div class="sitter-list">
+              <div v-for="sitter in partialShown" :key="sitter._id">
+                <SitterProfileCard :sitter="sitter" :reasons="sitter.match?.reasons || []" :free-note="freeNoteFor(sitter)"
+                  :day-chips="dayChipsFor(sitter)" :free-reason="freeReasonFor(sitter)">
+                  <router-link :to="{ path: `/users/${sitter._id}`, query: bookingQuery }" class="btn btn-brand-outline rounded col-12 fw-semibold mt-3">View Profile</router-link>
+                </SitterProfileCard>
+              </div>
+            </div>
+          </template>
         </div>
 
         <!-- map: right column at lg only -->
@@ -485,13 +598,37 @@ onBeforeUnmount(() => {
 }
 .rec-dim { opacity: 0.5; } /* the full list stays underneath, faded */
 
+.group-title { /* "Free for the whole range" / "Partly available" */
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  border-bottom: 1px solid #e3dad5;
+  padding-bottom: 0.3rem;
+  margin: 0.75rem 0 0;
+}
+.group-title span {
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+.dates-empty {
+  border: 1px dashed #e3dad5;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  margin-top: 0.75rem;
+  color: #6c757d;
+}
+
 .sitter-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr); /* the column can be narrower than a card's content, so cards never push the page wider than the screen */
-  grid-auto-rows: 1fr;
   gap: 1rem;
   margin-top: 1rem;
   margin-bottom: 1rem;
+  align-items:start;
 }
 
 /* phones: a little more room from the page edges */
