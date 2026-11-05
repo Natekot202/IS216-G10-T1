@@ -326,7 +326,7 @@ onMounted(async () => {
         <div v-if="booking.cancelReason" class="mt-2"><strong>Reason:</strong> “{{ booking.cancelReason }}”</div>
       </div>
       <div v-else-if="booking.status === 'expired'" class="alert alert-secondary">
-        This request expired: the start time passed before the owner confirmed it.
+        This booking is no longer valid: its start time has passed.
       </div>
       <div v-else-if="booking.status === 'accepted'" class="alert alert-info">
         {{ isSitter ? 'You accepted this request. Waiting for the owner to confirm; the hours are held for you until then.'
