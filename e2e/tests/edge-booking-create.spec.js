@@ -116,6 +116,13 @@ test.describe('Booking request: server rules (API)', () => {
     await expectError(await send(page, bookingBody(ids, { startDate: day(15), endDate: day(14) })), 400, 'End date must be on or after the start date.')
   })
 
+  test('notes to the sitter can be up to 1000 characters', async ({ page }) => {
+    await expectError(await send(page, bookingBody(ids, { notes: 'n'.repeat(1001) })), 400, 'Notes to the sitter can be up to 1000 characters.')
+    // exactly 1000 is fine (then withdrawn again)
+    const id = await createBooking(page.request, bookingBody(ids, { notes: 'n'.repeat(1000) }))
+    await cleanUp(page.request, id)
+  })
+
   test('a start time that has already passed today is refused', async ({ page }) => {
     // 7:00–7:30 am today is in the past from 7:00 am Singapore time on
     const sgHour = Number(new Date().toLocaleString('en-GB', { timeZone: 'Asia/Singapore', hour: '2-digit', hour12: false }))
