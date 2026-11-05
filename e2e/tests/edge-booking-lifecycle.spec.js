@@ -3,7 +3,10 @@
 //
 // Each test makes its OWN fresh booking requests (days 16–19) and cleans them up, so the seeded requests other tests use are never touched.
 import { test, expect } from '@playwright/test'
-import { apiAs, seedData, SEED, day, bookingBody, createBooking, cleanUp, expectError } from './helpers.js'
+import {
+  apiAs, newUser, seedData, SEED, day, bookingBody, createBooking, cleanUp, expectError,
+  closeDb, moveBooking, endedAgo, runScheduledJobs, notificationsOf
+} from './helpers.js'
 
 let owner, sitter, sitter2, ids
 
@@ -18,6 +21,7 @@ test.afterAll(async () => {
   await owner.context.close()
   await sitter.context.close()
   await sitter2.context.close()
+  await closeDb()
 })
 
 const setStatus = (who, id, status) => who.api.patch(`/api/bookings/${id}/status`, { data: { status } })
@@ -133,9 +137,75 @@ test.describe('Withdraw and cancel (P5)', () => {
   })
 })
 
+// A brand-new owner with one pet, and a request of theirs to SecondSitter (day 16, 9am to 12pm).
+// Used by tests that move a booking's start into the past, so SeedOwner's bookings and pets are never touched.
+async function newOwnerRequest(browser) {
+  const newOwner = await newUser(browser, 'owner')
+  const pet = await newOwner.api.post('/api/pets', { multipart: { name: 'Pepper', species: 'Dog' } })
+  const petId = (await pet.json())._id
+  const id = await createBooking(newOwner.api, bookingBody(ids, { petIds: [petId], startDate: day(16), endDate: day(16) }))
+  return { newOwner, id }
+}
+// Moves the booking's hours into the past in the test database: it started 1.5 to 2 hours ago
+const startedAlready = (id) => moveBooking(id, [endedAgo(30)])
+
+test.describe('After the start time has passed', () => {
+  test('an accepted request can no longer be confirmed or cancelled', async ({ browser }) => {
+    const { newOwner, id } = await newOwnerRequest(browser)
+    expect((await setStatus(sitter2, id, 'accepted')).status()).toBe(200)
+    await startedAlready(id)
+    await expectError(await confirm(newOwner, id), 400, 'The start time has already passed, so this booking can no longer be confirmed.')
+    await expectError(await cancel(newOwner, id, 'Too late'), 400, 'This booking has already started, so it can no longer be cancelled.')
+    await newOwner.context.close()
+  })
+
+  test('a confirmed booking can no longer be cancelled, by the owner or the sitter', async ({ browser }) => {
+    const { newOwner, id } = await newOwnerRequest(browser)
+    expect((await setStatus(sitter2, id, 'accepted')).status()).toBe(200)
+    expect((await confirm(newOwner, id)).status()).toBe(200)
+    await startedAlready(id)
+    await expectError(await cancel(newOwner, id, 'Changed my mind'), 400, 'This booking has already started, so it can no longer be cancelled.')
+    await expectError(await cancel(sitter2, id, 'Feeling unwell'), 400, 'This booking has already started, so it can no longer be cancelled.')
+    await newOwner.context.close()
+  })
+})
+
 test.describe('Expired requests (P4)', () => {
-  // The expiry job runs every 5 minutes, which is too slow to wait for in a test,
-  // so this checks the result using the seed's already-expired booking.
+  // The server checks for these every 5 minutes. The tests' server has that timer off, so these tests move a request's
+  // start into the past in the test database, then run the check themselves (runScheduledJobs).
+  test('a pending request whose start time passes expires, and the owner is told', async ({ browser }) => {
+    const { newOwner, id } = await newOwnerRequest(browser)
+    await startedAlready(id)
+    await runScheduledJobs(newOwner.api)
+    expect((await (await newOwner.api.get(`/api/bookings/${id}`)).json()).status).toBe('expired')
+    const notes = await notificationsOf(newOwner.api)
+    expect(notes.some((n) => n.type === 'booking-expired' && n.booking === id)).toBeTruthy()
+    await newOwner.context.close()
+  })
+
+  test('an accepted request the owner never confirmed expires too', async ({ browser }) => {
+    const { newOwner, id } = await newOwnerRequest(browser)
+    expect((await setStatus(sitter2, id, 'accepted')).status()).toBe(200)
+    await startedAlready(id)
+    await runScheduledJobs(newOwner.api)
+    expect((await (await newOwner.api.get(`/api/bookings/${id}`)).json()).status).toBe('expired')
+    await newOwner.context.close()
+  })
+
+  test('a request whose start is still to come, and a confirmed booking, do not expire', async ({ browser }) => {
+    const later = await newOwnerRequest(browser) // day 16: still to come
+    const started = await newOwnerRequest(browser)
+    expect((await setStatus(sitter2, started.id, 'accepted')).status()).toBe(200)
+    expect((await confirm(started.newOwner, started.id)).status()).toBe(200)
+    await startedAlready(started.id) // confirmed, and started: the sitter starts the session from here
+    await runScheduledJobs(later.newOwner.api)
+    expect((await (await later.newOwner.api.get(`/api/bookings/${later.id}`)).json()).status).toBe('pending')
+    expect((await (await started.newOwner.api.get(`/api/bookings/${started.id}`)).json()).status).toBe('confirmed')
+    await cleanUp(later.newOwner.api, later.id)
+    await later.newOwner.context.close()
+    await started.newOwner.context.close()
+  })
+
   test('an expired booking shows as Expired', async () => {
     const page = await owner.context.newPage()
     await page.goto(`/bookings/${ids.booking(SEED.expired)}`)

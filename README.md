@@ -87,13 +87,25 @@ IS216-G10-T1/
   PetSociety features (auth, adoption listings, etc.) on top of a working
   foundation.
 
-## Testing (End-to-End, Playwright)
+## Testing
 
-### Setup (once)
+There are three kinds of test, following the Week 10 lessons:
+
+| Kind | Tool | What it checks | Where | Run |
+|---|---|---|---|---|
+| Unit | Vitest | One function on its own, e.g. the 30-minute sharing cutoff, the 25 m / 50 m off-route thresholds, the back-home reminder | `server/src/utils/__tests__/`, `client/src/utils/__tests__/` | `pnpm test` in `server` or `client` |
+| Component and integration | Vitest + Vue Test Utils | Vue components on their own (`VisitReportModal`, `ReviewCard`), and together (`RecentlyEnded` with `ReportRows` and `ReviewCard`) | `client/src/components/__tests__/` | `pnpm test` in `client` |
+| End-to-end | Playwright | The whole app: pages, API rules and database together | `e2e/tests/` | see below |
+
+Unit and component tests need no server or database. Run `pnpm install` in `server` and `client` first.
+
+### End-to-end tests (Playwright)
+
+#### Setup (once)
 1. Make sure `server/.env` has `MONGO_URI` (and `STRIPE_SECRET_KEY` for the payment test).
 2. `cd e2e && pnpm install && pnpm exec playwright install chromium`
 
-### Run
+#### Run
 ```bash
 cd e2e
 pnpm playwright test            # resets the test database, starts its own client + server, runs all tests
@@ -120,3 +132,5 @@ The tests never touch your own data. They use their own database, `petsociety_e2
 | … | … | … |
 
 Notes: tests run one at a time (shared database). The Stripe test stops at the redirect to Stripe Checkout (test mode, no real money).
+
+Rules that depend on the clock (location sharing stops 30 minutes after the booked end, a forgotten session ends 6 hours after it, a request expires at its start time) can't be waited for. Those tests move a booking's times into the past in the test database, then run the server's scheduled checks straight away through `/api/cron/daily`. The tests' server doesn't run those checks by itself every 5 minutes (`BACKGROUND_JOBS=off` in `e2e/e2eEnv.js`), so a check can never fire halfway through a test.

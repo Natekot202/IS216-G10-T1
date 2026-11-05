@@ -1,7 +1,7 @@
 // Feature list section 12 (payments, path P10) and section 13 (reviews and ratings).
 // TC-11 already checks that Pay now opens Stripe Checkout, and TC-13 the sitter's Transactions page.
 import { test, expect } from '@playwright/test'
-import { apiAs, newUser, seedData, SEED, day, bookingBody, createBooking, cleanUp, expectError } from './helpers.js'
+import { apiAs, newUser, seedData, SEED, day, bookingBody, createBooking, cleanUp, expectError, sessionBooking, moveBooking, closeDb } from './helpers.js'
 
 let owner, sitter, ids
 test.beforeAll(async ({ browser }) => {
@@ -12,6 +12,7 @@ test.beforeAll(async ({ browser }) => {
 test.afterAll(async () => {
   await owner.context.close()
   await sitter.context.close()
+  await closeDb()
 })
 
 test.describe('Payments: server rules (API)', () => {
@@ -111,5 +112,49 @@ test.describe('Reviews (API)', () => {
     }).toPass({ timeout: 10_000 })
     const seen = await (await sitter.api.get(`/api/reviews/booking/${ids.booking(SEED.completed)}`)).json()
     expect(JSON.stringify(seen)).toContain('Mochi loved it (E2E test)')
+  })
+})
+
+// ---------- Reviews close 30 days after the booking ends ----------
+// Each test uses a brand-new owner's completed booking, moved back in time in the test database.
+
+test.describe('Reviews close 30 days after the booking ends', () => {
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  // a time in milliseconds -> '5 Oct', in Singapore time (how the pages write dates)
+  const shortDate = (ms) => {
+    const d = new Date(ms + 8 * 60 * 60 * 1000)
+    return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`
+  }
+  // A completed one-day booking that ended `n` days ago at 12 pm
+  async function endedDaysAgo(browser, n) {
+    const b = await sessionBooking(browser, { status: 'completed' })
+    await moveBooking(b.bookingId, [{ date: day(-n), startTime: '09:00', endTime: '12:00' }])
+    return b
+  }
+  const review = (b) => b.owner.api.post('/api/reviews', { data: { bookingId: b.bookingId, rating: 4, comment: 'E2E' } })
+
+  test('31 days after the end, a review is refused, and Booking Detail says when reviews closed', async ({ browser }) => {
+    const b = await endedDaysAgo(browser, 31)
+    await expectError(await review(b), 400, 'Reviews close 30 days after a booking ends, so this booking can no longer be reviewed.')
+
+    const { reviewOpenUntil } = await (await b.owner.api.get(`/api/bookings/${b.bookingId}`)).json()
+    expect(reviewOpenUntil).toBe(Date.parse(`${day(-31)}T12:00:00+08:00`) + 30 * 24 * 60 * 60 * 1000)
+    const page = await b.owner.context.newPage()
+    await page.goto(`/bookings/${b.bookingId}`)
+    await expect(page.getByText(`Reviews for this booking closed on ${shortDate(reviewOpenUntil)}.`)).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Submit review' })).toHaveCount(0)
+    await page.close()
+    await b.close()
+  })
+
+  test('29 days after the end, Booking Detail shows the closing date and the review is accepted', async ({ browser }) => {
+    const b = await endedDaysAgo(browser, 29)
+    const { reviewOpenUntil } = await (await b.owner.api.get(`/api/bookings/${b.bookingId}`)).json()
+    const page = await b.owner.context.newPage()
+    await page.goto(`/bookings/${b.bookingId}`)
+    await expect(page.getByText(`You can review until ${shortDate(reviewOpenUntil)}.`)).toBeVisible()
+    await page.close()
+    expect((await review(b)).status()).toBe(201)
+    await b.close()
   })
 })

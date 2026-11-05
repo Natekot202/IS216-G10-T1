@@ -11,8 +11,12 @@ const PORT = process.env.PORT || 5000
 async function start() {
   try {
     await ensureDB()
-    startExpiringBookings() 
-    startEndingForgottenSessions() // sessions the sitter never ended close 6 hours after their end time
+    // The e2e tests turn these timers off (BACKGROUND_JOBS=off, see e2e/e2eEnv.js) and run the same checks
+    // when they choose to, through /api/cron/daily, so a check can't fire in the middle of a test
+    if (process.env.BACKGROUND_JOBS !== 'off') {
+      startExpiringBookings()
+      startEndingForgottenSessions() // sessions the sitter never ended close 6 hours after their end time
+    }
     recalcAllRatings().catch((err) => console.error('Rating recalculation failed', err))
     watchReviews()
     app.listen(PORT, () => {

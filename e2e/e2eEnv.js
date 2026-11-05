@@ -19,5 +19,11 @@ function e2eMongoUri() {
 }
 export const E2E_MONGO_URI = e2eMongoUri()
 
-// What the test server and the seed get on top of server/.env (dotenv never overrides these)
-export const SERVER_ENV = { MONGO_URI: E2E_MONGO_URI, PORT: String(SERVER_PORT) }
+// Lets the tests run the server's scheduled checks (expire requests, end forgotten sessions) on demand,
+// through GET /api/cron/daily, instead of waiting for them (see runScheduledJobs in tests/helpers.js)
+export const CRON_SECRET = 'e2e-cron-secret'
+
+// What the test server and the seed get on top of server/.env (dotenv never overrides these).
+// BACKGROUND_JOBS=off stops the server running those checks by itself every 5 minutes, so one can never
+// fire in the middle of a test that has just moved a booking's times into the past.
+export const SERVER_ENV = { MONGO_URI: E2E_MONGO_URI, PORT: String(SERVER_PORT), CRON_SECRET, BACKGROUND_JOBS: 'off' }

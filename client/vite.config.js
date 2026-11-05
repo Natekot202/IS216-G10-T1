@@ -4,6 +4,12 @@ import vue from '@vitejs/plugin-vue'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [vue()],
+  // Unit and component tests (Vitest): pnpm test. jsdom gives the tests a browser-like page to mount components on.
+  // The Playwright end-to-end tests are separate, in the e2e folder.
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/__tests__/*.spec.js']
+  },
   // MapLibre loads its worker relative to its own file; pre-bundling moves
   // the file into .vite/deps and the worker can no longer be found
   optimizeDeps: {
