@@ -218,7 +218,7 @@ onMounted(loadDashboard)
   background-color: var(--accent-deep);
 }
 .main-btn:hover {
-  background-color: #a8431a;
+  background-color: var(--accent-deep-hover);
   color: #fff;
 }
 .outline-btn {
