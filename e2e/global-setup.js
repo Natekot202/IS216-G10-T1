@@ -6,5 +6,5 @@ import { fileURLToPath } from 'node:url'
 export default async function globalSetup() {
   // the server folder, next to this e2e folder (works with the spaces in your Windows path)
   const serverDir = fileURLToPath(new URL('../server', import.meta.url))
-  execSync('pnpm seed', { cwd: serverDir, stdio: 'inherit' })
+  execSync('pnpm seed:demo', { cwd: serverDir, stdio: 'inherit' })
 }
